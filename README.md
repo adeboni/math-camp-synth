@@ -1,2 +1,4 @@
-# math-camp-synth
-Burning Man Math Camp Pendulum Synth
+# Burning Man Math Camp Synths
+2022: Pendulum
+
+2023: Jukebox
