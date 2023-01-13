@@ -1,12 +1,25 @@
+#define ShiftRegisterPWM_LATCH_PORT PORTB
+#define ShiftRegisterPWM_LATCH_MASK 0B00000001
+#define ShiftRegisterPWM_DATA_PORT PORTB
+#define ShiftRegisterPWM_DATA_MASK 0B00000100
+#define ShiftRegisterPWM_CLOCK_PORT PORTB
+#define ShiftRegisterPWM_CLOCK_MASK 0B00000010
+#include "ShiftRegisterPWM.h"
+ShiftRegisterPWM sr(1, 255);
+
 #include <LiquidCrystal.h>
-#include <SerialTransfer.h>
-
-#define NES_DAT_PIN 10
-#define NES_CLK_PIN 8
-#define NES_LTC_PIN 9
-
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+
+#include <SerialTransfer.h>
 SerialTransfer uartTransfer;
+
+#define NES_DAT_PIN 13
+#define NES_CLK_PIN 7
+#define NES_LTC_PIN 6
+
+#define LED_DAT_PIN 10
+#define LED_CLK_PIN 9
+#define LED_LTC_PIN 8
 
 struct {
   char line1[41];
@@ -37,6 +50,10 @@ uint8_t readNesController() {
 }
 
 void setup() {
+  pinMode(LED_DAT_PIN, OUTPUT);
+  pinMode(LED_CLK_PIN, OUTPUT);
+  pinMode(LED_LTC_PIN, OUTPUT);
+  
   pinMode(NES_DAT_PIN, INPUT);
   pinMode(NES_CLK_PIN, OUTPUT);
   pinMode(NES_LTC_PIN, OUTPUT);
@@ -48,10 +65,12 @@ void setup() {
 
   Serial.begin(115200);
   uartTransfer.begin(Serial);
+
+  sr.interrupt(ShiftRegisterPWM::UpdateFrequency::Fast);
 }
 
 void loop() {
-  uint8_t nesVal = readNesController();
+  uint8_t nesVal = readNesController();  
   if (txStruct.nes != nesVal) {
     txStruct.nes = nesVal;
     uartTransfer.sendDatum(txStruct);
@@ -64,5 +83,10 @@ void loop() {
     lcd.print(rxStruct.line1);
     lcd.setCursor(0, 1);
     lcd.print(rxStruct.line2);
+  }
+
+  for (uint8_t i = 0; i < 6; i++) {
+    uint8_t val = (uint8_t)(((float)sin(millis() / 150.0 + i / 6.0 * 2.0 * PI) + 1) * 128);
+    sr.set(i+2, val);
   }
 }
