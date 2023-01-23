@@ -14,5 +14,6 @@ int currPreset = -1;
 uint8_t volKnob = 0;
 uint8_t cv[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 uint8_t cvPins[8] = {25, 26, 24, 22, 40, 17, 16, 41};
+uint8_t audioIOMapping[4] = {1, 0, 3, 2};
 
 #endif /* GLOBALS_H_ */

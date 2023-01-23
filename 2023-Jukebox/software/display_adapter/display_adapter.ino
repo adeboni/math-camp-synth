@@ -70,7 +70,7 @@ void setup() {
 }
 
 void loop() {
-  uint8_t nesVal = readNesController();  
+  uint8_t nesVal = readNesController();
   if (txStruct.nes != nesVal) {
     txStruct.nes = nesVal;
     uartTransfer.sendDatum(txStruct);
@@ -87,6 +87,6 @@ void loop() {
 
   for (uint8_t i = 0; i < 6; i++) {
     uint8_t val = (uint8_t)(((float)sin(millis() / 150.0 + i / 6.0 * 2.0 * PI) + 1) * 128);
-    sr.set(i+2, val);
+    sr.set(i + 2, val);
   }
 }

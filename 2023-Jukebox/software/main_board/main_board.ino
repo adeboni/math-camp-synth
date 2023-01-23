@@ -24,7 +24,7 @@ void updateAudioSettings(int channel, const char *option, const char *newVal) {
      delete audioChain[channel].vcoToVcf;
     
      if (strcmp(newVal, "EXT IN") == 0) {
-       audioChain[channel].vcoToVcf = new AudioConnection(audioInput, channel, audioChain[channel].filter, 0);
+       audioChain[channel].vcoToVcf = new AudioConnection(audioInput, audioIOMapping[channel], audioChain[channel].filter, 0);
        audioChain[channel].wavPlaying = false;
      } else {
        sprintf(audioChain[channel].wavFileName, "/Audio/%s.raw", newVal);
@@ -86,7 +86,7 @@ void updateAudioSettings() {
     updateAudioSettings(i, "Gain Mod", preset["Audio"][i]["Gain Mod"].as<char*>());
 
     delete audioChain[i].vcaToOutput;
-    audioChain[i].vcaToOutput = new AudioConnection(audioChain[i].amp, 0, audioOutput, i);
+    audioChain[i].vcaToOutput = new AudioConnection(audioChain[i].amp, 0, audioOutput, audioIOMapping[i]);
   }
 }
 
@@ -163,13 +163,13 @@ void loadPreset(int presetNum) {
 
 void setup() {
   Serial.begin(9600);
-  AudioMemory(40);
+  AudioMemory(50);
 
   AudioNoInterrupts();
   sgtl5000_1.setAddress(HIGH);
   sgtl5000_1.enable();
   sgtl5000_1.inputSelect(AUDIO_INPUT_LINEIN);
-  sgtl5000_1.adcHighPassFilterEnable();
+  sgtl5000_1.adcHighPassFilterDisable();
   sgtl5000_1.lineInLevel(5);
   sgtl5000_1.dacVolumeRamp();
   sgtl5000_1.dacVolume(0);
@@ -177,7 +177,7 @@ void setup() {
   sgtl5000_2.setAddress(LOW);
   sgtl5000_2.enable();
   sgtl5000_2.inputSelect(AUDIO_INPUT_LINEIN);
-  sgtl5000_2.adcHighPassFilterEnable();
+  sgtl5000_2.adcHighPassFilterDisable();
   sgtl5000_2.lineInLevel(5);
   sgtl5000_2.dacVolumeRamp();
   sgtl5000_2.dacVolume(0);
