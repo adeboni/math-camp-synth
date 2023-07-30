@@ -17,15 +17,12 @@
 #define SCREEN_WIDTH  128
 #define SCREEN_HEIGHT 64
 
-char wavFileName[16];
-char txtFileName[16];
-
 AudioPlaySdRaw       playSdWav;
 AudioOutputI2SQuad   i2s_out;
-AudioConnection      patchCord07(playSdWav, 0, i2s_out, 0);
-AudioConnection      patchCord08(playSdWav, 0, i2s_out, 1);
-AudioConnection      patchCord09(playSdWav, 0, i2s_out, 2);
-AudioConnection      patchCord10(playSdWav, 0, i2s_out, 3);
+AudioConnection      patchCord1(playSdWav, 0, i2s_out, 0);
+AudioConnection      patchCord2(playSdWav, 0, i2s_out, 1);
+AudioConnection      patchCord3(playSdWav, 0, i2s_out, 2);
+AudioConnection      patchCord4(playSdWav, 0, i2s_out, 3);
 AudioControlSGTL5000 sgtl5000_1;
 AudioControlSGTL5000 sgtl5000_2;
 
@@ -38,44 +35,40 @@ struct {
   uint8_t number;
 } rxStruct;
 
-struct __attribute__((packed)) STRUCT {
+struct {
   uint32_t songLength;
   uint8_t songName[20];
 } txStruct;
 
 SerialTransfer uartTransfer;
 
-void setAudioInput(char letter, char number) {
+void setAudioInput(uint8_t letter, uint8_t number) {
   playSdWav.stop();
+  delay(500);
   displayMessage("Stopped");
   
-  sprintf(wavFileName, "/Audio/%c/%c.RAW", letter, number);
-  sprintf(txtFileName, "/Audio/%c/%c.TXT", letter, number);
+  char wavFileName[16];
+  char txtFileName[16];
+  sprintf(wavFileName, "/Audio/%c/%c.RAW", (char)letter, (char)number);
+  sprintf(txtFileName, "/Audio/%c/%c.TXT", (char)letter, (char)number);
   
   if (!SD.exists(wavFileName)) {
     return;
   }
   else {
-    playSdWav.play(wavFileName);
-
-    for (int i = 0; i < 20; i++)
-      txStruct.songName[i] = '\0';
+    memset(txStruct.songName, 0, sizeof(txStruct.songName));
     File songInfo = SD.open(txtFileName);
     if (songInfo) {
       int bytesRead = 0;
-      while (songInfo.available() && bytesRead < 19) {
-        txStruct.songName[bytesRead] = songInfo.read();
-        bytesRead++;
-      }
+      while (songInfo.available() && bytesRead < 19)
+        txStruct.songName[bytesRead++] = songInfo.read();
       songInfo.close();
-      
-      for (int i = bytesRead; i < 20; i++)
-        txStruct.songName[i] = '\0';
     }
 
     txStruct.songLength = (uint32_t)(playSdWav.lengthMillis());
     uartTransfer.sendDatum(txStruct);
     displayMessage(wavFileName);
+    playSdWav.play(wavFileName);
   }
 }
 

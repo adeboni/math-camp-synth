@@ -209,6 +209,7 @@ void loop() {
     }
     
     updateDisplay();
+    delay(500);
   }
 
   lastButton = button;
