@@ -50,6 +50,12 @@ ArduinoQueue<songID> songQueue(50);
 unsigned long lastUpdate = 0;
 int songTitleIndex = 0;
 unsigned long animationTimeLeft[4] = {0};
+unsigned long timeToPowerOff = POWER_TIMEOUT_MS;
+
+void lightButtons(int pressedButton) {
+  for (int i = 0; i < 7; i++)
+    sr.set(BTN_LED_ARRAY[i], pressedButton == i + 1 ? 255 : (timeToPowerOff > 0 ? 32 : 0));
+}
 
 int getButton() {
   float val = (100.0 * analogRead(BTN_PIN)) / refVoltageButtons;
@@ -78,6 +84,9 @@ int getMode() {
 
 void updateDisplay() {
   lcd.clear();
+  if (timeToPowerOff == 0)
+    return;
+    
   lcd.setCursor(0, 0);
   lcd.print("Queue: ");
   for (int i = 0; i < min(songQueue.itemCount(), 6); i++) {
@@ -113,7 +122,7 @@ void updateDisplay() {
         break;
       lcd.print((char)rxStruct.songName[i]);
     }
-  
+
     rxStruct.songLength -= min(newTime - lastUpdate, rxStruct.songLength);  
     char buf[10];
     unsigned long seconds = rxStruct.songLength / 1000;
@@ -319,16 +328,23 @@ void updateAnimations(int startAnimation = -1) {
 void loop() {
   static unsigned long lastRandomAnimation = millis();
   static unsigned long lastButtonPress = 0;
+  static unsigned long lastPowerOffTimeCheck = millis();
 
   int mode = getMode();
-  if (mode != -1 && mode != lastMode)
+  if (mode != -1 && mode != lastMode) {
     lastMode = mode;
+    timeToPowerOff = POWER_TIMEOUT_MS;
+  }
   
   unsigned long newButtonPress = millis();
   int button = getButton();
+  lightButtons(button);
 
   if (button != lastButton && button != 0 && newButtonPress - lastButtonPress > 300) {
     if (lastMode == 0) {
+      if (button > 0 && button < 7)
+        timeToPowerOff = POWER_TIMEOUT_MS;
+        
       switch (button) {
         case 1:
           pendingID.letter = constrain(pendingID.letter - 1, (byte)minLetter, (byte)maxLetter);
@@ -348,6 +364,11 @@ void loop() {
         case 6:
           playNextSong();
           break;
+        case 7:
+          if (timeToPowerOff > POWER_GRACE_MS)
+            timeToPowerOff = POWER_GRACE_MS;
+          else
+            timeToPowerOff = POWER_TIMEOUT_MS;
       }
     } else if (lastMode == 1) {
       updateAnimations(button - 1);
@@ -367,7 +388,7 @@ void loop() {
   if (millis() - lastUpdate > 1000)
     updateDisplay();
 
-  if (millis() - lastRandomAnimation > 60000 && lastMode == 0) {
+  if (millis() - lastRandomAnimation > 60000 && lastMode == 0 && timeToPowerOff > 0) {
     updateAnimations(random(4));
     lastRandomAnimation = millis();
   }
@@ -375,4 +396,15 @@ void loop() {
 
   if (rxStruct.songLength == 0 && playingID.letter != '-')
     playNextSong();
+
+  unsigned long newPowerOffTimeCheck = millis();
+  timeToPowerOff -= min(newPowerOffTimeCheck - lastPowerOffTimeCheck, timeToPowerOff);
+  lastPowerOffTimeCheck = newPowerOffTimeCheck;
+  if (timeToPowerOff == 0) {
+    if (playingID.letter != '-') {
+      while (!songQueue.isEmpty())
+        songQueue.dequeue();
+      playNextSong();
+    }
+  }
 }
