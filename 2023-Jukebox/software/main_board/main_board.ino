@@ -65,10 +65,12 @@ void setAudioInput(uint8_t letter, uint8_t number) {
       songInfo.close();
     }
 
+	delay(15);
+	playSdWav.play(wavFileName);
+	delay(15);
     txStruct.songLength = (uint32_t)(playSdWav.lengthMillis());
     uartTransfer.sendDatum(txStruct);
     displayMessage(wavFileName);
-    playSdWav.play(wavFileName);
   }
 }
 

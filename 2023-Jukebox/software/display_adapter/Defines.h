@@ -86,4 +86,4 @@ const int MOUTH_ARRAY[] = {MOUTH_B_0, MOUTH_B_1, MOUTH_B_2, MOUTH_B_3, MOUTH_B_4
                            MOUTH_R_0, MOUTH_R_1, MOUTH_R_2, MOUTH_R_3, MOUTH_R_4,
                            MOUTH_W_0, MOUTH_W_1, MOUTH_W_2, MOUTH_W_3, MOUTH_W_4};
 
-#define ANIMATION_LENGTH_MS 10000
+#define ANIMATION_LENGTH_MS 20000

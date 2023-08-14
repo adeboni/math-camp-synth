@@ -41,7 +41,7 @@ LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 SerialTransfer uartTransfer;
 
 const char minLetter = 'A';
-const char maxLetter = 'Z';
+const char maxLetter = 'U';
 int refVoltageMode = 0;
 int lastMode = 0;
 int refVoltageButtons = 0;
@@ -49,8 +49,7 @@ int lastButton = 0;
 ArduinoQueue<songID> songQueue(50);
 unsigned long lastUpdate = 0;
 int songTitleIndex = 0;
-int mouthColor = 0;
-unsigned long animationTimeLeft[9] = {0};
+unsigned long animationTimeLeft[4] = {0};
 
 int getButton() {
   float val = (100.0 * analogRead(BTN_PIN)) / refVoltageButtons;
@@ -176,6 +175,15 @@ void playNextSong() {
   uartTransfer.sendDatum(playingID);
 }
 
+void playRobbieSounds() {
+  if (playingID.letter != '-')
+    return;
+    
+  playingID = {'U', '0'};
+  rxStruct.songLength = 600000;
+  uartTransfer.sendDatum(playingID);
+}
+
 void addSongToQueue() {
   if (!songQueue.isEmpty()) {
     songID lastSong = songQueue.getTail();
@@ -206,43 +214,77 @@ void addSongToQueue() {
     playNextSong();
 }
 
+int Cube255(float value) {
+  return constrain((int)(value * value * value / 255.0 / 255.0), 0, 255);
+}
+
 void updateAnimations(int startAnimation = -1) {
   static unsigned long lastAnimationUpdate = 0;
-  
+
+  if (startAnimation >= 4)
+    return;
+    
   if (startAnimation >= 0)
     animationTimeLeft[startAnimation] = ANIMATION_LENGTH_MS;
-  if (startAnimation == 5)
-    mouthColor = random(3);
+
+  float mouthColorIndex = sin(millis() / 20 * PI / 180) + 1;
+  int mouthRedLevel = Cube255(255.0 - 85.0 * abs(0 - mouthColorIndex));
+  int mouthBlueLevel = Cube255(255.0 - 85.0 * abs(1 - mouthColorIndex));
+  int mouthWhiteLevel = Cube255(255.0 - 85.0 * abs(2 - mouthColorIndex));
+
+  float dotIndex = sin(millis() / 5 * PI / 180) * 2.5 + 2.5;
+  int lampCode[] = {1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0};
+  int lampCodeIndex = millis() / 200 % (sizeof(lampCode) / sizeof(int));
+
+  int motor3Code[] = {0, 0, 1, 0, 1, 1, 0, 0, 0, 1};
+  int motor2Code[] = {0, 1, 0, 1, 0, 1, 0, 0, 1, 0};
+  int motor1Code[] = {1, 0, 1, 1, 0, 1, 0, 1, 0, 0};
+  int motorCodeIndex = millis() / 1000 % 10;
 
   unsigned long newTime = millis();
-  for (int i = 0; i < 9; i++) {
+  for (int i = 0; i < 4; i++) {
+    int animationStage = i + ((animationTimeLeft[i] >= ANIMATION_LENGTH_MS / 2) ? 10 : 0); 
     if (animationTimeLeft[i] > 0) {
-      switch (i) {
+      playRobbieSounds();
+      
+      switch (animationStage) {
         case 0:
-          sr.set(MOTOR_0, 255);
+          for (uint8_t i = 0; i < 5; i++)
+            sr.set(MOUTH_R_ARRAY[i], (uint8_t)(((float)sin(millis() / 150.0) + 1) * (3 - abs(i % 5 - 2)) / 3.0 * 128 * mouthRedLevel / 255));
+          for (uint8_t i = 0; i < 5; i++)
+            sr.set(MOUTH_B_ARRAY[i], (uint8_t)(((float)sin(millis() / 150.0) + 1) * (3 - abs(i % 5 - 2)) / 3.0 * 128 * mouthBlueLevel / 255));
+          for (uint8_t i = 0; i < 5; i++)
+            sr.set(MOUTH_W_ARRAY[i], (uint8_t)(((float)sin(millis() / 150.0) + 1) * (3 - abs(i % 5 - 2)) / 3.0 * 16 * mouthWhiteLevel / 255));
+          break;
+        case 10:
+          for (uint8_t i = 0; i < 5; i++)
+            sr.set(MOUTH_R_ARRAY[i], (uint8_t)(((float)sin(millis() / 150.0) + 1) * 128 * mouthRedLevel / 255));
+          for (uint8_t i = 0; i < 5; i++)
+            sr.set(MOUTH_B_ARRAY[i], (uint8_t)(((float)sin(millis() / 150.0) + 1) * 128 * mouthBlueLevel / 255));
+          for (uint8_t i = 0; i < 5; i++)
+            sr.set(MOUTH_W_ARRAY[i], (uint8_t)(((float)sin(millis() / 150.0) + 1) * 16 * mouthWhiteLevel / 255));
           break;
         case 1:
-          sr.set(MOTOR_1, 255);
+          for (int i = 0; i < 6; i++) {
+            float level = 255.0 - 51.0 * abs(i - dotIndex);
+            sr.set(DOT_ARRAY[i], Cube255(level));
+          }
+          break;
+        case 11:
+          for (int i = 0; i < 6; i++)
+            sr.set(DOT_ARRAY[i], (uint8_t)(((float)sin(millis() / 150.0) + 1) * 128));
           break;
         case 2:
-          sr.set(MOTOR_2, 255);
-          sr.set(LAMP, (uint8_t)(((float)sin(millis() / 150.0) + 1) * 128));
+        case 12:
+          sr.set(MOTOR_0, motor1Code[motorCodeIndex] * 255);
+          sr.set(MOTOR_1, motor2Code[motorCodeIndex] * 255);
+          sr.set(MOTOR_2, motor3Code[motorCodeIndex] * 255);
           break;
         case 3:
-          for (uint8_t i = 0; i < 7; i++)
-            sr.set(BTN_LED_ARRAY[i], (uint8_t)(((float)sin(millis() / 150.0 + i / 7.0 * 2.0 * PI) + 1) * 128));
+          sr.set(LAMP, lampCode[lampCodeIndex] * 255);
           break;
-        case 4:
-          for (uint8_t i = 0; i < 6; i++) 
-            sr.set(DOT_ARRAY[i], (uint8_t)(((float)sin(millis() / 150.0 + i / 6.0 * 2.0 * PI) + 1) * 128));
-          break;
-        case 5:
-          for (uint8_t i = 0; i < 15; i++) {
-            if (i >= mouthColor * 5 && i < (mouthColor + 1) * 5)
-              sr.set(MOUTH_ARRAY[i], (uint8_t)(((float)sin(millis() / 150.0) + 1) * (3 - abs(i % 5 - 2)) / 3.0 * (i < 10 ? 64 : 32)));
-            else
-              sr.set(MOUTH_ARRAY[i], 0);
-          }
+        case 13:
+          sr.set(LAMP, (uint8_t)(((float)sin(millis() / 150.0) + 1) * 128));
           break;
       }
       
@@ -251,26 +293,20 @@ void updateAnimations(int startAnimation = -1) {
       if (animationTimeLeft[i] == 0) {
         switch (i) {
           case 0:
-            sr.set(MOTOR_0, 0);
-            break;
-          case 1:
-            sr.set(MOTOR_1, 0);
-            break;
-          case 2:
-            sr.set(MOTOR_2, 0);
-            sr.set(LAMP, 0);
-            break;
-          case 3:
-            for (uint8_t i = 0; i < 7; i++)
-              sr.set(BTN_LED_ARRAY[i], 0);
-            break;
-          case 4:
-            for (uint8_t i = 0; i < 6; i++)
-              sr.set(DOT_ARRAY[i], 0);
-            break;
-          case 5:
             for (uint8_t i = 0; i < 15; i++)
               sr.set(MOUTH_ARRAY[i], 0);
+            break;
+          case 1:
+            for (uint8_t i = 0; i < 6; i++)
+              sr.set(DOT_ARRAY[i], 0);  
+            break;
+          case 2:
+            sr.set(MOTOR_0, 0);
+            sr.set(MOTOR_1, 0);
+            sr.set(MOTOR_2, 0);
+            break;
+          case 3:
+            sr.set(LAMP, 0);
             break;
         }
       }
@@ -314,7 +350,7 @@ void loop() {
           break;
       }
     } else if (lastMode == 1) {
-      updateAnimations(button);
+      updateAnimations(button - 1);
     }
     
     updateDisplay();
@@ -331,8 +367,8 @@ void loop() {
   if (millis() - lastUpdate > 1000)
     updateDisplay();
 
-  if (millis() - lastRandomAnimation > 30000 && lastMode == 0) {
-    updateAnimations(random(6));
+  if (millis() - lastRandomAnimation > 60000 && lastMode == 0) {
+    updateAnimations(random(4));
     lastRandomAnimation = millis();
   }
   updateAnimations();
