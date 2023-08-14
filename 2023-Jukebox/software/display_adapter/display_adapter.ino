@@ -4,25 +4,6 @@
 #include <SerialTransfer.h>
 #include "Queue.h"
 
-uint8_t readNesController() {  
-  uint8_t tempData = 255;
-
-  digitalWrite(NES_LTC_PIN, HIGH);
-  delayMicroseconds(12);
-  digitalWrite(NES_LTC_PIN, LOW);
-
-  for (int i = 0; i < 8; i++) {
-    if (digitalRead(NES_DAT_PIN) == 0)
-      bitClear(tempData, i);
-    digitalWrite(NES_CLK_PIN, HIGH);
-    delayMicroseconds(6);
-    digitalWrite(NES_CLK_PIN, LOW);
-    delayMicroseconds(6);
-  }
-
-  return tempData;
-}
-
 struct {
   uint32_t songLength;
   uint8_t songName[20];
@@ -52,6 +33,25 @@ int songTitleIndex = 0;
 unsigned long animationTimeLeft[4] = {0};
 unsigned long timeToPowerOff = POWER_TIMEOUT_MS;
 
+uint8_t readNesController() {  
+  uint8_t tempData = 255;
+
+  digitalWrite(NES_LTC_PIN, HIGH);
+  delayMicroseconds(12);
+  digitalWrite(NES_LTC_PIN, LOW);
+
+  for (int i = 0; i < 8; i++) {
+    if (digitalRead(NES_DAT_PIN) == 0)
+      bitClear(tempData, i);
+    digitalWrite(NES_CLK_PIN, HIGH);
+    delayMicroseconds(6);
+    digitalWrite(NES_CLK_PIN, LOW);
+    delayMicroseconds(6);
+  }
+
+  return tempData;
+}
+
 void lightButtons(int pressedButton) {
   for (int i = 0; i < 7; i++)
     sr.set(BTN_LED_ARRAY[i], pressedButton == i + 1 ? 255 : (timeToPowerOff > 0 ? 32 : 0));
@@ -79,7 +79,7 @@ int getMode() {
   if (abs(val - MODE_5) < 1) return 5;
   if (abs(val - MODE_6) < 1) return 6;
   if (abs(val - MODE_7) < 1) return 7;
-  return -1;
+  return 255;
 }
 
 void updateDisplay() {
@@ -254,7 +254,8 @@ void updateAnimations(int startAnimation = -1) {
   for (int i = 0; i < 4; i++) {
     int animationStage = i + ((animationTimeLeft[i] >= ANIMATION_LENGTH_MS / 2) ? 10 : 0); 
     if (animationTimeLeft[i] > 0) {
-      playRobbieSounds();
+      if (lastMode == 1)
+        playRobbieSounds();
       
       switch (animationStage) {
         case 0:
@@ -331,7 +332,7 @@ void loop() {
   static unsigned long lastPowerOffTimeCheck = millis();
 
   int mode = getMode();
-  if (mode != -1 && mode != lastMode) {
+  if (mode != 255 && mode != lastMode) {
     lastMode = mode;
     timeToPowerOff = POWER_TIMEOUT_MS;
   }
@@ -341,10 +342,16 @@ void loop() {
   lightButtons(button);
 
   if (button != lastButton && button != 0 && newButtonPress - lastButtonPress > 300) {
-    if (lastMode == 0) {
-      if (button > 0 && button < 7)
+    if (button > 0 && button < 7)
+      timeToPowerOff = POWER_TIMEOUT_MS;
+    else if (button == 7) {
+      if (timeToPowerOff > POWER_GRACE_MS)
+        timeToPowerOff = POWER_GRACE_MS;
+      else
         timeToPowerOff = POWER_TIMEOUT_MS;
-        
+    }
+    
+    if (lastMode == 0) {   
       switch (button) {
         case 1:
           pendingID.letter = constrain(pendingID.letter - 1, (byte)minLetter, (byte)maxLetter);
@@ -364,11 +371,6 @@ void loop() {
         case 6:
           playNextSong();
           break;
-        case 7:
-          if (timeToPowerOff > POWER_GRACE_MS)
-            timeToPowerOff = POWER_GRACE_MS;
-          else
-            timeToPowerOff = POWER_TIMEOUT_MS;
       }
     } else if (lastMode == 1) {
       updateAnimations(button - 1);
