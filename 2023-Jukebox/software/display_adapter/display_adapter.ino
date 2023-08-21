@@ -241,14 +241,14 @@ void updateAnimations(int startAnimation = -1) {
   int mouthBlueLevel = Cube255(255.0 - 85.0 * abs(1 - mouthColorIndex));
   int mouthWhiteLevel = Cube255(255.0 - 85.0 * abs(2 - mouthColorIndex));
 
-  float dotIndex = sin(millis() / 5 * PI / 180) * 2.5 + 2.5;
+  float dotIndex = sin(millis() / 5 * PI / 180) * 5.0 + 2.5;
   int lampCode[] = {1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0};
-  int lampCodeIndex = millis() / 200 % (sizeof(lampCode) / sizeof(int));
+  int lampCodeIndex = millis() / 400 % (sizeof(lampCode) / sizeof(int));
 
   int motor3Code[] = {0, 0, 1, 0, 1, 1, 0, 0, 0, 1};
   int motor2Code[] = {0, 1, 0, 1, 0, 1, 0, 0, 1, 0};
   int motor1Code[] = {1, 0, 1, 1, 0, 1, 0, 1, 0, 0};
-  int motorCodeIndex = millis() / 1000 % 10;
+  int motorCodeIndex = millis() / 2000 % 10;
 
   unsigned long newTime = millis();
   for (int i = 0; i < 4; i++) {
@@ -390,7 +390,7 @@ void loop() {
   if (millis() - lastUpdate > 1000)
     updateDisplay();
 
-  if (millis() - lastRandomAnimation > 60000 && lastMode == 0 && timeToPowerOff > 0) {
+  if (millis() - lastRandomAnimation > 120000 && lastMode == 0 && timeToPowerOff > 0) {
     updateAnimations(random(4));
     lastRandomAnimation = millis();
   }
