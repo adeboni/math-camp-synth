@@ -1,0 +1,4 @@
+﻿Designator,Footprint,Quantity,Value,LCSC Part #
+"J1, J2, J3",PinHeader_1x02_P2.54mm_Vertical,3,Conn_01x02,
+"R1, R2",0603,2,10k,
+U1,DIP-14_W7.62mm,1,74HC74,
