@@ -6,3 +6,4 @@ bin/
 .vs
 .vscode
 build/
+!*.uf2
