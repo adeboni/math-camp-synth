@@ -1,2 +1,6 @@
 *-backups
 gerbers/
+__pycache__/
+obj/
+bin/
+.vs
