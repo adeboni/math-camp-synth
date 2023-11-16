@@ -7,3 +7,4 @@ bin/
 .vscode
 build/
 !*.uf2
+fp_info_cache
