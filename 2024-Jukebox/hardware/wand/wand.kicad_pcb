@@ -1619,10 +1619,10 @@
       (net 94 "Net-(J2-Pin_5)") (pinfunction "B") (pintype "passive") (tstamp 431e10a8-74d0-4a00-aeaf-fef83df2791b))
     (pad "3" thru_hole oval (at 4 0 180) (size 1.5 2.5) (drill 0.9) (layers "*.Cu" "*.Mask")
       (net 93 "unconnected-(SW1-C-Pad3)") (pinfunction "C") (pintype "passive") (tstamp ed294b73-28df-4b3b-a43c-a318a225dd1a))
-    (model "${KICAD6_3DMODEL_DIR}/Button_Switch_THT.3dshapes/SW_CuK_OS102011MA1QN1_SPDT_Angled.wrl"
-      (offset (xyz 0 0 0))
+    (model "${KIPRJMOD}/cad/EG1247--3DModel-STEP-418109.STEP"
+      (offset (xyz 2 0 0))
       (scale (xyz 1 1 1))
-      (rotate (xyz 0 0 0))
+      (rotate (xyz -90 0 0))
     )
   )
 
