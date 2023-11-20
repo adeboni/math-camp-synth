@@ -10,27 +10,24 @@
 #include "e131.h"
 #include "MAX7313.h"
 
-#define SDA_PIN 2
-#define SCL_PIN 3
-#define I2C_INST i2c1
 #define MAX7313_ADDR0 0x20
 #define MAX7313_ADDR1 0x21
 #define MAX7313_ADDR2 0x23
 
+#define BOARD_ID 0 // change this to read from the dip switches
+
 #define PLL_SYS_KHZ (133 * 1000)
 
-static wiz_NetInfo g_net_info =
-    {
-        .mac = {0x00, 0x08, 0xDC, 0x12, 0x34, 0x56}, // MAC address
-        .ip = {192, 168, 11, 2},                     // IP address
-        .sn = {255, 255, 255, 0},                    // Subnet Mask
-        .gw = {192, 168, 11, 1},                     // Gateway
-        .dns = {8, 8, 8, 8},                         // DNS server
-        .dhcp = NETINFO_STATIC                       // DHCP enable/disable
+static wiz_NetInfo g_net_info = {
+    .mac = {0x00, 0x08, 0xDC, 0x12, 0x34, 0x20 + BOARD_ID}, // MAC address
+    .ip = {10, 0, 0, 20 + BOARD_ID},                        // IP address
+    .sn = {255, 255, 255, 0},                               // Subnet Mask
+    .gw = {10, 0, 0, 1},                                    // Gateway
+    .dns = {8, 8, 8, 8},                                    // DNS server
+    .dhcp = NETINFO_STATIC                                  // DHCP enable/disable
 };
 
-static void set_clock_khz(void)
-{
+static void set_clock_khz(void) {
     set_sys_clock_khz(PLL_SYS_KHZ, true);
     clock_configure(
         clk_peri,
@@ -41,8 +38,17 @@ static void set_clock_khz(void)
     );
 }
 
-int main()
-{
+void init_w5500() {
+    wizchip_spi_initialize();
+	wizchip_cris_initialize();
+	wizchip_reset();
+	wizchip_initialize();
+	wizchip_check();
+	network_initialize(g_net_info);
+	//print_network_information(g_net_info);
+}
+
+int main() {
     set_clock_khz();
     stdio_init_all();
 
@@ -50,18 +56,28 @@ int main()
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
     gpio_put(PICO_DEFAULT_LED_PIN, 0);
 
-    max7313_init(I2C_INST, MAX7313_ADDR1, SDA_PIN, SCL_PIN);
+    // init_w5500();
+
+    max7313_init(MAX7313_ADDR1);
     for (int i = 0; i < 16; i++)
-        max7313_pinMode(I2C_INST, MAX7313_ADDR1, SDA_PIN, SCL_PIN, i, MAX7313_PINMODE_OUTPUT);
+        max7313_pinMode(MAX7313_ADDR1, i, MAX7313_PINMODE_OUTPUT);
 
-    // wizchip_spi_initialize();
-    // wizchip_cris_initialize();
-    // wizchip_reset();
-    // wizchip_initialize();
-    // wizchip_check();
-    // network_initialize(g_net_info);
-    // //print_network_information(g_net_info);
+    uint8_t dotIndexes[6] = {7, 6, 4, 2, 0, 15};
 
+    while (1) {
+        for (int j = 0; j < 6; j++) {
+            for (int i = 0; i < 16; i++) {
+                max7313_analogWrite(MAX7313_ADDR1, dotIndexes[j], i);
+                sleep_ms(50);
+            }
+            for (int i = 0; i < 16; i++) {
+                max7313_analogWrite(MAX7313_ADDR1, dotIndexes[j], 15 - i);
+                sleep_ms(50);
+            }
+        }
+    }
+
+    
     // int sockfd;
     // e131_packet_t packet;
     // e131_error_t error;
@@ -99,22 +115,4 @@ int main()
     //     */
     // }
 
-    uint8_t dotIndexes[6] = {7, 6, 4, 2, 5, 15};
-
-    while (1)
-    {
-        for (int j = 0; j < 8; j++)
-        {
-            for (int i = 0; i < 16; i++)
-            {
-                max7313_analogWrite(I2C_INST, MAX7313_ADDR1, SDA_PIN, SCL_PIN, dotIndexes[j], i);
-                sleep_ms(100);
-            }
-            for (int i = 0; i < 16; i++)
-            {
-                max7313_analogWrite(I2C_INST, MAX7313_ADDR1, SDA_PIN, SCL_PIN, dotIndexes[j], 15 - i);
-                sleep_ms(100);
-            }
-        }
-    }
 }

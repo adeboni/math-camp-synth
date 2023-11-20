@@ -30,6 +30,10 @@
 #define MAX7313_PINMODE_OUTPUT        1
 #define MAX7313_PINMODE_INPUT         0
 
+#define SDA_PIN 2
+#define SCL_PIN 3
+#define I2C_INST i2c1
+
 #define __max7313_get_regmask(port) (1<<(port%8))
 #define __max7313_get_input_reg(port) ((port < 8) ? MAX7313_READ_IN_00_07 : MAX7313_READ_IN_08_15)
 #define __max7313_get_output_reg(port) __max7313_output_registers[port/2]
@@ -49,14 +53,14 @@ static const uint8_t __max7313_output_registers[9] = {
   MAX7313_OUT_INT_MA_16
 };
 
-void max7313_init(i2c_inst_t *i2c, uint8_t i2caddr, uint8_t sda, uint8_t scl);
-void max7313_write8(i2c_inst_t *i2c, uint8_t i2caddr, uint8_t sda, uint8_t scl, uint8_t addr, uint8_t d);
-uint8_t max7313_read8(i2c_inst_t *i2c, uint8_t i2caddr, uint8_t sda, uint8_t scl, uint8_t addr);
-void max7313_enableInterrupt(i2c_inst_t *i2c, uint8_t i2caddr, uint8_t sda, uint8_t scl);
-void max7313_disableInterrupt(i2c_inst_t *i2c, uint8_t i2caddr, uint8_t sda, uint8_t scl);
-void max7313_clearInterrupt(i2c_inst_t *i2c, uint8_t i2caddr, uint8_t sda, uint8_t scl);
-void max7313_analogWrite(i2c_inst_t *i2c, uint8_t i2caddr, uint8_t sda, uint8_t scl, uint8_t num, uint8_t val);
-uint8_t max7313_digitalRead(i2c_inst_t *i2c, uint8_t i2caddr, uint8_t sda, uint8_t scl, uint8_t num);
-void max7313_pinMode(i2c_inst_t *i2c, uint8_t i2caddr, uint8_t sda, uint8_t scl, uint8_t num, uint8_t mode);
+void max7313_init(uint8_t i2caddr);
+void max7313_write8(uint8_t i2caddr, uint8_t addr, uint8_t d);
+uint8_t max7313_read8(uint8_t i2caddr, uint8_t addr);
+void max7313_enableInterrupt(uint8_t i2caddr);
+void max7313_disableInterrupt(uint8_t i2caddr);
+void max7313_clearInterrupt(uint8_t i2caddr);
+void max7313_analogWrite(uint8_t i2caddr, uint8_t num, uint8_t val);
+uint8_t max7313_digitalRead(uint8_t i2caddr, uint8_t num);
+void max7313_pinMode(uint8_t i2caddr, uint8_t num, uint8_t mode);
 
 #endif
