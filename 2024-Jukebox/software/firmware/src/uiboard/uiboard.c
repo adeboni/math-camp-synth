@@ -27,6 +27,17 @@ static wiz_NetInfo g_net_info = {
     .dhcp = NETINFO_STATIC                                  // DHCP enable/disable
 };
 
+// MAX7313 pin numbers
+uint8_t DOTS_OUT[6]    = {7, 6, 4, 2, 0, 15};        //ADDR1
+uint8_t BUTTONS_OUT[7] = {14, 13, 12, 11, 10, 9, 8}; //ADDR1
+uint8_t MOTORS_OUT[3]  = {5, 3, 1}                   //ADDR1
+uint8_t LAMP_OUT[1]    = {8}                         //ADDR0
+uint8_t MOUTH_OUT[15]  = {13, 12, 11, 10, 9, //RED     ADDR0
+                          7, 5, 3, 1, 15,    //WHITE
+                          6, 4, 2, 0, 14}    //BLUE
+uint8_t MODE_IN[8]     = {7, 5, 3, 1, 0, 6, 4, 2}    //ADDR2
+uint8_t BUTTONS_IN[7]  = {14, 13, 12, 11, 10, 9, 8}  //ADDR2
+
 static void set_clock_khz(void) {
     set_sys_clock_khz(PLL_SYS_KHZ, true);
     clock_configure(
@@ -56,22 +67,40 @@ int main() {
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
     gpio_put(PICO_DEFAULT_LED_PIN, 0);
 
-    // init_w5500();
-
+    max7313_init(MAX7313_ADDR0);
     max7313_init(MAX7313_ADDR1);
-    for (int i = 0; i < 16; i++)
-        max7313_pinMode(MAX7313_ADDR1, i, MAX7313_PINMODE_OUTPUT);
+    max7313_init(MAX7313_ADDR2);
 
-    uint8_t dotIndexes[6] = {7, 6, 4, 2, 0, 15};
+    for (int i = 0; i < 16; i++) {
+        max7313_pinMode(MAX7313_ADDR0, i, MAX7313_PINMODE_OUTPUT);
+        max7313_pinMode(MAX7313_ADDR1, i, MAX7313_PINMODE_OUTPUT);
+        max7313_pinMode(MAX7313_ADDR2, i, MAX7313_PINMODE_INPUT);
+
+        max7313_analogWrite(MAX7313_ADDR0, i, 0);
+        max7313_analogWrite(MAX7313_ADDR1, i, 0);
+    }
+
+    // init_w5500();
 
     while (1) {
         for (int j = 0; j < 6; j++) {
             for (int i = 0; i < 16; i++) {
-                max7313_analogWrite(MAX7313_ADDR1, dotIndexes[j], i);
+                max7313_analogWrite(MAX7313_ADDR1, DOTS_OUT[j], i);
                 sleep_ms(50);
             }
             for (int i = 0; i < 16; i++) {
-                max7313_analogWrite(MAX7313_ADDR1, dotIndexes[j], 15 - i);
+                max7313_analogWrite(MAX7313_ADDR1, DOTS_OUT[j], 15 - i);
+                sleep_ms(50);
+            }
+        }
+
+        for (int j = 0; j < 15; j++) {
+            for (int i = 0; i < 16; i++) {
+                max7313_analogWrite(MAX7313_ADDR0, MOUTH_OUT[j], i);
+                sleep_ms(50);
+            }
+            for (int i = 0; i < 16; i++) {
+                max7313_analogWrite(MAX7313_ADDR0, MOUTH_OUT[j], 15 - i);
                 sleep_ms(50);
             }
         }
@@ -106,13 +135,6 @@ int main() {
 
     // 	//e131_pkt_dump(&packet);
     // 	last_seq = packet.frame.seq_number;
-
-    //     /*
-    //     gpio_put(PICO_DEFAULT_LED_PIN, 1);
-    //     sleep_ms(100);
-    //     gpio_put(PICO_DEFAULT_LED_PIN, 0);
-    //     sleep_ms(100);
-    //     */
     // }
 
 }
