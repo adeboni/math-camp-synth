@@ -76,14 +76,14 @@ void max7313_enableInterrupt(uint8_t i2caddr) {
   uint8_t conf = max7313_read8(i2caddr, MAX7313_CONFIGURATION);
   conf |= 0x08;
   max7313_write8(i2caddr, MAX7313_CONFIGURATION, conf);
-  max7313_clearInterrupt(I2C_INST, i2caddr, sda, scl);
+  max7313_clearInterrupt(i2caddr);
 }
 
 void max7313_disableInterrupt(uint8_t i2caddr) {
   uint8_t conf = max7313_read8(i2caddr, MAX7313_CONFIGURATION);
   conf &= 0xF7; // clear bit 3
   max7313_write8(i2caddr, MAX7313_CONFIGURATION, conf);
-  max7313_clearInterrupt(I2C_INST, i2caddr, sda, scl);
+  max7313_clearInterrupt(i2caddr);
 }
 
 void max7313_clearInterrupt(uint8_t i2caddr) {
