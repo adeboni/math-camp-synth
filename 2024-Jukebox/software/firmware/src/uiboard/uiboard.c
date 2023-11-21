@@ -5,14 +5,19 @@
 #include "hardware/pwm.h"
 #include "hardware/i2c.h"
 #include "hardware/clocks.h"
+#include "hardware/adc.h"
 #include "wizchip_conf.h"
 #include "w5x00_spi.h"
 #include "e131.h"
 #include "MAX7313.h"
+#include "bsp/board.h"
+#include "tusb.h"
+#include "usb_descriptors.h"
 
 #define MAX7313_ADDR0 0x20
 #define MAX7313_ADDR1 0x21
 #define MAX7313_ADDR2 0x23
+#define VOLUME_PIN 26
 
 #define BOARD_ID 0 // change this to read from the dip switches
 
@@ -37,6 +42,15 @@ uint8_t MOUTH_OUT[15]  = {13, 12, 11, 10, 9, //RED     ADDR0
                           6, 4, 2, 0, 14}    //BLUE
 uint8_t MODE_IN[8]     = {7, 5, 3, 1, 0, 6, 4, 2}    //ADDR2
 uint8_t BUTTONS_IN[7]  = {14, 13, 12, 11, 10, 9, 8}  //ADDR2
+uint8_t MODE_KEYS[8] = {HID_KEY_0, HID_KEY_1, HID_KEY_2, HID_KEY_3, 
+                        HID_KEY_4, HID_KEY_5, HID_KEY_6, HID_KEY_7};
+uint8_t BUTTON_KEYS[7] = {HID_KEY_ARROW_UP, HID_KEY_ARROW_DOWN, 
+                          HID_KEY_ARROW_LEFT, HID_KEY_ARROW_RIGHT,
+                          HID_KEY_RETURN, HID_KEY_SPACE, HID_KEY_POWER};
+
+
+uint16_t target_volume = 0;
+uint16_t current_volume = 0;
 
 static void set_clock_khz(void) {
     set_sys_clock_khz(PLL_SYS_KHZ, true);
@@ -59,13 +73,73 @@ void init_w5500() {
 	//print_network_information(g_net_info);
 }
 
+void key_task(uint8_t scancode) {
+    uint8_t keys[6] = { scancode };
+    do { tud_task(); } while (!tud_hid_ready());
+    tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, keys);
+    do { tud_task(); } while (!tud_hid_ready());
+    tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, NULL);
+}
+
+void volume_task() {
+    if (current_volume == target_volume) return;
+
+    uint16_t vol_dir = current_volume < target_volume ? HID_USAGE_CONSUMER_VOLUME_INCREMENT : HID_USAGE_CONSUMER_VOLUME_DECREMENT;
+
+    while (current_volume != target_volume) {
+        do { tud_task(); } while (!tud_hid_ready());
+        tud_hid_report(REPORT_ID_CONSUMER_CONTROL, &vol_dir, 2);
+        uint16_t empty_key = 0;
+        do { tud_task(); } while (!tud_hid_ready());
+        tud_hid_report(REPORT_ID_CONSUMER_CONTROL, &empty_key, 2);
+
+        if (vol_dir == HID_USAGE_CONSUMER_VOLUME_INCREMENT) 
+            current_volume += 2;
+        else 
+            current_volume -= 2;
+    }
+}
+
+void hid_task(void) {
+    const uint32_t interval_ms = 10;
+    static uint32_t start_ms = 0;
+    static uint8_t mode_states[8] = { 0 };
+    static uint8_t button_states[7] = { 0 };
+
+    if (board_millis() - start_ms < interval_ms) return;
+    start_ms += interval_ms;
+
+    for (int i = 0; i < 8; i++) {
+        uint8_t state = max7313_digitalRead(ADDR2, MODE_IN[i]);
+        if (mode_states[i] == 0 && state == 1) 
+            key_task(MODE_KEYS[i]);
+        mode_states[i] = state;
+    }
+
+    for (int i = 0; i < 7; i++) {
+        uint8_t state = max7313_digitalRead(ADDR2, BUTTONS_IN[i]);
+        if (button_states[i] == 0 && state == 1) 
+            key_task(BUTTON_KEYS[i]);
+        button_states[i] = state;
+    }
+
+    //uint16_t target_volume = adc_read() / 41;
+    //volume_task();
+}
+
 int main() {
     set_clock_khz();
     stdio_init_all();
+    adc_init();
+    board_init();
+    tusb_init();
 
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
     gpio_put(PICO_DEFAULT_LED_PIN, 0);
+
+    adc_gpio_init(VOLUME_PIN);
+    adc_select_input(0);
 
     max7313_init(MAX7313_ADDR0);
     max7313_init(MAX7313_ADDR1);
@@ -80,7 +154,11 @@ int main() {
         max7313_analogWrite(MAX7313_ADDR1, i, 0);
     }
 
-    // init_w5500();
+    //current_volume = 100;
+    //target_volume = 0;
+    //volume_task();
+
+    //init_w5500();
 
     while (1) {
         for (int j = 0; j < 6; j++) {
@@ -104,6 +182,16 @@ int main() {
                 sleep_ms(50);
             }
         }
+
+        // tud_task();
+
+        // if (tud_suspended()) 
+        // {
+        // tud_remote_wakeup();
+        // continue;
+        // }
+
+        // hid_task();
     }
 
     
@@ -137,4 +225,27 @@ int main() {
     // 	last_seq = packet.frame.seq_number;
     // }
 
+}
+
+void tud_hid_report_complete_cb(uint8_t instance, uint8_t const* report, uint16_t len) {
+    (void) instance;
+    (void) report;
+    (void) len;
+}
+
+void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type, uint8_t const* buffer, uint16_t bufsize) {
+    (void) instance;
+    (void) report_id;
+    (void) report_type;
+    (void) buffer;
+    (void) bufsize;
+}
+
+uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type, uint8_t* buffer, uint16_t reqlen) {
+    (void) instance;
+    (void) report_id;
+    (void) report_type;
+    (void) buffer;
+    (void) reqlen;
+    return 0;
 }
