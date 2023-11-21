@@ -110,14 +110,14 @@ void hid_task(void) {
     start_ms += interval_ms;
 
     for (int i = 0; i < 8; i++) {
-        uint8_t state = max7313_digitalRead(ADDR2, MODE_IN[i]);
+        uint8_t state = 1 - max7313_digitalRead(ADDR2, MODE_IN[i]);
         if (mode_states[i] == 0 && state == 1) 
             key_task(MODE_KEYS[i]);
         mode_states[i] = state;
     }
 
     for (int i = 0; i < 7; i++) {
-        uint8_t state = max7313_digitalRead(ADDR2, BUTTONS_IN[i]);
+        uint8_t state = 1 - max7313_digitalRead(ADDR2, BUTTONS_IN[i]);
         if (button_states[i] == 0 && state == 1) 
             key_task(BUTTON_KEYS[i]);
         button_states[i] = state;
