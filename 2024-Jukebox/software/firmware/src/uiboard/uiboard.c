@@ -126,6 +126,15 @@ void hid_task(void) {
     //volume_task();
 }
 
+void update_display(const e131_packet_t *packet, uint8_t start, uint8_t end) {
+
+}
+
+void update_leds(const e131_packet_t *packet, uint8_t start, uint8_t end, uint8_t i2c_addr, uint8_t *pins) {
+    for (int i = start; i < end; i++)
+        max7313_analogWrite(i2c_addr, pins[i - start], packet->dmp.prop_val[i] >> 4);
+}
+
 int main() {
     set_clock_khz();
     stdio_init_all();
@@ -174,30 +183,6 @@ int main() {
     //volume_task();
 
     while (1) {
-        /*
-        for (int j = 0; j < 6; j++) {
-            for (int i = 0; i < 16; i++) {
-                max7313_analogWrite(MAX7313_ADDR1, DOTS_OUT[j], i);
-                sleep_ms(50);
-            }
-            for (int i = 0; i < 16; i++) {
-                max7313_analogWrite(MAX7313_ADDR1, DOTS_OUT[j], 15 - i);
-                sleep_ms(50);
-            }
-        }
-
-        for (int j = 0; j < 15; j++) {
-            for (int i = 0; i < 16; i++) {
-                max7313_analogWrite(MAX7313_ADDR0, MOUTH_OUT[j], i);
-                sleep_ms(50);
-            }
-            for (int i = 0; i < 16; i++) {
-                max7313_analogWrite(MAX7313_ADDR0, MOUTH_OUT[j], 15 - i);
-                sleep_ms(50);
-            }
-        }
-        */
-
         tud_task();
 
         if (tud_suspended())  {
@@ -223,33 +208,13 @@ int main() {
         if (packet.dmp.prop_val_cnt < 192)
             continue;
 
-        for (int i = 0; i < 80; i++) {
-            //display 1
-        }
-
-        for (int i = 80; i < 160; i++) {
-            //display 2
-        }
-
-        for (int i = 160; i < 175; i++) {
-            max7313_analogWrite(MAX7313_ADDR0, MOUTH_OUT[i - 160], packet.dmp.prop_val[i] >> 4);
-        }
-
-        for (int i = 175; i < 181; i++) {
-            max7313_analogWrite(MAX7313_ADDR1, DOTS_OUT[i - 175], packet.dmp.prop_val[i] >> 4);
-        }
-
-        for (int i = 181; i < 184; i++) {
-            max7313_analogWrite(MAX7313_ADDR1, MOTORS_OUT[i - 181], packet.dmp.prop_val[i] >> 4);
-        }
-
-        for (int i = 184; i < 185; i++) {
-            max7313_analogWrite(MAX7313_ADDR0, LAMP_OUT[i - 184], packet.dmp.prop_val[i] >> 4);
-        }
-
-        for (int i = 185; i < 191; i++) {
-            max7313_analogWrite(MAX7313_ADDR1, BUTTONS_OUT[i - 185], packet.dmp.prop_val[i] >> 4);
-        }
+        update_display(&packet, 0, 80);
+        update_display(&packet, 80, 160);
+        update_leds(&packet, 160, 175, MAX7313_ADDR0, MOUTH_OUT);
+        update_leds(&packet, 175, 181, MAX7313_ADDR1, DOTS_OUT);
+        update_leds(&packet, 181, 184, MAX7313_ADDR1, MOTORS_OUT);
+        update_leds(&packet, 184, 185, MAX7313_ADDR0, LAMP_OUT);
+        update_leds(&packet, 185, 191, MAX7313_ADDR1, BUTTONS_OUT);
     }
 }
 
