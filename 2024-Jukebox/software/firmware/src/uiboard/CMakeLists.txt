@@ -17,15 +17,9 @@ target_sources(uiboard PUBLIC
 target_include_directories(uiboard PUBLIC
         ${CMAKE_CURRENT_LIST_DIR})
 
-# pull in common dependencies and additional spi hardware support
 target_link_libraries(uiboard PUBLIC pico_stdlib pico_multicore pico_unique_id 
                                      tinyusb_device tinyusb_board
                                      hardware_i2c hardware_spi hardware_clocks 
                                      hardware_pwm hardware_dma hardware_adc)
 
-# pico_enable_stdio_usb(uiboard 1)
-# pico_enable_stdio_uart(uiboard 0)
-
-# create map/bin/hex file etc.
 pico_add_extra_outputs(uiboard)
-

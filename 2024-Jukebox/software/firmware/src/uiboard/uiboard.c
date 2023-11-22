@@ -122,7 +122,7 @@ void hid_task(void) {
         button_states[i] = state;
     }
 
-    //uint16_t target_volume = adc_read() / 41;
+    uint16_t target_volume = adc_read() / 41;
     //volume_task();
 }
 
@@ -153,11 +153,25 @@ int main() {
         max7313_analogWrite(MAX7313_ADDR1, i, 0);
     }
 
-    //current_volume = 100;
-    //target_volume = 0;
-    //volume_task();
+    init_w5500();
 
-    //init_w5500();
+    int sockfd;
+    e131_packet_t packet;
+    e131_error_t error;
+    uint8_t last_seq = 0x00;
+
+    if ((sockfd = e131_socket()) < 0) {
+    	while (1) {
+            gpio_put(PICO_DEFAULT_LED_PIN, 1);
+            sleep_ms(500);
+            gpio_put(PICO_DEFAULT_LED_PIN, 0);
+            sleep_ms(500);
+        }
+    }
+
+    current_volume = 100;
+    target_volume = 0;
+    //volume_task();
 
     while (1) {
         /*
@@ -192,39 +206,51 @@ int main() {
         }
 
         hid_task();
+
+        if (e131_recv(sockfd, &packet) <= 0)
+    		continue;
+
+    	if ((error = e131_pkt_validate(&packet)) != E131_ERR_NONE)
+    		continue;
+
+    	if (e131_pkt_discard(&packet, last_seq)) {
+    		last_seq = packet.frame.seq_number;
+    		continue;
+    	}
+
+        last_seq = packet.frame.seq_number;
+
+        if (packet.dmp.prop_val_cnt < 192)
+            continue;
+
+        for (int i = 0; i < 80; i++) {
+            //display 1
+        }
+
+        for (int i = 80; i < 160; i++) {
+            //display 2
+        }
+
+        for (int i = 160; i < 175; i++) {
+            max7313_analogWrite(MAX7313_ADDR0, MOUTH_OUT[i - 160], packet.dmp.prop_val[i] >> 4);
+        }
+
+        for (int i = 175; i < 181; i++) {
+            max7313_analogWrite(MAX7313_ADDR1, DOTS_OUT[i - 175], packet.dmp.prop_val[i] >> 4);
+        }
+
+        for (int i = 181; i < 184; i++) {
+            max7313_analogWrite(MAX7313_ADDR1, MOTORS_OUT[i - 181], packet.dmp.prop_val[i] >> 4);
+        }
+
+        for (int i = 184; i < 185; i++) {
+            max7313_analogWrite(MAX7313_ADDR0, LAMP_OUT[i - 184], packet.dmp.prop_val[i] >> 4);
+        }
+
+        for (int i = 185; i < 191; i++) {
+            max7313_analogWrite(MAX7313_ADDR1, BUTTONS_OUT[i - 185], packet.dmp.prop_val[i] >> 4);
+        }
     }
-
-    
-    // int sockfd;
-    // e131_packet_t packet;
-    // e131_error_t error;
-    // uint8_t last_seq = 0x00;
-
-    // if ((sockfd = e131_socket()) < 0) {
-    // 	printf("e131_socket error\n");
-    // 	while (1);
-    // }
-
-    // while (1)
-    // {
-    // 	if (e131_recv(sockfd, &packet) <= 0)
-    // 		continue;
-
-    // 	if ((error = e131_pkt_validate(&packet)) != E131_ERR_NONE) {
-    // 		//printf("e131_pkt_validate: %s\n", e131_strerror(error));
-    // 		continue;
-    // 	}
-
-    // 	if (e131_pkt_discard(&packet, last_seq)) {
-    // 		//printf("warning: packet out of order received\n");
-    // 		last_seq = packet.frame.seq_number;
-    // 		continue;
-    // 	}
-
-    // 	//e131_pkt_dump(&packet);
-    // 	last_seq = packet.frame.seq_number;
-    // }
-
 }
 
 void tud_hid_report_complete_cb(uint8_t instance, uint8_t const* report, uint16_t len) {
