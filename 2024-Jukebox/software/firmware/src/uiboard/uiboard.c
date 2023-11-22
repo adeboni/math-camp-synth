@@ -35,13 +35,13 @@ static wiz_NetInfo g_net_info = {
 // MAX7313 pin numbers
 uint8_t DOTS_OUT[6]    = {7, 6, 4, 2, 0, 15};        //ADDR1
 uint8_t BUTTONS_OUT[7] = {14, 13, 12, 11, 10, 9, 8}; //ADDR1
-uint8_t MOTORS_OUT[3]  = {5, 3, 1}                   //ADDR1
-uint8_t LAMP_OUT[1]    = {8}                         //ADDR0
+uint8_t MOTORS_OUT[3]  = {5, 3, 1};                  //ADDR1
+uint8_t LAMP_OUT[1]    = {8};                        //ADDR0
 uint8_t MOUTH_OUT[15]  = {13, 12, 11, 10, 9, //RED     ADDR0
                           7, 5, 3, 1, 15,    //WHITE
-                          6, 4, 2, 0, 14}    //BLUE
-uint8_t MODE_IN[8]     = {7, 5, 3, 1, 0, 6, 4, 2}    //ADDR2
-uint8_t BUTTONS_IN[7]  = {14, 13, 12, 11, 10, 9, 8}  //ADDR2
+                          6, 4, 2, 0, 14};   //BLUE
+uint8_t MODE_IN[8]     = {7, 5, 3, 1, 0, 6, 4, 2};   //ADDR2
+uint8_t BUTTONS_IN[7]  = {14, 13, 12, 11, 10, 9, 8}; //ADDR2
 uint8_t MODE_KEYS[8] = {HID_KEY_0, HID_KEY_1, HID_KEY_2, HID_KEY_3, 
                         HID_KEY_4, HID_KEY_5, HID_KEY_6, HID_KEY_7};
 uint8_t BUTTON_KEYS[7] = {HID_KEY_ARROW_UP, HID_KEY_ARROW_DOWN, 
@@ -70,7 +70,6 @@ void init_w5500() {
 	wizchip_initialize();
 	wizchip_check();
 	network_initialize(g_net_info);
-	//print_network_information(g_net_info);
 }
 
 void key_task(uint8_t scancode) {
@@ -110,14 +109,14 @@ void hid_task(void) {
     start_ms += interval_ms;
 
     for (int i = 0; i < 8; i++) {
-        uint8_t state = 1 - max7313_digitalRead(ADDR2, MODE_IN[i]);
+        uint8_t state = 1 - max7313_digitalRead(MAX7313_ADDR2, MODE_IN[i]);
         if (mode_states[i] == 0 && state == 1) 
             key_task(MODE_KEYS[i]);
         mode_states[i] = state;
     }
 
     for (int i = 0; i < 7; i++) {
-        uint8_t state = 1 - max7313_digitalRead(ADDR2, BUTTONS_IN[i]);
+        uint8_t state = 1 - max7313_digitalRead(MAX7313_ADDR2, BUTTONS_IN[i]);
         if (button_states[i] == 0 && state == 1) 
             key_task(BUTTON_KEYS[i]);
         button_states[i] = state;
@@ -161,6 +160,7 @@ int main() {
     //init_w5500();
 
     while (1) {
+        /*
         for (int j = 0; j < 6; j++) {
             for (int i = 0; i < 16; i++) {
                 max7313_analogWrite(MAX7313_ADDR1, DOTS_OUT[j], i);
@@ -182,16 +182,16 @@ int main() {
                 sleep_ms(50);
             }
         }
+        */
 
-        // tud_task();
+        tud_task();
 
-        // if (tud_suspended()) 
-        // {
-        // tud_remote_wakeup();
-        // continue;
-        // }
+        if (tud_suspended())  {
+            tud_remote_wakeup();
+            continue;
+        }
 
-        // hid_task();
+        hid_task();
     }
 
     
