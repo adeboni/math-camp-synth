@@ -12,6 +12,7 @@ target_sources(uiboard PUBLIC
         ${CMAKE_CURRENT_LIST_DIR}/e131.c
 	${CMAKE_CURRENT_LIST_DIR}/MAX7313.c
         ${CMAKE_CURRENT_LIST_DIR}/usb_descriptors.c
+        ${CMAKE_CURRENT_LIST_DIR}/lcd_display.c
 )
 
 target_include_directories(uiboard PUBLIC

@@ -13,7 +13,10 @@
 #include "bsp/board.h"
 #include "tusb.h"
 #include "usb_descriptors.h"
+#include "lcd_display.h"
 
+#define LCD_EN0 9
+#define LCD_EN1 15
 #define MAX7313_ADDR0 0x20
 #define MAX7313_ADDR1 0x21
 #define MAX7313_ADDR2 0x23
@@ -63,7 +66,7 @@ static void set_clock_khz(void) {
     );
 }
 
-void init_w5500() {
+void w5500_init() {
     wizchip_spi_initialize();
 	wizchip_cris_initialize();
 	wizchip_reset();
@@ -126,8 +129,11 @@ void hid_task(void) {
     //volume_task();
 }
 
-void update_display(const e131_packet_t *packet, uint8_t start, uint8_t end) {
-
+void update_display(const e131_packet_t *packet, uint8_t start, uint8_t end, uint8_t en) {
+    char str[41];
+    for (int i = start, i < end; i++)
+        str[i - start] = packet->dmp.prop_val[i];
+    lcd_print_wrapped(en, str);
 }
 
 void update_leds(const e131_packet_t *packet, uint8_t start, uint8_t end, uint8_t i2c_addr, uint8_t *pins) {
@@ -146,6 +152,9 @@ int main() {
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
     gpio_put(PICO_DEFAULT_LED_PIN, 0);
 
+    lcd_init(LCD_EN0);
+    lcd_init(LCD_EN1);
+
     adc_gpio_init(VOLUME_PIN);
     adc_select_input(0);
 
@@ -162,7 +171,7 @@ int main() {
         max7313_analogWrite(MAX7313_ADDR1, i, 0);
     }
 
-    init_w5500();
+    w5500_init();
 
     int sockfd;
     e131_packet_t packet;
@@ -208,8 +217,8 @@ int main() {
         if (packet.dmp.prop_val_cnt < 192)
             continue;
 
-        update_display(&packet, 0, 80);
-        update_display(&packet, 80, 160);
+        update_display(&packet, 0, 80, LCD_EN0);
+        update_display(&packet, 80, 160, LCD_EN1);
         update_leds(&packet, 160, 175, MAX7313_ADDR0, MOUTH_OUT);
         update_leds(&packet, 175, 181, MAX7313_ADDR1, DOTS_OUT);
         update_leds(&packet, 181, 184, MAX7313_ADDR1, MOTORS_OUT);
