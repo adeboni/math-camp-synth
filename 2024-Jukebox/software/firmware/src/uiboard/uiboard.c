@@ -21,19 +21,7 @@
 #define MAX7313_ADDR1 0x21
 #define MAX7313_ADDR2 0x23
 #define VOLUME_PIN 26
-
-#define BOARD_ID 0 // change this to read from the dip switches
-
 #define PLL_SYS_KHZ (133 * 1000)
-
-static wiz_NetInfo g_net_info = {
-    .mac = {0x00, 0x08, 0xDC, 0x12, 0x34, 0x20 + BOARD_ID}, // MAC address
-    .ip = {10, 0, 0, 20 + BOARD_ID},                        // IP address
-    .sn = {255, 255, 255, 0},                               // Subnet Mask
-    .gw = {10, 0, 0, 1},                                    // Gateway
-    .dns = {8, 8, 8, 8},                                    // DNS server
-    .dhcp = NETINFO_STATIC                                  // DHCP enable/disable
-};
 
 // MAX7313 pin numbers
 uint8_t DOTS_OUT[6]    = {7, 6, 4, 2, 0, 15};        //ADDR1
@@ -51,7 +39,6 @@ uint8_t BUTTON_KEYS[7] = {HID_KEY_ARROW_UP, HID_KEY_ARROW_DOWN,
                           HID_KEY_ARROW_LEFT, HID_KEY_ARROW_RIGHT,
                           HID_KEY_RETURN, HID_KEY_SPACE, HID_KEY_POWER};
 
-
 uint16_t target_volume = 0;
 uint16_t current_volume = 0;
 
@@ -66,12 +53,39 @@ static void set_clock_khz(void) {
     );
 }
 
+uint8_t get_board_id() {
+    gpio_init(6);
+    gpio_set_dir(6, GPIO_IN);
+    gpio_pull_up(6);
+    gpio_init(7);
+    gpio_set_dir(7, GPIO_IN);
+    gpio_pull_up(7);
+    gpio_init(8);
+    gpio_set_dir(8, GPIO_IN);
+    gpio_pull_up(8);
+    uint8_t b0 = 1 - gpio_get(6);
+    uint8_t b1 = 1 - gpio_get(7);
+    uint8_t b2 = 1 - gpio_get(8);
+    return b0 | (b1 << 1) | (b2 << 2);
+}
+
 void w5500_init() {
     wizchip_spi_initialize();
 	wizchip_cris_initialize();
 	wizchip_reset();
 	wizchip_initialize();
 	wizchip_check();
+
+    uint8_t board_id = get_board_id();
+    wiz_NetInfo g_net_info = {
+        .mac = {0x00, 0x08, 0xDC, 0x12, 0x34, 0x20 + board_id}, // MAC address
+        .ip = {10, 0, 0, 20 + board_id},                        // IP address
+        .sn = {255, 255, 255, 0},                               // Subnet Mask
+        .gw = {10, 0, 0, 1},                                    // Gateway
+        .dns = {8, 8, 8, 8},                                    // DNS server
+        .dhcp = NETINFO_STATIC                                  // DHCP enable/disable
+    };
+
 	network_initialize(g_net_info);
 }
 
