@@ -1,39 +1,15 @@
 #include "pico/stdlib.h"
 #include "MAX7313.h"
 
-void max7313_init(uint8_t i2caddr) {
-  i2c_init(I2C_INST, 400000);
-  gpio_set_function(SDA_PIN, GPIO_FUNC_I2C);
-  gpio_set_function(SCL_PIN, GPIO_FUNC_I2C);
-  //gpio_pull_up(SDA_PIN);
-  //gpio_pull_up(SCL_PIN);
-
-  max7313_write8(i2caddr, MAX7313_PORTS_CONF_00_07, 0xff); // pinmode: 0 = OUTPUT / 1 = INPUT
-  max7313_write8(i2caddr, MAX7313_PORTS_CONF_08_15, 0xff);
+void max7313_init(uint8_t i2caddr, uint8_t portConfLow, uint8_t portConfHigh) {
+  max7313_write8(i2caddr, MAX7313_PORTS_CONF_00_07, portConfLow); // pinmode: 0 = OUTPUT / 1 = INPUT
+  max7313_write8(i2caddr, MAX7313_PORTS_CONF_08_15, portConfHigh);
   max7313_write8(i2caddr, MAX7313_BLINK_PHASE_0_00_07, 0xff);
   max7313_write8(i2caddr, MAX7313_BLINK_PHASE_0_08_15, 0xff);
   max7313_write8(i2caddr, MAX7313_BLINK_PHASE_1_00_07, 0xff);
   max7313_write8(i2caddr, MAX7313_BLINK_PHASE_1_08_15, 0xff);
   max7313_write8(i2caddr, MAX7313_CONFIGURATION, 0x01); // enable blink phase for PWM
   max7313_write8(i2caddr, MAX7313_OUT_INT_MA_16, 0xff);
-}
-
-void max7313_pinMode(uint8_t i2caddr, uint8_t num, uint8_t mode) {
-  uint8_t mask = 16, addr = 0;
-  if (num > 7) {
-    mask = 8;
-    addr = MAX7313_PORTS_CONF_08_15;
-  } else {
-    addr = MAX7313_PORTS_CONF_00_07;
-  }
-
-  uint8_t reg = max7313_read8(i2caddr, addr);
-  if (mode == MAX7313_PINMODE_OUTPUT)
-    reg &= ~(1 << (num % mask));
-  else if (mode == MAX7313_PINMODE_INPUT)
-    reg |= (1 << (num % mask));
-
-  max7313_write8(i2caddr, addr, reg);
 }
 
 void max7313_analogWrite(uint8_t i2caddr, uint8_t num, uint8_t val) {

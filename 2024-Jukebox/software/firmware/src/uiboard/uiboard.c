@@ -15,6 +15,7 @@
 #include "usb_descriptors.h"
 #include "lcd_display.h"
 
+#define DISPLAY_UPDATE_MS 500
 #define LCD_EN0 9
 #define LCD_EN1 15
 #define MAX7313_ADDR0 0x20
@@ -144,10 +145,8 @@ void hid_task(void) {
 }
 
 void update_display(const e131_packet_t *packet, uint8_t start, uint8_t end, uint8_t en) {
-    char str[41];
-    for (int i = start, i < end; i++)
-        str[i - start] = packet->dmp.prop_val[i];
-    lcd_print_wrapped(en, str);
+    for (int i = start; i < end; i++)
+        lcd_print(en, packet->dmp.prop_val[i]);
 }
 
 void update_leds(const e131_packet_t *packet, uint8_t start, uint8_t end, uint8_t i2c_addr, uint8_t *pins) {
@@ -172,15 +171,17 @@ int main() {
     adc_gpio_init(VOLUME_PIN);
     adc_select_input(0);
 
-    max7313_init(MAX7313_ADDR0);
-    max7313_init(MAX7313_ADDR1);
-    max7313_init(MAX7313_ADDR2);
+    i2c_init(I2C_INST, 400000);
+    gpio_set_function(SDA_PIN, GPIO_FUNC_I2C);
+    gpio_set_function(SCL_PIN, GPIO_FUNC_I2C);
+    gpio_pull_up(SDA_PIN);
+    gpio_pull_up(SCL_PIN);
+
+    max7313_init(MAX7313_ADDR0, 0, 0);
+    max7313_init(MAX7313_ADDR1, 0, 0);
+    max7313_init(MAX7313_ADDR2, 255, 255);
 
     for (int i = 0; i < 16; i++) {
-        max7313_pinMode(MAX7313_ADDR0, i, MAX7313_PINMODE_OUTPUT);
-        max7313_pinMode(MAX7313_ADDR1, i, MAX7313_PINMODE_OUTPUT);
-        max7313_pinMode(MAX7313_ADDR2, i, MAX7313_PINMODE_INPUT);
-
         max7313_analogWrite(MAX7313_ADDR0, i, 0);
         max7313_analogWrite(MAX7313_ADDR1, i, 0);
     }
@@ -205,6 +206,8 @@ int main() {
     target_volume = 0;
     //volume_task();
 
+    uint32_t last_display_update = to_ms_since_boot(get_absolute_time());
+
     while (1) {
         tud_task();
 
@@ -228,16 +231,26 @@ int main() {
 
         last_seq = packet.frame.seq_number;
 
-        if (packet.dmp.prop_val_cnt < 192)
+        if (packet.dmp.prop_val_cnt < 193)
             continue;
 
-        update_display(&packet, 0, 80, LCD_EN0);
-        update_display(&packet, 80, 160, LCD_EN1);
-        update_leds(&packet, 160, 175, MAX7313_ADDR0, MOUTH_OUT);
-        update_leds(&packet, 175, 181, MAX7313_ADDR1, DOTS_OUT);
-        update_leds(&packet, 181, 184, MAX7313_ADDR1, MOTORS_OUT);
-        update_leds(&packet, 184, 185, MAX7313_ADDR0, LAMP_OUT);
-        update_leds(&packet, 185, 191, MAX7313_ADDR1, BUTTONS_OUT);
+        if (to_ms_since_boot(get_absolute_time()) - last_display_update > DISPLAY_UPDATE_MS) {
+            lcd_setCursor(LCD_EN0, 0, 0);
+            update_display(&packet, 1, 41, LCD_EN0);
+            lcd_setCursor(LCD_EN0, 0, 1);
+            update_display(&packet, 41, 81, LCD_EN0);
+            lcd_setCursor(LCD_EN1, 0, 0);
+            update_display(&packet, 81, 121, LCD_EN1);
+            lcd_setCursor(LCD_EN1, 0, 1);
+            update_display(&packet, 121, 161, LCD_EN1);
+            last_display_update = to_ms_since_boot(get_absolute_time());
+        }
+
+        update_leds(&packet, 161, 176, MAX7313_ADDR0, MOUTH_OUT);
+        update_leds(&packet, 176, 182, MAX7313_ADDR1, DOTS_OUT);
+        update_leds(&packet, 182, 185, MAX7313_ADDR1, MOTORS_OUT);
+        update_leds(&packet, 185, 186, MAX7313_ADDR0, LAMP_OUT);
+        update_leds(&packet, 186, 192, MAX7313_ADDR1, BUTTONS_OUT);
     }
 }
 

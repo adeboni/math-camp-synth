@@ -1,129 +1,90 @@
 #include "pico/stdlib.h"
 #include "lcd_display.h"
 
-uint32_t _lcd_pin_values_to_mask(uint raw_bits[], int length) {   // Array of Bit 7, Bit 6, Bit 5, Bit 4, RS(, clock)
-    uint32_t result = 0;
-    uint pinArray[32];
-    for (int i = 0; i < 32; i++) 
-        pinArray[i] = 0;
-    for (int i = 0; i < length; i++) 
-        pinArray[LCDpins[i]] = raw_bits[i];
-    for (int i = 0; i < 32; i++) {
-        result = result << 1;
-        result += pinArray[31-i];
+const uint8_t _data_pins[4] = { LCD_B4, LCD_B5, LCD_B6, LCD_B7 };
+const uint8_t _row_offsets[4] = { 0x00, 0x40, 0x00 + LCD_COLS, 0x40 + LCD_COLS};
+uint8_t pins_configured = 0;
+
+void lcd_init(uint8_t enable) {
+    if (pins_configured == 0) {
+        gpio_init(LCD_RS);
+        gpio_set_dir(LCD_RS, GPIO_OUT);
+        for (int i = 0; i < 4; i++) {
+            gpio_init(_data_pins[i]);
+            gpio_set_dir(_data_pins[i], GPIO_OUT);
+        }
+        pins_configured = 1;
     }
-    return result;
-}
-
-void _lcd_uint_into_8bits(uint raw_bits[], uint one_byte) {  	
-    for (int i = 0; i < 8; i++) {
-        raw_bits[7-i] = one_byte % 2;
-        one_byte = one_byte >> 1;
-    }
-}
-
-void _lcd_send_raw_data_one_cycle(uint8_t en, uint raw_bits[]) { // Array of Bit 7, Bit 6, Bit 5, Bit 4, RS
-    uint32_t bit_value = pin_values_to_mask(raw_bits, 5);
-    gpio_put_masked(LCDmask, bit_value);
-    gpio_put(en, 1);
-    sleep_ms(5);
-    gpio_put(en, 0); // gpio values on other pins are pushed at the HIGH->LOW change of the clock. 
-    sleep_ms(5);
-}
     
-void _lcd_send_full_byte(uint8_t en, uint rs, uint databits[]) { // RS + array of Bit7, ... , Bit0
-    // send upper nibble (MSN)
-    uint rawbits[5];
-    rawbits[4] = rs;
-    for (int i = 0; i < 4; i++) 
-        rawbits[i] = databits[i];
-    _lcd_send_raw_data_one_cycle(en, rawbits);
-    // send lower nibble (LSN)
-    for (int i = 0; i < 4; i++) 
-        rawbits[i] = databits[i + 4];
-    _lcd_send_raw_data_one_cycle(en, rawbits);
+    gpio_init(enable);
+    gpio_set_dir(enable, GPIO_OUT);
+    sleep_us(50000);
+    gpio_put(LCD_RS, 0);
+    gpio_put(enable, 0);
+    sleep_us(50000);
+    lcd_write4bits(enable, 0x03);
+    sleep_us(4500);
+    lcd_write4bits(enable, 0x03);
+    sleep_us(4500);
+    lcd_write4bits(enable, 0x03);
+    sleep_us(150);
+    lcd_write4bits(enable, 0x02);
+
+    lcd_send(enable, LCD_FUNCTIONSET | LCD_4BITMODE | LCD_1LINE | LCD_5x8DOTS | LCD_2LINE, 0);  
+    lcd_send(enable, LCD_DISPLAYCONTROL | LCD_DISPLAYON | LCD_CURSOROFF | LCD_BLINKOFF, 0);
+    lcd_clear(enable);
+    lcd_send(enable, LCD_ENTRYMODESET | LCD_ENTRYLEFT | LCD_ENTRYSHIFTDECREMENT, 0);
 }
 
-void lcd_clear(uint8_t en) {
-    uint clear_display[8] = { 0, 0, 0, 0, 0, 0, 0, 1 };
-    _lcd_send_full_byte(en, 0, clear_display);
-    sleep_ms(10); // extra sleep due to equipment time needed to clear the display
+void lcd_clear(uint8_t enable) {
+    lcd_send(enable, LCD_CLEARDISPLAY, 0);
+    sleep_us(2000);
 }
 
-void lcd_init(uint8_t en) { // initialize the LCD
-    uint all_ones[6] = { 1, 1, 1, 1, 1, 1 };
-    uint set_function_8[5] = { 0, 0, 1, 1, 0 };
-    uint set_function_4a[5] = { 0, 0, 1, 0, 0 };
-    
-    uint set_function_4[8] = { 0, 0, 1, 0, 0, 0, 0, 0 };
-    uint cursor_set[8] = { 0, 0, 0, 0, 0, 1, 1, 0 };
-    uint display_prop_set[8] = { 0, 0, 0, 0, 1, 1, 0, 0 };
-    
-    //set mask, initialize masked pins and set to LOW 
-    LCDpins[5] = en;
-    LCDmask_c = _lcd_pin_values_to_mask(all_ones, 6);
-    LCDmask = _lcd_pin_values_to_mask(all_ones, 5);
-    gpio_init_mask(LCDmask_c);   	    // init all LCDpins
-    gpio_set_dir_out_masked(LCDmask_c);	// Set as output all LCDpins
-    gpio_clr_mask(LCDmask_c);			// LOW on all LCD pins 
-    
-    //set LCD to 4-bit mode and 1 or 2 lines
-    //by sending a series of Set Function 0s to secure the state and set to 4 bits
-    if (LCD_ROWS == 2) 
-        set_function_4[4] = 1;
-    _lcd_send_raw_data_one_cycle(en, set_function_8);
-    _lcd_send_raw_data_one_cycle(en, set_function_8);
-    _lcd_send_raw_data_one_cycle(en, set_function_8);
-    _lcd_send_raw_data_one_cycle(en, set_function_4a);
-    
-    //getting ready
-    _lcd_send_full_byte(en, 0, set_function_4);
-    _lcd_send_full_byte(en, 0, cursor_set);
-    _lcd_send_full_byte(en, 0, display_prop_set);
-    lcd_clear(en);
+void lcd_home(uint8_t enable) {
+    lcd_send(enable, LCD_RETURNHOME, 0);
+    sleep_us(2000);
 }
 
-void lcd_goto_pos(uint8_t en, int pos_i, int line) {
-    uint eight_bits[8];
-    uint pos = (uint)pos_i;
-    switch (LCD_ROWS) {
-        case 2: 
-            pos = 64 * line + pos + 0b10000000; 
-            break;
-        case 4: 	
-            if (line == 0 || line == 2)
-                pos = 64 * (line/2) + pos + 0b10000000;
-            else 
-                pos = 64 * ((line-1)/2) + 20 + pos + 0b10000000;
-            break;
-        default:
-            break;
-    }
-    _lcd_uint_into_8bits(eight_bits, pos);
-    _lcd_send_full_byte(en, 0, eight_bits);
+void lcd_print(uint8_t enable, uint8_t chr) {
+    lcd_send(enable, chr, 1);
 }
 
-void lcd_print(uint8_t en, const char * str) {
-    uint eight_bits[8];
+void lcd_print_str(uint8_t enable, const char *str) {
     int i = 0;
     while (str[i] != 0) {
-        _lcd_uint_into_8bits(eight_bits, (uint)(str[i]));
-        _lcd_send_full_byte(en, 1, eight_bits);
+        lcd_send(enable, (uint8_t)str[i], 1);
         i++;
     }
 }
-    
-void lcd_print_wrapped(uint8_t en, const char * str) {
-    uint eight_bits[8];
-    int i = 0;
-    
-    _lcd_goto_pos(en, 0, 0);
 
-    while (str[i] != 0) {
-        _lcd_uint_into_8bits(eight_bits, (uint)(str[i]));
-        _lcd_send_full_byte(en, 1, eight_bits);
-        i++;
-        if (i % no_chars == 0)
-            lcd_goto_pos(en, 0, i / no_chars);
-    }
+void lcd_setCursor(uint8_t enable, uint8_t col, uint8_t row) {
+    const size_t max_lines = sizeof(_row_offsets) / sizeof(*_row_offsets);
+    if (row >= max_lines) row = max_lines - 1;
+    if (row >= LCD_ROWS) row = LCD_ROWS - 1;
+    lcd_send(enable, LCD_SETDDRAMADDR | (col + _row_offsets[row]), 0);
+}
+
+void lcd_createChar(uint8_t enable, uint8_t location, uint8_t charmap[]) {
+    location &= 0x7; // we only have 8 locations 0-7
+    lcd_send(enable, LCD_SETCGRAMADDR | (location << 3), 0);
+    for (int i = 0; i < 8; i++)
+        lcd_send(enable, charmap[i], 1);
+}
+
+void lcd_send(uint8_t enable, uint8_t value, uint8_t mode) {
+    gpio_put(LCD_RS, mode);
+    lcd_write4bits(enable, value >> 4);
+    lcd_write4bits(enable, value);
+}
+
+void lcd_write4bits(uint8_t enable, uint8_t value) {
+    for (int i = 0; i < 4; i++)
+        gpio_put(_data_pins[i], (value >> i) & 0x01);
+    gpio_put(enable, 0);
+    sleep_us(1);
+    gpio_put(enable, 1);
+    sleep_us(1);
+    gpio_put(enable, 0);
+    sleep_us(100);
 }

@@ -9,18 +9,52 @@
 #define LCD_B7 10
 #define LCD_RS 14
 
-int LCDpins[6] = { LCD_B7, LCD_B6, LCD_B5, LCD_B4, LCD_RS };
-uint32_t LCDmask_c = 0; // with clock
-uint32_t LCDmask = 0; //without clock
+// commands
+#define LCD_CLEARDISPLAY 0x01
+#define LCD_RETURNHOME 0x02
+#define LCD_ENTRYMODESET 0x04
+#define LCD_DISPLAYCONTROL 0x08
+#define LCD_CURSORSHIFT 0x10
+#define LCD_FUNCTIONSET 0x20
+#define LCD_SETCGRAMADDR 0x40
+#define LCD_SETDDRAMADDR 0x80
 
-uint32_t _lcd_pin_values_to_mask(uint raw_bits[], int length);
-void _lcd_uint_into_8bits(uint raw_bits[], uint one_byte);
-void _lcd_send_raw_data_one_cycle(uint8_t en, uint raw_bits[]);
-void _lcd_send_full_byte(uint8_t en, uint rs, uint databits[]);
-void lcd_clear(uint8_t en);
-void lcd_init(uint8_t en);
-void lcd_goto_pos(uint8_t en, int pos, int line);
-void lcd_print(uint8_t en, const char * str);
-void lcd_print_wrapped(uint8_t en, const char * str);
+// flags for display entry mode
+#define LCD_ENTRYRIGHT 0x00
+#define LCD_ENTRYLEFT 0x02
+#define LCD_ENTRYSHIFTINCREMENT 0x01
+#define LCD_ENTRYSHIFTDECREMENT 0x00
+
+// flags for display on/off control
+#define LCD_DISPLAYON 0x04
+#define LCD_DISPLAYOFF 0x00
+#define LCD_CURSORON 0x02
+#define LCD_CURSOROFF 0x00
+#define LCD_BLINKON 0x01
+#define LCD_BLINKOFF 0x00
+
+// flags for display/cursor shift
+#define LCD_DISPLAYMOVE 0x08
+#define LCD_CURSORMOVE 0x00
+#define LCD_MOVERIGHT 0x04
+#define LCD_MOVELEFT 0x00
+
+// flags for function set
+#define LCD_8BITMODE 0x10
+#define LCD_4BITMODE 0x00
+#define LCD_2LINE 0x08
+#define LCD_1LINE 0x00
+#define LCD_5x10DOTS 0x04
+#define LCD_5x8DOTS 0x00
+
+void lcd_init(uint8_t enable);
+void lcd_clear(uint8_t enable);
+void lcd_home(uint8_t enable);
+void lcd_print(uint8_t enable, uint8_t chr);
+void lcd_print_str(uint8_t enable, const char *str);
+void lcd_setCursor(uint8_t enable, uint8_t col, uint8_t row);
+void lcd_createChar(uint8_t enable, uint8_t location, uint8_t charmap[]);
+void lcd_send(uint8_t enable, uint8_t value, uint8_t mode);
+void lcd_write4bits(uint8_t enable, uint8_t value);
 
 #endif

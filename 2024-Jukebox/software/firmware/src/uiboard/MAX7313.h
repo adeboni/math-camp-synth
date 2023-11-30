@@ -53,7 +53,7 @@ static const uint8_t __max7313_output_registers[9] = {
   MAX7313_OUT_INT_MA_16
 };
 
-void max7313_init(uint8_t i2caddr);
+void max7313_init(uint8_t i2caddr, uint8_t portConfLow, uint8_t portConfHigh);
 void max7313_write8(uint8_t i2caddr, uint8_t addr, uint8_t d);
 uint8_t max7313_read8(uint8_t i2caddr, uint8_t addr);
 void max7313_enableInterrupt(uint8_t i2caddr);
@@ -61,6 +61,5 @@ void max7313_disableInterrupt(uint8_t i2caddr);
 void max7313_clearInterrupt(uint8_t i2caddr);
 void max7313_analogWrite(uint8_t i2caddr, uint8_t num, uint8_t val);
 uint8_t max7313_digitalRead(uint8_t i2caddr, uint8_t num);
-void max7313_pinMode(uint8_t i2caddr, uint8_t num, uint8_t mode);
 
 #endif
