@@ -7,7 +7,7 @@ bool powering_off = false;
 bool button_pressed = false;
 unsigned long power_off_start_time = 0;
 unsigned long led_time = 0;
-bool led_state = false;
+bool led_state = true;
 
 void setup() {
   pinMode(LED_PIN, OUTPUT);
@@ -54,8 +54,11 @@ void loop() {
       if (new_time - led_time >= 500) {
           led_time = new_time;
           led_state = !led_state;
-          digitalWrite(LED_PIN, led_state ? HIGH : LOW);
       }
     }
+  } else {
+    led_state = power_on;
   }
+
+  digitalWrite(LED_PIN, led_state ? HIGH : LOW);
 }
