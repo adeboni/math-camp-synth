@@ -190,7 +190,7 @@
 
   (footprint "AlexCustom:NN01-102" (layer "F.Cu")
     (tstamp 01c40ea2-3ff6-4633-8ca1-31c3cbce5d4a)
-    (at 5.95 45.35 180)
+    (at 7.3 45.35 180)
     (property "Sheetfile" "wand.kicad_sch")
     (property "Sheetname" "")
     (property "ki_description" "Ceramic chip antenna with pin for PCB trace")
@@ -217,6 +217,11 @@
       (net 79 "Net-(AE1-FEED)") (pinfunction "FEED") (pintype "input") (thermal_bridge_angle 45) (tstamp 5f4610b8-a4b4-4ed0-b766-e812b008e95e))
     (pad "2" smd rect (at 2.55 0 180) (size 1.5 2.6) (layers "F.Cu" "F.Paste" "F.Mask")
       (net 90 "unconnected-(AE1-PCB_Trace-Pad2)") (pinfunction "PCB_Trace") (pintype "passive") (thermal_bridge_angle 45) (tstamp 324b8839-3cf0-45a6-8825-7dc6d5607789))
+    (model "${KIPRJMOD}/cad/NN01-102--3DModel-STEP-56544.STEP"
+      (offset (xyz 0 0 0))
+      (scale (xyz 1 1 1))
+      (rotate (xyz -90 0 0))
+    )
   )
 
   (footprint "Resistor_SMD:R_0402_1005Metric" (layer "F.Cu")
@@ -3320,11 +3325,6 @@
       (net 6 "GND") (pinfunction "Pin_1") (pintype "passive") (tstamp 727c1b05-5989-4cd5-82e9-bac4a8d58e3e))
     (pad "2" thru_hole oval (at 0 -2.54 180) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask")
       (net 6 "GND") (pinfunction "Pin_2") (pintype "passive") (tstamp 3a87713f-f6b3-4aba-9805-2b1e669750f0))
-    (model "${KICAD6_3DMODEL_DIR}/Connector_PinHeader_2.54mm.3dshapes/PinHeader_1x02_P2.54mm_Vertical.wrl"
-      (offset (xyz 0 0 0))
-      (scale (xyz 1 1 1))
-      (rotate (xyz 0 0 0))
-    )
   )
 
   (footprint "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical" (layer "B.Cu")
@@ -3415,8 +3415,8 @@
       (net 65 "+BATT") (pinfunction "Pin_1") (pintype "passive") (tstamp 05de4106-e25d-4b1d-8bcf-43080526ff37))
     (pad "2" thru_hole oval (at 0 -2.54 180) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask")
       (net 65 "+BATT") (pinfunction "Pin_2") (pintype "passive") (tstamp a9bbe654-fc6e-426c-8b24-5ed4d5afa21a))
-    (model "${KICAD6_3DMODEL_DIR}/Connector_PinHeader_2.54mm.3dshapes/PinHeader_1x02_P2.54mm_Vertical.wrl"
-      (offset (xyz 0 0 0))
+    (model "${KIPRJMOD}/cad/wand_battery_switch.step"
+      (offset (xyz -3.75 8 2))
       (scale (xyz 1 1 1))
       (rotate (xyz 0 0 0))
     )
@@ -4130,9 +4130,9 @@
   (segment (start 3.065686 19.214314) (end 2.75 19.53) (width 0.2) (layer "F.Cu") (net 78) (tstamp f4c549f5-b7bf-4e37-a367-a871e4261c41))
   (segment (start 7.397157 25.047157) (end 7.667157 24.777157) (width 0.2) (layer "F.Cu") (net 78) (tstamp f59aeb44-d54f-4f0b-ab6c-0ceb1cb2d254))
   (segment (start 10.5125 19) (end 11.23 19.7175) (width 0.2) (layer "F.Cu") (net 78) (tstamp f795cea0-ba14-4b57-8443-a30b31820687))
-  (segment (start 9.598528 41.780509) (end 9.916542 42.098523) (width 0.25) (layer "F.Cu") (net 79) (tstamp 8acc1f0b-b11b-43fa-85fc-4e18996c8ba8))
-  (segment (start 9.916542 43.933458) (end 8.5 45.35) (width 0.25) (layer "F.Cu") (net 79) (tstamp cad0c38c-e0b4-4e37-a302-7d92193db144))
-  (segment (start 9.916542 42.098523) (end 9.916542 43.933458) (width 0.25) (layer "F.Cu") (net 79) (tstamp fded1df3-cc1d-4f43-9106-111392625d43))
+  (segment (start 9.598528 41.780509) (end 9.916542 42.098523) (width 0.25) (layer "F.Cu") (net 79) (tstamp 0ce7c153-3f18-4e27-9127-60e8a6d16083))
+  (segment (start 9.916542 45.283458) (end 9.85 45.35) (width 0.25) (layer "F.Cu") (net 79) (tstamp d9c0f145-85d5-414b-9f84-318cb1018838))
+  (segment (start 9.916542 42.098523) (end 9.916542 45.283458) (width 0.25) (layer "F.Cu") (net 79) (tstamp f044709c-7fb3-4c87-ab2f-e2dd9dabf8b5))
   (segment (start 13.264986 40.214986) (end 12.899873 39.849873) (width 0.25) (layer "F.Cu") (net 80) (tstamp 1df24253-043c-4543-b642-3bcf04932d34))
   (segment (start 14.28 17.73) (end 14.35 17.8) (width 0.25) (layer "F.Cu") (net 80) (tstamp 3f02446e-576e-427c-9acc-0dbdae512779))
   (segment (start 11.9875 17.73) (end 14.28 17.73) (width 0.25) (layer "F.Cu") (net 80) (tstamp 4952e4ed-4aef-4557-9680-ecb9f11f433c))
