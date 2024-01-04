@@ -1,25 +1,26 @@
-#include "ICM_20948.h"
+#include <ICM_20948.h>
 #include <BleGamepad.h>
 
+#define F32_TO_INT(X) ((uint16_t)(X * 16384 + 16384))
 #define TOUCH_PIN 32
-int prevTouchState = HIGH;
-int touchThreshold = 40;
+#define TOUCH_THRESHOLD 40
 
 BleGamepad bleGamepad("Math Camp Wand", "Alex DeBoni", 100);
 ICM_20948_I2C myICM;
 
-void setup() {
-  Serial.begin(115200);
+void initICM() {
   Wire.begin();
   Wire.setClock(400000);
-    
-  bool initialized = false;
-  while (!initialized) {
-    myICM.begin(Wire, 1);
-    if (myICM.status != ICM_20948_Stat_Ok)
-      delay(500);
-    else
-      initialized = true;
+  
+  Serial.print(F("Connecting to ICM 20948... "));
+  
+  int i2cAddr = 1;
+  while (1) {
+    myICM.begin(Wire, i2cAddr);
+    if (myICM.status == ICM_20948_Stat_Ok)
+      break;
+	i2cAddr = 1 - i2cAddr;
+    delay(500);
   }
 
   bool success = true;
@@ -35,7 +36,11 @@ void setup() {
     Serial.println(F("Enable DMP failed!"));
     while (1) ;
   }
+  
+  Serial.println(F("Connected"));
+}
 
+void initGamepad() {
   BleGamepadConfiguration bleGamepadConfig;
   bleGamepadConfig.setAutoReport(false);
   bleGamepadConfig.setButtonCount(128);
@@ -43,11 +48,28 @@ void setup() {
   bleGamepad.begin(&bleGamepadConfig);
 }
 
-uint16_t doubleToInt(double x) {
-  return (uint16_t)(x * 16384 + 16384);
+void setup() {
+  Serial.begin(115200);
+  initICM();
+  initGamepad();
 }
 
-void printValues(double q1, double q2, double q3, double q0) {
+bool checkButton() {
+  static int prevTouchState = HIGH;
+  int rawTouch = touchRead(TOUCH_PIN);
+  //Serial.println(rawTouch);
+  int touched = rawTouch < TOUCH_THRESHOLD ? LOW : HIGH;
+  if (touched != prevTouchState) {
+    if (touched == LOW) bleGamepad.press(BUTTON_1);
+    else bleGamepad.release(BUTTON_1);
+    prevTouchState = touched;
+    return true;
+  }
+  
+  return false;
+}
+
+void printQuaternion(double q1, double q2, double q3, double q0) {
   Serial.print(F("{\"quat_w\":"));
   Serial.print(q0, 3);
   Serial.print(F(", \"quat_x\":"));
@@ -59,36 +81,28 @@ void printValues(double q1, double q2, double q3, double q0) {
   Serial.println(F("}"));
 }
 
-void loop() {
-  //if (!bleGamepad.isConnected())
-  //  return;
-
-  bool dataChanged = false;
-  int _rawTouch = touchRead(TOUCH_PIN);
-  //Serial.println(_rawTouch);
-  int touched = _rawTouch < touchThreshold ? LOW : HIGH;
-  if (touched != prevTouchState) {
-    if (touched == LOW) bleGamepad.press(BUTTON_1);
-    else bleGamepad.release(BUTTON_1);
-    prevTouchState = touched;
-    dataChanged = true;
-  }
-  
+bool checkICM() {
   icm_20948_DMP_data_t data;
   myICM.readDMPdataFromFIFO(&data);
-
   if ((myICM.status == ICM_20948_Stat_Ok) || (myICM.status == ICM_20948_Stat_FIFOMoreDataAvail)) {
     if ((data.header & DMP_header_bitmap_Quat9) > 0) {
       double q1 = ((double)data.Quat9.Data.Q1) / 1073741824.0;
       double q2 = ((double)data.Quat9.Data.Q2) / 1073741824.0;
       double q3 = ((double)data.Quat9.Data.Q3) / 1073741824.0;
       double q0 = sqrt(1.0 - ((q1 * q1) + (q2 * q2) + (q3 * q3)));
-      //printValues(q1, q2, q3, q0);
-      bleGamepad.setAxes(doubleToInt(q1), doubleToInt(q2), doubleToInt(q3), doubleToInt(q0), 0, 0, 0, 0);
-      dataChanged = true;
+      printQuaternion(q1, q2, q3, q0);
+      bleGamepad.setAxes(F32_TO_INT(q1), F32_TO_INT(q2), F32_TO_INT(q3), F32_TO_INT(q0), 0, 0, 0, 0);
+      return true;
     }
   }
+  
+  return false;
+}
 
+void loop() {
+  bool dataChanged = false;
+  dataChanged |= checkButton();
+  dataChanged |= checkICM();
   if (dataChanged)
     bleGamepad.sendReport();
 }
