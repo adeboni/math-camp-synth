@@ -4,9 +4,9 @@
 #include <Adafruit_NeoPixel.h>
 
 #define F32_TO_INT(X) ((uint16_t)(X * 16384 + 16384))
-#define TOUCH_PIN 		32
-#define VBUS_PIN 		9
-#define CHARGE_PIN 		34
+#define TOUCH_PIN 		  32
+#define VBUS_PIN 		    9
+#define CHARGE_PIN 		  34
 #define BATTERY_PIN     35
 #define TOUCH_THRESHOLD 40
 #define STATE_CHARGING 	0
@@ -16,18 +16,6 @@
 Adafruit_NeoPixel strip(1, 2, NEO_RGB + NEO_KHZ800);
 BleGamepad bleGamepad("Math Camp Wand", "Alex DeBoni", 100);
 ICM_20948_I2C myICM;
-
-void updateBattery() {
-  static unsigned long lastUpdate = 0;
-  unsigned long currentTime = millis();
-
-  if (currentTime - lastUpdate > 5000) {
-    lastUpdate = currentTime;
-    float adcVolts = constrain(analogRead(BATTERY_PIN), 920, 1300);
-    int percent = (int)(359 - 0.856 * adcVolts + 0.000507 * adcVolts * adcVolts);
-    bleGamepad.setBatteryLevel(constrain(percent, 0, 100));
-  }
-}
 
 int getState() {
   if (digitalRead(VBUS_PIN) == LOW)
@@ -209,6 +197,5 @@ void loop() {
     bleGamepad.sendReport();
 
   updateLED();
-  updateBattery();
   //checkI2S();
 }
