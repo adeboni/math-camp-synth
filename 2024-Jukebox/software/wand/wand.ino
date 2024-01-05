@@ -5,17 +5,79 @@
 
 #define F32_TO_INT(X) ((uint16_t)(X * 16384 + 16384))
 #define TOUCH_THRESHOLD 40
+#define STATE_PLUGGED_CHARGING 0
+#define STATE_PLUGGED_CHARGED  1
+#define STATE_UNPLUGGED        2
 
-Adafruit_NeoPixel strip(1, 2, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel strip(1, 2, NEO_RGB + NEO_KHZ800);
 BleGamepad bleGamepad("Math Camp Wand", "Alex DeBoni", 100);
 ICM_20948_I2C myICM;
 
-void rainbow(int wait) {
-  for (long pixelHue = 0; pixelHue < 5 * 65536; pixelHue += 256) {
-    strip.setPixelColor(0, strip.gamma32(strip.ColorHSV(pixelHue)));
-    strip.show();
-    delay(wait);
+void updateBattery() {
+  static unsigned long lastUpdate = 0;
+  unsigned long currentTime = millis();
+
+  if (currentTime - lastUpdate > 5000) {
+    lastUpdate = currentTime;
+    float voltage = analogRead(35) / 4095 * 3.7;
+    int percent = (int)(389 - 289 * voltage + 53.4 * voltage * voltage);
+    bleGamepad.setBatteryLevel(constrain(percent, 0, 100));
   }
+}
+
+int getState() {
+  static unsigned long lastChargeTime = 0;
+  unsigned long currentTime = millis();
+  
+  if (digitalRead(9) == LOW)
+    return STATE_UNPLUGGED;
+
+  if (digitalRead(34) == HIGH)
+    lastChargeTime = currentTime;
+
+  if (currentTime - lastChargeTime < 2000)
+    return STATE_PLUGGED_CHARGING;
+  else
+    return STATE_PLUGGED_CHARGED;
+}
+
+void updateLED() {
+  static int _r = 0, _g = 0, _b = 0;
+  static int pulseState = 0;
+  static int pulseDir = 1;
+  static unsigned long lastUpdate = 0;
+  unsigned long newUpdate = millis();
+  if (newUpdate - lastUpdate < 20)
+    return;
+
+  int r = bleGamepad.isConnected() ? 0 : 255;
+  int g = 0;
+  int b = 255 - r;
+
+  switch (getState()) {
+    case STATE_PLUGGED_CHARGING:
+      if (pulseState < 128)
+        r = g = b = 0;
+      break;
+    case STATE_PLUGGED_CHARGED:
+      r = r * pulseState / 255;
+      g = g * pulseState / 255;
+      b = b * pulseState / 255;
+      break;
+    case STATE_UNPLUGGED:
+      break;
+  }
+
+  if (r != _r || _g != g || _b != b) {
+    strip.setPixelColor(0, r, g, b);
+    strip.show();
+    _r = r; _g = g; _b = b;
+  }
+  
+  pulseState += pulseDir;
+  if (pulseState == 0 || pulseState == 255)
+    pulseDir *= -1;
+  lastUpdate = newUpdate;
 } 
 
 void initI2S() {
@@ -70,17 +132,16 @@ void initGamepad() {
 void initNeopixel() {
   strip.begin();
   strip.show();
-  strip.setBrightness(100);
+  strip.setBrightness(255);
 }
 
 void setup() {
+  analogReadResolution(12);
   Serial.begin(115200);
-  initI2S();
+  //initI2S();
   initICM();
   initGamepad();
   initNeopixel();
-
-  rainbow(10);
 }
 
 bool checkButton() {
@@ -137,9 +198,12 @@ void checkI2S() {
 
 void loop() {
   bool dataChanged = false;
-  dataChanged |= checkButton();
+  //dataChanged |= checkButton();
   dataChanged |= checkICM();
-  //checkI2S();
   if (dataChanged)
     bleGamepad.sendReport();
+
+  updateLED();
+  updateBattery();
+  //checkI2S();
 }
