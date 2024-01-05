@@ -19,7 +19,7 @@ void updateBattery() {
 
   if (currentTime - lastUpdate > 5000) {
     lastUpdate = currentTime;
-    float voltage = analogRead(35) / 4095 * 3.7;
+    float voltage = analogRead(35) / 4095 * 4.03;
     int percent = (int)(389 - 289 * voltage + 53.4 * voltage * voltage);
     bleGamepad.setBatteryLevel(constrain(percent, 0, 100));
   }
@@ -44,12 +44,14 @@ int getState() {
 void updateLED() {
   static int _r = 0, _g = 0, _b = 0;
   static int pulseState = 0;
-  static int pulseDir = 1;
+  static int pulseInc = 2;
   static unsigned long lastUpdate = 0;
   unsigned long newUpdate = millis();
   if (newUpdate - lastUpdate < 20)
     return;
 
+  lastUpdate = newUpdate;
+  
   int r = bleGamepad.isConnected() ? 0 : 255;
   int g = 0;
   int b = 255 - r;
@@ -74,10 +76,11 @@ void updateLED() {
     _r = r; _g = g; _b = b;
   }
   
-  pulseState += pulseDir;
-  if (pulseState == 0 || pulseState == 255)
-    pulseDir *= -1;
-  lastUpdate = newUpdate;
+  pulseState += pulseInc;
+  if (pulseState <= 0 || pulseState >= 255) {
+    pulseInc *= -1;
+    pulseState = constrain(pulseState, 0, 255);
+  }
 } 
 
 void initI2S() {
