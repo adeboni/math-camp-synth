@@ -19,7 +19,7 @@ void updateBattery() {
 
   if (currentTime - lastUpdate > 5000) {
     lastUpdate = currentTime;
-    float adcVolts = analogRead(35);
+    float adcVolts = constrain(analogRead(35), 920, 1300);
     int percent = (int)(359 - 0.856 * adcVolts + 0.000507 * adcVolts * adcVolts);
     bleGamepad.setBatteryLevel(constrain(percent, 0, 100));
   }
