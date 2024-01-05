@@ -4,10 +4,14 @@
 #include <Adafruit_NeoPixel.h>
 
 #define F32_TO_INT(X) ((uint16_t)(X * 16384 + 16384))
+#define TOUCH_PIN 		32
+#define VBUS_PIN 		9
+#define CHARGE_PIN 		34
+#define BATTERY_PIN     35
 #define TOUCH_THRESHOLD 40
-#define STATE_PLUGGED_CHARGING 0
-#define STATE_PLUGGED_CHARGED  1
-#define STATE_UNPLUGGED        2
+#define STATE_CHARGING 	0
+#define STATE_CHARGED  	1
+#define STATE_UNPLUGGED 2
 
 Adafruit_NeoPixel strip(1, 2, NEO_RGB + NEO_KHZ800);
 BleGamepad bleGamepad("Math Camp Wand", "Alex DeBoni", 100);
@@ -19,26 +23,21 @@ void updateBattery() {
 
   if (currentTime - lastUpdate > 5000) {
     lastUpdate = currentTime;
-    float adcVolts = constrain(analogRead(35), 920, 1300);
+    float adcVolts = constrain(analogRead(BATTERY_PIN), 920, 1300);
     int percent = (int)(359 - 0.856 * adcVolts + 0.000507 * adcVolts * adcVolts);
     bleGamepad.setBatteryLevel(constrain(percent, 0, 100));
   }
 }
 
 int getState() {
-  static unsigned long lastChargeTime = 0;
-  unsigned long currentTime = millis();
-  
-  if (digitalRead(9) == LOW)
+  if (digitalRead(VBUS_PIN) == LOW)
     return STATE_UNPLUGGED;
 
-  if (digitalRead(34) == HIGH)
-    lastChargeTime = currentTime;
+  for (int i = 0; i < 10; i++)
+	  if (digitalRead(CHARGE_PIN) == HIGH)
+		  return STATE_CHARGED;
 
-  if (currentTime - lastChargeTime < 2000)
-    return STATE_PLUGGED_CHARGING;
-  else
-    return STATE_PLUGGED_CHARGED;
+  return STATE_CHARGING;
 }
 
 void updateLED() {
@@ -57,11 +56,11 @@ void updateLED() {
   int b = 255 - r;
 
   switch (getState()) {
-    case STATE_PLUGGED_CHARGING:
+    case STATE_CHARGING:
       if (pulseState < 128)
         r = g = b = 0;
       break;
-    case STATE_PLUGGED_CHARGED:
+    case STATE_CHARGED:
       r = r * pulseState / 255;
       g = g * pulseState / 255;
       b = b * pulseState / 255;
@@ -139,6 +138,9 @@ void initNeopixel() {
 }
 
 void setup() {
+  pinMode(VBUS_PIN, INPUT);
+  pinMode(CHARGE_PIN, INPUT);
+  pinMode(BATTERY_PIN, INPUT);
   analogReadResolution(12);
   Serial.begin(115200);
   //initI2S();
@@ -149,7 +151,7 @@ void setup() {
 
 bool checkButton() {
   static int prevTouchState = HIGH;
-  int rawTouch = touchRead(32);
+  int rawTouch = touchRead(TOUCH_PIN);
   //Serial.println(rawTouch);
   int touched = rawTouch < TOUCH_THRESHOLD ? LOW : HIGH;
   if (touched != prevTouchState) {
