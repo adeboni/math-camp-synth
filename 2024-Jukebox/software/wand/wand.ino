@@ -17,6 +17,22 @@ Adafruit_NeoPixel strip(1, 2, NEO_RGB + NEO_KHZ800);
 BleGamepad bleGamepad("Math Camp Wand", "Alex DeBoni", 100);
 ICM_20948_I2C myICM;
 
+bool updateBattery() {
+  static unsigned long lastUpdate = 0;
+  unsigned long currentTime = millis();
+
+  if (currentTime - lastUpdate > 5000) {
+    lastUpdate = currentTime;
+    int rawAdc = analogRead(BATTERY_PIN);
+    float v = rawAdc / 256;
+    int percent = (int)(359 - 265 * v + 48.1 * v * v);
+    bleGamepad.setBatteryLevel(constrain(percent, 0, 100));
+    return true;
+  }
+
+  return false;
+}
+
 int getState() {
   if (digitalRead(VBUS_PIN) == LOW)
     return STATE_UNPLUGGED;
@@ -193,6 +209,7 @@ void loop() {
   bool dataChanged = false;
   //dataChanged |= checkButton();
   dataChanged |= checkICM();
+  dataChanged |= updateBattery();
   if (dataChanged)
     bleGamepad.sendReport();
 
