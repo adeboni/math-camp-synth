@@ -4,6 +4,7 @@
 #include <Adafruit_NeoPixel.h>
 
 #define F32_TO_INT(X) ((uint16_t)(X * 16384 + 16384))
+#define DEBUG_PRINT        0
 #define QUEUE_SIZE         20
 #define MOVE_THRESHOLD     0.5
 #define RETURN_THRESHOLD   0.1
@@ -15,6 +16,8 @@
 #define STATE_CHARGING     0
 #define STATE_CHARGED      1
 #define STATE_UNPLUGGED    2
+#define MODE_MOTION        0
+#define MODE_MICROPHONE    1
 
 typedef struct {
   double x;
@@ -22,7 +25,8 @@ typedef struct {
   double z;
 } Quat;
 
-uint8_t queue_index = 0;
+int currentMode = MODE_MOTION;
+int queue_index = 0;
 Quat queue[QUEUE_SIZE];
 Adafruit_NeoPixel strip(1, 2, NEO_RGB + NEO_KHZ800);
 BleGamepad bleGamepad("Math Camp Wand", "Alex DeBoni", 100);
@@ -39,22 +43,6 @@ double maxQuatDist(const Quat& q) {
   return maxDist;
 }
 
-bool updateBattery() {
-  static unsigned long lastUpdate = 0;
-  unsigned long currentTime = millis();
-
-  if (currentTime - lastUpdate > 5000) {
-    lastUpdate = currentTime;
-    int rawAdc = analogRead(BATTERY_PIN);
-    float v = rawAdc / 256;
-    int percent = (int)(359 - 265 * v + 48.1 * v * v);
-    bleGamepad.setBatteryLevel(constrain(percent, 0, 100));
-    return true;
-  }
-
-  return false;
-}
-
 int getState() {
   if (digitalRead(VBUS_PIN) == LOW)
     return STATE_UNPLUGGED;
@@ -66,14 +54,24 @@ int getState() {
   return STATE_CHARGING;
 }
 
-void updateLEDCore0() {
+void updateLEDCore0(void *parameter) {
   int _r = 0, _g = 0, _b = 0;
 
   while (1) {
     float pulse = (sin(millis() / 1000.0 * 3.14 / 180.0) + 1) / 2;
-    int r = bleGamepad.isConnected() ? 0 : 255;
+    int r = 0;
     int g = 0;
-    int b = 255 - r;
+    int b = 0;
+
+    switch (currentMode) {
+      case MODE_MOTION:
+        if (bleGamepad.isConnected()) b = 255;
+        else r = 255;
+        break;
+      case MODE_MICROPHONE:
+        g = 255;
+        break;
+    }
 
     switch (getState()) {
       case STATE_CHARGING:
@@ -98,48 +96,6 @@ void updateLEDCore0() {
     delay(20);
   }
 }
-
-void updateLED() {
-  static int _r = 0, _g = 0, _b = 0;
-  static int pulseState = 0;
-  static int pulseInc = 2;
-  static unsigned long lastUpdate = 0;
-  unsigned long newUpdate = millis();
-  if (newUpdate - lastUpdate < 20)
-    return;
-
-  lastUpdate = newUpdate;
-  
-  int r = bleGamepad.isConnected() ? 0 : 255;
-  int g = 0;
-  int b = 255 - r;
-
-  switch (getState()) {
-    case STATE_CHARGING:
-      if (pulseState < 128)
-        r = g = b = 0;
-      break;
-    case STATE_CHARGED:
-      r = r * pulseState / 255;
-      g = g * pulseState / 255;
-      b = b * pulseState / 255;
-      break;
-    case STATE_UNPLUGGED:
-      break;
-  }
-
-  if (r != _r || _g != g || _b != b) {
-    strip.setPixelColor(0, r, g, b);
-    strip.show();
-    _r = r; _g = g; _b = b;
-  }
-  
-  pulseState += pulseInc;
-  if (pulseState <= 0 || pulseState >= 255) {
-    pulseInc *= -1;
-    pulseState = constrain(pulseState, 0, 255);
-  }
-} 
 
 void initI2S() {
   I2S.setAllPins(14, 15, 25, 25, 25);
@@ -202,12 +158,13 @@ void initNeopixel() {
 }
 
 void setup() {
+  Serial.begin(115200);
   pinMode(VBUS_PIN, INPUT);
   pinMode(CHARGE_PIN, INPUT);
   pinMode(BATTERY_PIN, INPUT);
   analogReadResolution(12);
-  Serial.begin(115200);
-  //initI2S();
+  
+  initI2S();
   initICM();
   initGamepad();
   initNeopixel();
@@ -216,10 +173,36 @@ void setup() {
   xTaskCreatePinnedToCore(updateLEDCore0, "LEDHandler", 10000, NULL, 0, &taskCore0, 0);
 }
 
+bool checkBattery() {
+  static unsigned long lastUpdate = 0;
+  if (millis() - lastUpdate < 5000)
+    return false;
+    
+  lastUpdate = millis();
+  int rawAdc = analogRead(BATTERY_PIN);
+  double volts = ((double)rawAdc) / 256.0;
+  int percent = (int)(359.0 - 265.0 * volts + 48.1 * volts * volts);
+  
+  if (DEBUG_PRINT) {
+    Serial.print(F("Battery voltage: "));
+    Serial.println(volts);
+    Serial.print(F("Calculated percent: "));
+    Serial.println(percent);
+  }
+  
+  bleGamepad.setBatteryLevel(constrain(percent, 0, 100));
+  return true;
+}
+
 bool checkButton() {
   static int prevTouchState = HIGH;
   int rawTouch = touchRead(TOUCH_PIN);
-  //Serial.println(rawTouch);
+
+  if (DEBUG_PRINT) {
+    Serial.print(F("Touch pad: "));
+    Serial.println(rawTouch);
+  }
+
   int touched = rawTouch < TOUCH_THRESHOLD ? LOW : HIGH;
   if (touched != prevTouchState) {
     if (touched == LOW) bleGamepad.press(BUTTON_1);
@@ -229,18 +212,6 @@ bool checkButton() {
   }
   
   return false;
-}
-
-void printQuaternion(double q1, double q2, double q3, double q0) {
-  Serial.print(F("{\"quat_w\":"));
-  Serial.print(q0, 3);
-  Serial.print(F(", \"quat_x\":"));
-  Serial.print(q1, 3);
-  Serial.print(F(", \"quat_y\":"));
-  Serial.print(q2, 3);
-  Serial.print(F(", \"quat_z\":"));
-  Serial.print(q3, 3);
-  Serial.println(F("}"));
 }
 
 bool checkICM() {
@@ -254,17 +225,27 @@ bool checkICM() {
       double q0 = sqrt(1.0 - ((q1 * q1) + (q2 * q2) + (q3 * q3)));
 
       Quat newQ = {q1, q2, q3};
-      Quat oldestQ = queue[queue_index];
+      bool backToStart = quatDist(newQ, queue[queue_index]) < RETURN_THRESHOLD;
+      bool movedEnough = maxQuatDist(newQ) > MOVE_THRESHOLD;
       queue[queue_index] = newQ;
       queue_index = (queue_index + 1) % QUEUE_SIZE;
-      bool backToStart = quatDist(newQ, oldestQ) < RETURN_THRESHOLD;
-      bool movedEnough = maxQuatDist(newQ) > MOVE_THRESHOLD;
       if (backToStart && movedEnough)
         bleGamepad.press(BUTTON_2);
       else 
         bleGamepad.release(BUTTON_2);
+
+      if (DEBUG_PRINT) {
+        Serial.print(F("{\"quat_w\":"));
+        Serial.print(q0, 3);
+        Serial.print(F(", \"quat_x\":"));
+        Serial.print(q1, 3);
+        Serial.print(F(", \"quat_y\":"));
+        Serial.print(q2, 3);
+        Serial.print(F(", \"quat_z\":"));
+        Serial.print(q3, 3);
+        Serial.println(F("}"));
+      }
       
-      //printQuaternion(q1, q2, q3, q0);
       bleGamepad.setAxes(F32_TO_INT(q1), F32_TO_INT(q2), F32_TO_INT(q3), F32_TO_INT(q0), 0, 0, 0, 0);
       return true;
     }
@@ -276,17 +257,22 @@ bool checkICM() {
 void checkI2S() {
   int sample = I2S.read();
   if (sample && sample != -1 && sample != 1) {
-    Serial.println(sample);
+    if (DEBUG_PRINT) {
+      Serial.print(F("Audio sample: "));
+      Serial.println(sample);
+    }
   }
 }
 
 void loop() {
-  bool dataChanged = false;
-  //dataChanged |= checkButton();
-  dataChanged |= checkICM();
-  dataChanged |= updateBattery();
-  if (dataChanged)
-    bleGamepad.sendReport();
-
-  //checkI2S();
+  if (currentMode == MODE_MOTION) {
+    bool dataChanged = false;
+    dataChanged |= checkButton();
+    dataChanged |= checkICM();
+    dataChanged |= checkBattery();
+    if (dataChanged)
+      bleGamepad.sendReport();
+  } else if (currentMode == MODE_MICROPHONE) {
+    checkI2S();
+  }
 }
