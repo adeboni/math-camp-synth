@@ -44,6 +44,39 @@ int getState() {
   return STATE_CHARGING;
 }
 
+void updateLEDCore0() {
+  int _r = 0, _g = 0, _b = 0;
+
+  while (1) {
+    float pulse = (sin(millis() / 1000.0 * 3.14 / 180.0) + 1) / 2;
+    int r = bleGamepad.isConnected() ? 0 : 255;
+    int g = 0;
+    int b = 255 - r;
+
+    switch (getState()) {
+      case STATE_CHARGING:
+        if (pulse < 0.5)
+          r = g = b = 0;
+        break;
+      case STATE_CHARGED:
+        r = (int)(r * pulse);
+        g = (int)(g * pulse);
+        b = (int)(b * pulse);
+        break;
+      case STATE_UNPLUGGED:
+        break;
+    }
+
+    if (r != _r || _g != g || _b != b) {
+      strip.setPixelColor(0, r, g, b);
+      strip.show();
+      _r = r; _g = g; _b = b;
+    }
+    
+    delay(20);
+  }
+}
+
 void updateLED() {
   static int _r = 0, _g = 0, _b = 0;
   static int pulseState = 0;
@@ -151,6 +184,9 @@ void setup() {
   initICM();
   initGamepad();
   initNeopixel();
+
+  TaskHandle_t taskCore0;
+  xTaskCreatePinnedToCore(updateLEDCore0, "LEDHandler", 10000, NULL, 0, &taskCore0, 0);
 }
 
 bool checkButton() {
@@ -213,6 +249,5 @@ void loop() {
   if (dataChanged)
     bleGamepad.sendReport();
 
-  updateLED();
   //checkI2S();
 }
