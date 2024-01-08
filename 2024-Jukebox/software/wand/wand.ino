@@ -4,18 +4,40 @@
 #include <Adafruit_NeoPixel.h>
 
 #define F32_TO_INT(X) ((uint16_t)(X * 16384 + 16384))
-#define TOUCH_PIN 		  32
-#define VBUS_PIN 		    9
-#define CHARGE_PIN 		  34
-#define BATTERY_PIN     35
-#define TOUCH_THRESHOLD 40
-#define STATE_CHARGING 	0
-#define STATE_CHARGED  	1
-#define STATE_UNPLUGGED 2
+#define QUEUE_SIZE         20
+#define MOVE_THRESHOLD     0.5
+#define RETURN_THRESHOLD   0.1
+#define TOUCH_PIN          32
+#define VBUS_PIN           9
+#define CHARGE_PIN         34
+#define BATTERY_PIN        35
+#define TOUCH_THRESHOLD    40
+#define STATE_CHARGING     0
+#define STATE_CHARGED      1
+#define STATE_UNPLUGGED    2
 
+typedef struct {
+  double x;
+  double y;
+  double z;
+} Quat;
+
+uint8_t queue_index = 0;
+Quat queue[QUEUE_SIZE];
 Adafruit_NeoPixel strip(1, 2, NEO_RGB + NEO_KHZ800);
 BleGamepad bleGamepad("Math Camp Wand", "Alex DeBoni", 100);
 ICM_20948_I2C myICM;
+
+double quatDist(const Quat& q1, const Quat& q2) {
+  return abs(q1.x - q2.x) + abs(q1.y - q2.y) + abs(q1.z - q2.z);
+}
+
+double maxQuatDist(const Quat& q) {
+  double maxDist = 0;
+  for (int i = 0; i < QUEUE_SIZE; i++)
+    maxDist = max(maxDist, quatDist(q, queue[i]));
+  return maxDist;
+}
 
 bool updateBattery() {
   static unsigned long lastUpdate = 0;
@@ -38,8 +60,8 @@ int getState() {
     return STATE_UNPLUGGED;
 
   for (int i = 0; i < 10; i++)
-	  if (digitalRead(CHARGE_PIN) == HIGH)
-		  return STATE_CHARGED;
+    if (digitalRead(CHARGE_PIN) == HIGH)
+      return STATE_CHARGED;
 
   return STATE_CHARGING;
 }
@@ -129,17 +151,22 @@ void initI2S() {
 }
 
 void initICM() {
+  for (int i = 0; i < QUEUE_SIZE; i++) {
+    Quat q = {0, 0, 0};
+    queue[i] = q;
+  }
+
   Wire.begin();
   Wire.setClock(400000);
   
   Serial.print(F("Connecting to ICM 20948... "));
   
-  int i2cAddr = 1;
+  int i2cAddr = 0;
   while (1) {
     myICM.begin(Wire, i2cAddr);
     if (myICM.status == ICM_20948_Stat_Ok)
       break;
-	i2cAddr = 1 - i2cAddr;
+    i2cAddr = 1 - i2cAddr;
     delay(500);
   }
 
@@ -225,6 +252,18 @@ bool checkICM() {
       double q2 = ((double)data.Quat9.Data.Q2) / 1073741824.0;
       double q3 = ((double)data.Quat9.Data.Q3) / 1073741824.0;
       double q0 = sqrt(1.0 - ((q1 * q1) + (q2 * q2) + (q3 * q3)));
+
+      Quat newQ = {q1, q2, q3};
+      Quat oldestQ = queue[queue_index];
+      queue[queue_index] = newQ;
+      queue_index = (queue_index + 1) % QUEUE_SIZE;
+      bool backToStart = quatDist(newQ, oldestQ) < RETURN_THRESHOLD;
+      bool movedEnough = maxQuatDist(newQ) > MOVE_THRESHOLD;
+      if (backToStart && movedEnough)
+        bleGamepad.press(BUTTON_2);
+      else 
+        bleGamepad.release(BUTTON_2);
+      
       //printQuaternion(q1, q2, q3, q0);
       bleGamepad.setAxes(F32_TO_INT(q1), F32_TO_INT(q2), F32_TO_INT(q3), F32_TO_INT(q0), 0, 0, 0, 0);
       return true;

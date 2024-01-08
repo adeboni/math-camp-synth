@@ -3,7 +3,6 @@ import numpy as np
 from pyquaternion import Quaternion
 from matplotlib import pyplot as plt
 from matplotlib import animation
-from mpl_toolkits.mplot3d import Axes3D
 
 fig = plt.figure()
 ax = fig.add_axes([0, 0, 1, 1], projection='3d')
