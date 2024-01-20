@@ -34,14 +34,14 @@ uint8_t MOUTH_OUT[15]  = {13, 12, 11, 10, 9, //RED     ADDR0
                           6, 4, 2, 0, 14};   //BLUE
 uint8_t MODE_IN[8]     = {7, 5, 3, 1, 0, 6, 4, 2};   //ADDR2
 uint8_t BUTTONS_IN[7]  = {14, 13, 12, 11, 10, 9, 8}; //ADDR2
-uint8_t MODE_KEYS[8] = {HID_KEY_0, HID_KEY_1, HID_KEY_2, HID_KEY_3, 
-                        HID_KEY_4, HID_KEY_5, HID_KEY_6, HID_KEY_7};
-uint8_t BUTTON_KEYS[7] = {HID_KEY_ARROW_UP, HID_KEY_ARROW_DOWN, 
-                          HID_KEY_ARROW_LEFT, HID_KEY_ARROW_RIGHT,
-                          HID_KEY_RETURN, HID_KEY_SPACE, HID_KEY_POWER};
+uint8_t MODE_KEYS[8] = {HID_KEY_8, HID_KEY_7, HID_KEY_6, HID_KEY_5, 
+                        HID_KEY_4, HID_KEY_3, HID_KEY_2, HID_KEY_1};
+uint8_t BUTTON_KEYS[7] = {HID_KEY_SPACE, HID_KEY_ARROW_LEFT, 
+                          HID_KEY_ARROW_DOWN, HID_KEY_ARROW_RIGHT,
+                          HID_KEY_ENTER, HID_KEY_ARROW_UP, HID_KEY_POWER};
 
-uint16_t target_volume = 0;
-uint16_t current_volume = 0;
+uint8_t target_volume = 0;
+uint8_t current_volume = 0;
 
 static void set_clock_khz(void) {
     set_sys_clock_khz(PLL_SYS_KHZ, true);
@@ -99,21 +99,16 @@ void key_task(uint8_t scancode) {
 }
 
 void volume_task() {
-    if (current_volume == target_volume) return;
+    uint8_t vol_inc = 5;
+    uint8_t vol_dir = current_volume < target_volume ? HID_USAGE_CONSUMER_VOLUME_INCREMENT : HID_USAGE_CONSUMER_VOLUME_DECREMENT;
 
-    uint16_t vol_dir = current_volume < target_volume ? HID_USAGE_CONSUMER_VOLUME_INCREMENT : HID_USAGE_CONSUMER_VOLUME_DECREMENT;
-
-    while (current_volume != target_volume) {
+    while (abs(current_volume - target_volume) >= vol_inc) {
         do { tud_task(); } while (!tud_hid_ready());
         tud_hid_report(REPORT_ID_CONSUMER_CONTROL, &vol_dir, 2);
         uint16_t empty_key = 0;
         do { tud_task(); } while (!tud_hid_ready());
         tud_hid_report(REPORT_ID_CONSUMER_CONTROL, &empty_key, 2);
-
-        if (vol_dir == HID_USAGE_CONSUMER_VOLUME_INCREMENT) 
-            current_volume += 2;
-        else 
-            current_volume -= 2;
+        current_volume += vol_dir == HID_USAGE_CONSUMER_VOLUME_INCREMENT ? vol_inc : -vol_inc;
     }
 }
 
@@ -140,8 +135,12 @@ void hid_task(void) {
         button_states[i] = state;
     }
 
-    uint16_t target_volume = adc_read() / 41;
-    //volume_task();
+    uint16_t sum = 0;
+    for (int i = 0; i < 5; i++)
+        sum += adc_read();
+    sum /= 5;
+    target_volume = 100 - sum / 41;
+    volume_task();
 }
 
 void update_display(const e131_packet_t *packet, uint8_t start, uint8_t end, uint8_t en) {
@@ -204,7 +203,7 @@ int main() {
 
     current_volume = 100;
     target_volume = 0;
-    //volume_task();
+    volume_task();
 
     uint32_t last_display_update = to_ms_since_boot(get_absolute_time());
 
