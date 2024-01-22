@@ -15,6 +15,7 @@
 #include "usb_descriptors.h"
 #include "lcd_display.h"
 
+#define HID_UPDATE_MS 10
 #define DISPLAY_UPDATE_MS 500
 #define LCD_EN0 9
 #define LCD_EN1 15
@@ -40,6 +41,7 @@ uint8_t BUTTON_KEYS[7] = {HID_KEY_SPACE, HID_KEY_ARROW_LEFT,
                           HID_KEY_ARROW_DOWN, HID_KEY_ARROW_RIGHT,
                           HID_KEY_ENTER, HID_KEY_ARROW_UP, HID_KEY_POWER};
 
+uint8_t sacn_started = 0;
 uint8_t target_volume = 0;
 uint8_t current_volume = 0;
 
@@ -72,10 +74,10 @@ uint8_t get_board_id() {
 
 void w5500_init() {
     wizchip_spi_initialize();
-	wizchip_cris_initialize();
-	wizchip_reset();
-	wizchip_initialize();
-	wizchip_check();
+    wizchip_cris_initialize();
+    wizchip_reset();
+    wizchip_initialize();
+    wizchip_check();
 
     uint8_t board_id = get_board_id();
     wiz_NetInfo g_net_info = {
@@ -87,7 +89,7 @@ void w5500_init() {
         .dhcp = NETINFO_STATIC                                  // DHCP enable/disable
     };
 
-	network_initialize(g_net_info);
+    network_initialize(g_net_info);
 }
 
 void key_task(uint8_t scancode) {
@@ -113,13 +115,12 @@ void volume_task() {
 }
 
 void hid_task(void) {
-    const uint32_t interval_ms = 10;
     static uint32_t start_ms = 0;
     static uint8_t mode_states[8] = { 0 };
     static uint8_t button_states[7] = { 0 };
-
-    if (board_millis() - start_ms < interval_ms) return;
-    start_ms += interval_ms;
+    
+    if (sacn_started == 0 || board_millis() - start_ms < HID_UPDATE_MS) return;
+    start_ms = board_millis();
 
     for (int i = 0; i < 8; i++) {
         uint8_t state = 1 - max7313_digitalRead(MAX7313_ADDR2, MODE_IN[i]);
@@ -193,7 +194,7 @@ int main() {
     uint8_t last_seq = 0x00;
 
     if ((sockfd = e131_socket()) < 0) {
-    	while (1) {
+        while (1) {
             gpio_put(PICO_DEFAULT_LED_PIN, 1);
             sleep_ms(500);
             gpio_put(PICO_DEFAULT_LED_PIN, 0);
@@ -201,11 +202,7 @@ int main() {
         }
     }
 
-    current_volume = 100;
-    target_volume = 0;
-    volume_task();
-
-    uint32_t last_display_update = to_ms_since_boot(get_absolute_time());
+    uint32_t last_display_update = 0;
 
     while (1) {
         tud_task();
@@ -218,22 +215,29 @@ int main() {
         hid_task();
 
         if (e131_recv(sockfd, &packet) <= 0)
-    		continue;
+            continue;
 
-    	if ((error = e131_pkt_validate(&packet)) != E131_ERR_NONE)
-    		continue;
+        if ((error = e131_pkt_validate(&packet)) != E131_ERR_NONE)
+            continue;
 
-    	if (e131_pkt_discard(&packet, last_seq)) {
-    		last_seq = packet.frame.seq_number;
-    		continue;
-    	}
+        if (e131_pkt_discard(&packet, last_seq)) {
+            last_seq = packet.frame.seq_number;
+            continue;
+        }
 
         last_seq = packet.frame.seq_number;
 
         if (packet.dmp.prop_val_cnt < 193)
             continue;
 
-        if (to_ms_since_boot(get_absolute_time()) - last_display_update > DISPLAY_UPDATE_MS) {
+        if (sacn_started == 0) {
+            current_volume = 100;
+            target_volume = 0;
+            volume_task();
+        }
+        sacn_started = 1;
+        
+        if (board_millis() - last_display_update > DISPLAY_UPDATE_MS) {
             lcd_setCursor(LCD_EN0, 0, 0);
             update_display(&packet, 1, 41, LCD_EN0);
             lcd_setCursor(LCD_EN0, 0, 1);
@@ -242,7 +246,7 @@ int main() {
             update_display(&packet, 81, 121, LCD_EN1);
             lcd_setCursor(LCD_EN1, 0, 1);
             update_display(&packet, 121, 161, LCD_EN1);
-            last_display_update = to_ms_since_boot(get_absolute_time());
+            last_display_update = board_millis();
         }
 
         update_leds(&packet, 161, 176, MAX7313_ADDR0, MOUTH_OUT);
