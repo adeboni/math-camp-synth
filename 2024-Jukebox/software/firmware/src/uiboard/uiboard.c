@@ -56,6 +56,10 @@ static void set_clock_khz(void) {
     );
 }
 
+uint32_t millis() {
+    return to_ms_since_boot(get_absolute_time());
+}
+
 uint8_t get_board_id() {
     gpio_init(6);
     gpio_set_dir(6, GPIO_IN);
@@ -119,29 +123,30 @@ void hid_task(void) {
     static uint8_t mode_states[8] = { 0 };
     static uint8_t button_states[7] = { 0 };
     
-    if (sacn_started == 0 || board_millis() - start_ms < HID_UPDATE_MS) return;
-    start_ms = board_millis();
+    if (sacn_started != 0 && millis() - start_ms > HID_UPDATE_MS) { 
+        start_ms = millis();
 
-    for (int i = 0; i < 8; i++) {
-        uint8_t state = 1 - max7313_digitalRead(MAX7313_ADDR2, MODE_IN[i]);
-        if (mode_states[i] == 0 && state == 1) 
-            key_task(MODE_KEYS[i]);
-        mode_states[i] = state;
+        for (int i = 0; i < 8; i++) {
+            uint8_t state = 1 - max7313_digitalRead(MAX7313_ADDR2, MODE_IN[i]);
+            if (mode_states[i] == 0 && state == 1) 
+                key_task(MODE_KEYS[i]);
+            mode_states[i] = state;
+        }
+
+        for (int i = 0; i < 7; i++) {
+            uint8_t state = 1 - max7313_digitalRead(MAX7313_ADDR2, BUTTONS_IN[i]);
+            if (button_states[i] == 0 && state == 1) 
+                key_task(BUTTON_KEYS[i]);
+            button_states[i] = state;
+        }
+
+        uint16_t sum = 0;
+        for (int i = 0; i < 5; i++)
+            sum += adc_read();
+        sum /= 5;
+        target_volume = 100 - sum / 41;
+        volume_task();
     }
-
-    for (int i = 0; i < 7; i++) {
-        uint8_t state = 1 - max7313_digitalRead(MAX7313_ADDR2, BUTTONS_IN[i]);
-        if (button_states[i] == 0 && state == 1) 
-            key_task(BUTTON_KEYS[i]);
-        button_states[i] = state;
-    }
-
-    uint16_t sum = 0;
-    for (int i = 0; i < 5; i++)
-        sum += adc_read();
-    sum /= 5;
-    target_volume = 100 - sum / 41;
-    volume_task();
 }
 
 void update_display(const e131_packet_t *packet, uint8_t start, uint8_t end, uint8_t en) {
@@ -237,7 +242,7 @@ int main() {
         }
         sacn_started = 1;
         
-        if (board_millis() - last_display_update > DISPLAY_UPDATE_MS) {
+        if (millis() - last_display_update > DISPLAY_UPDATE_MS) {
             lcd_setCursor(LCD_EN0, 0, 0);
             update_display(&packet, 1, 41, LCD_EN0);
             lcd_setCursor(LCD_EN0, 0, 1);
@@ -246,14 +251,14 @@ int main() {
             update_display(&packet, 81, 121, LCD_EN1);
             lcd_setCursor(LCD_EN1, 0, 1);
             update_display(&packet, 121, 161, LCD_EN1);
-            last_display_update = board_millis();
+            last_display_update = millis();
         }
 
         update_leds(&packet, 161, 176, MAX7313_ADDR0, MOUTH_OUT);
         update_leds(&packet, 176, 182, MAX7313_ADDR1, DOTS_OUT);
         update_leds(&packet, 182, 185, MAX7313_ADDR1, MOTORS_OUT);
         update_leds(&packet, 185, 186, MAX7313_ADDR0, LAMP_OUT);
-        update_leds(&packet, 186, 192, MAX7313_ADDR1, BUTTONS_OUT);
+        update_leds(&packet, 186, 193, MAX7313_ADDR1, BUTTONS_OUT);
     }
 }
 
