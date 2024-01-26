@@ -30,7 +30,7 @@ def mouse_quaternion():
         theta = np.arctan(np.linalg.norm(np.cross(start, end)) / np.dot(start, end))
         yield Quaternion(axis=axis, angle=theta)
     
-quaternion_generator = mouse_quaternion()
+quaternion_generator = joystick_quaternion()
 
 fig = plt.figure()
 ax = fig.add_axes([0, 0, 1, 1], projection='3d')

@@ -16,6 +16,7 @@
 #include "lcd_display.h"
 
 #define HID_UPDATE_MS 10
+#define MODE_UPDATE_MS 2000
 #define DISPLAY_UPDATE_MS 500
 #define LCD_EN0 9
 #define LCD_EN1 15
@@ -41,7 +42,7 @@ uint8_t BUTTON_KEYS[7] = {HID_KEY_SPACE, HID_KEY_ARROW_LEFT,
                           HID_KEY_ARROW_DOWN, HID_KEY_ARROW_RIGHT,
                           HID_KEY_ENTER, HID_KEY_ARROW_UP, HID_KEY_POWER};
 
-uint8_t sacn_started = 0;
+bool sacn_started = false;
 uint8_t target_volume = 0;
 uint8_t current_volume = 0;
 
@@ -83,7 +84,8 @@ void w5500_init() {
     wizchip_initialize();
     wizchip_check();
 
-    uint8_t board_id = get_board_id();
+    //uint8_t board_id = get_board_id();
+    uint8_t board_id = 0;
     wiz_NetInfo g_net_info = {
         .mac = {0x00, 0x08, 0xDC, 0x12, 0x34, 0x20 + board_id}, // MAC address
         .ip = {10, 0, 0, 20 + board_id},                        // IP address
@@ -96,34 +98,42 @@ void w5500_init() {
     network_initialize(g_net_info);
 }
 
+void _tud_task() {
+    do {
+        tud_task();
+        if (tud_suspended()) 
+            tud_remote_wakeup();
+    } while (!tud_hid_ready());
+}
+
 void key_task(uint8_t scancode) {
     uint8_t keys[6] = { scancode };
-    do { tud_task(); } while (!tud_hid_ready());
+    _tud_task();
     tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, keys);
-    do { tud_task(); } while (!tud_hid_ready());
+    _tud_task();
     tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, NULL);
 }
 
 void volume_task() {
     uint8_t vol_inc = 5;
     uint8_t vol_dir = current_volume < target_volume ? HID_USAGE_CONSUMER_VOLUME_INCREMENT : HID_USAGE_CONSUMER_VOLUME_DECREMENT;
+    uint16_t empty_key = 0;
 
     while (abs(current_volume - target_volume) >= vol_inc) {
-        do { tud_task(); } while (!tud_hid_ready());
+        _tud_task();
         tud_hid_report(REPORT_ID_CONSUMER_CONTROL, &vol_dir, 2);
-        uint16_t empty_key = 0;
-        do { tud_task(); } while (!tud_hid_ready());
+        _tud_task();
         tud_hid_report(REPORT_ID_CONSUMER_CONTROL, &empty_key, 2);
         current_volume += vol_dir == HID_USAGE_CONSUMER_VOLUME_INCREMENT ? vol_inc : -vol_inc;
     }
 }
 
-void hid_task(void) {
+void hid_task() {
     static uint32_t start_ms = 0;
-    static uint8_t mode_states[8] = { 0 };
-    static uint8_t button_states[7] = { 0 };
-    
-    if (sacn_started != 0 && millis() - start_ms > HID_UPDATE_MS) { 
+    static uint8_t mode_states[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+    static uint8_t button_states[7] = { 0, 0, 0, 0, 0, 0, 0 };
+
+    if (sacn_started && millis() - start_ms > HID_UPDATE_MS) { 
         start_ms = millis();
 
         for (int i = 0; i < 8; i++) {
@@ -149,6 +159,16 @@ void hid_task(void) {
     }
 }
 
+void refresh_mode() {
+    for (int i = 0; i < 8; i++) {
+        uint8_t state = 1 - max7313_digitalRead(MAX7313_ADDR2, MODE_IN[i]);
+        if (state == 1) {
+            key_task(MODE_KEYS[i]);
+            break;
+        }
+    }
+}
+
 void update_display(const e131_packet_t *packet, uint8_t start, uint8_t end, uint8_t en) {
     for (int i = start; i < end; i++)
         lcd_print(en, packet->dmp.prop_val[i]);
@@ -159,13 +179,17 @@ void update_leds(const e131_packet_t *packet, uint8_t start, uint8_t end, uint8_
         max7313_analogWrite(i2c_addr, pins[i - start], packet->dmp.prop_val[i] >> 4);
 }
 
+void show_message(const char *str) {
+    lcd_clear(LCD_EN0);
+    lcd_home(LCD_EN0);
+    lcd_print_str(LCD_EN0, str);
+}
+
 int main() {
     set_clock_khz();
     stdio_init_all();
     adc_init();
-    board_init();
-    tusb_init();
-
+    
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
     gpio_put(PICO_DEFAULT_LED_PIN, 0);
@@ -191,7 +215,15 @@ int main() {
         max7313_analogWrite(MAX7313_ADDR1, i, 0);
     }
 
+    show_message("Initializing");
+
+    sleep_ms(500);
     w5500_init();
+    sleep_ms(500);
+    board_init();
+    sleep_ms(500);
+    tusb_init();
+    sleep_ms(500);
 
     int sockfd;
     e131_packet_t packet;
@@ -208,16 +240,15 @@ int main() {
     }
 
     uint32_t last_display_update = 0;
+    uint32_t last_mode_update = 0;
+
+    show_message("Initialized");
 
     while (1) {
-        tud_task();
-
-        if (tud_suspended())  {
-            tud_remote_wakeup();
-            continue;
+        if (sacn_started) {
+            _tud_task();
+            hid_task();
         }
-
-        hid_task();
 
         if (e131_recv(sockfd, &packet) <= 0)
             continue;
@@ -235,12 +266,17 @@ int main() {
         if (packet.dmp.prop_val_cnt < 193)
             continue;
 
-        if (sacn_started == 0) {
+        if (!sacn_started) {
             current_volume = 100;
             target_volume = 0;
             volume_task();
+            sacn_started = true;
         }
-        sacn_started = 1;
+
+        if (sacn_started && millis() - last_mode_update > MODE_UPDATE_MS) {
+            refresh_mode();
+            last_mode_update = millis();
+        }
         
         if (millis() - last_display_update > DISPLAY_UPDATE_MS) {
             lcd_setCursor(LCD_EN0, 0, 0);
