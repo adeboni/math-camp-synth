@@ -7,6 +7,7 @@ from matplotlib import animation
 
 BOUNDS = 2000
 QUEUE_LIMIT = 10
+QUAT_OFFSET = Quaternion(1, 1, 0, 0)
 
 def dist_3d(p1, p2):
     return sum(abs(p1[i] - p2[i]) for i in range(3))
@@ -19,7 +20,8 @@ def joystick_quaternion():
     controller.init()
     while True:
         pygame.event.pump()
-        yield Quaternion(w=controller.get_axis(5), x=controller.get_axis(0), y=controller.get_axis(1), z=controller.get_axis(2))
+        q = Quaternion(w=controller.get_axis(5), x=controller.get_axis(0), y=controller.get_axis(1), z=controller.get_axis(2))
+        yield QUAT_OFFSET.rotate(q)
 
 def mouse_quaternion():
     while True:
