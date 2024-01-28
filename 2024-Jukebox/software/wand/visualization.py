@@ -7,7 +7,7 @@ from matplotlib import animation
 
 BOUNDS = 2000
 QUEUE_LIMIT = 10
-QUAT_OFFSET = Quaternion(1, 1, 0, 0)
+QUAT_OFFSET = Quaternion(1, 0, 0, -1)
 
 def dist_3d(p1, p2):
     return sum(abs(p1[i] - p2[i]) for i in range(3))
@@ -15,7 +15,6 @@ def dist_3d(p1, p2):
 def joystick_quaternion():
     import pygame
     pygame.init()
-    pygame.joystick.init()
     controller = pygame.joystick.Joystick(0)
     controller.init()
     while True:
@@ -69,6 +68,11 @@ def animate(_):
         line.set_data([start[0], end[0]], [start[1], end[1]])
         line.set_3d_properties([start[2], end[2]])
         point = start - end * pn.dot(start - pp) / pn.dot(end)
+		
+        #if i == 0 and 0 <= int(point[1]) <= 3840 and 0 <= int(point[2]) <= 2160:
+        #    print(point)
+        #    pyautogui.moveTo(int(point[1]), 2160 - int(point[2]), _pause=False)
+			
         marker.set_data([point[0]], [point[1]])
         marker.set_3d_properties([point[2]])
         if i == 0:
