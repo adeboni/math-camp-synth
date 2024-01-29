@@ -16,7 +16,6 @@ def joystick_quaternion():
     import pygame
     pygame.init()
     controller = pygame.joystick.Joystick(0)
-    controller.init()
     while True:
         pygame.event.pump()
         q = Quaternion(w=controller.get_axis(5), x=controller.get_axis(0), y=controller.get_axis(1), z=controller.get_axis(2))
