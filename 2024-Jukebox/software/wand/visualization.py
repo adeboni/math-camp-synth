@@ -1,5 +1,4 @@
 import numpy as np
-import pyautogui
 import time
 from pyquaternion import Quaternion
 from matplotlib import pyplot as plt
@@ -22,6 +21,7 @@ def joystick_quaternion():
         yield QUAT_OFFSET.rotate(q)
 
 def mouse_quaternion():
+    import pyautogui
     while True:
         mouse = pyautogui.position()
         start = np.array([1, 0, 0])

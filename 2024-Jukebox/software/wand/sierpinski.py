@@ -1,6 +1,5 @@
 import math
 import numpy as np
-import pyautogui
 from pyquaternion import Quaternion
 from matplotlib import pyplot as plt
 from matplotlib import animation
@@ -9,8 +8,19 @@ HUMAN_HEIGHT = 5
 SIDE_LENGTH = 40
 PROJECTION_BOTTOM = 5
 PROJECTION_TOP = 30
+QUAT_OFFSET = Quaternion(1, 0, 0, -1)
+
+def joystick_quaternion():
+    import pygame
+    pygame.init()
+    controller = pygame.joystick.Joystick(0)
+    while True:
+        pygame.event.pump()
+        q = Quaternion(w=controller.get_axis(5), x=controller.get_axis(0), y=controller.get_axis(1), z=controller.get_axis(2))
+        yield QUAT_OFFSET.rotate(q)
 
 def mouse_quaternion():
+    import pyautogui
     while True:
         mouse = pyautogui.position()
         start = np.array([1, 0, 0])
