@@ -7,29 +7,7 @@ from matplotlib import animation
 HUMAN_HEIGHT = 5
 SIDE_LENGTH = 40
 PROJECTION_BOTTOM = 5
-PROJECTION_TOP = 30
-QUAT_OFFSET = Quaternion(1, 0, 0, -1)
-
-def joystick_quaternion():
-    import pygame
-    pygame.init()
-    controller = pygame.joystick.Joystick(0)
-    while True:
-        pygame.event.pump()
-        q = Quaternion(w=controller.get_axis(5), x=controller.get_axis(0), y=controller.get_axis(1), z=controller.get_axis(2))
-        yield QUAT_OFFSET.rotate(q)
-
-def mouse_quaternion():
-    import pyautogui
-    while True:
-        mouse = pyautogui.position()
-        start = np.array([1, 0, 0])
-        end = np.array([1, np.interp(mouse.x, [0, 1920], [1, -1]), np.interp(mouse.y, [0, 1080], [-1, 1])])
-        axis = np.cross(start, end) / np.linalg.norm(np.cross(start, end))
-        theta = np.arctan(np.linalg.norm(np.cross(start, end)) / np.dot(start, end))
-        yield Quaternion(axis=axis, angle=theta)
-
-quaternion_generator = mouse_quaternion()
+PROJECTION_TOP = 25
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
@@ -39,13 +17,14 @@ ax.set_zlim((0, 40))
 ax.view_init(20, 50)
 
 triangle_height = math.sqrt(SIDE_LENGTH**2 - (SIDE_LENGTH/2)**2)
+tetra_height = SIDE_LENGTH * math.sqrt(2/3)
 sides = [
     [(-SIDE_LENGTH/2, -triangle_height/3, 0), (SIDE_LENGTH/2, -triangle_height/3, 0)],
     [(-SIDE_LENGTH/2, -triangle_height/3, 0), (0, triangle_height*2/3, 0)],
     [(SIDE_LENGTH/2, -triangle_height/3, 0), (0, triangle_height*2/3, 0)],
-    [(SIDE_LENGTH/2, -triangle_height/3, 0), (0, 0, triangle_height)],
-    [(-SIDE_LENGTH/2, -triangle_height/3, 0), (0, 0, triangle_height)],
-    [(0, triangle_height*2/3, 0), (0, 0, triangle_height)],
+    [(SIDE_LENGTH/2, -triangle_height/3, 0), (0, 0, tetra_height)],
+    [(-SIDE_LENGTH/2, -triangle_height/3, 0), (0, 0, tetra_height)],
+    [(0, triangle_height*2/3, 0), (0, 0, tetra_height)],
 ]
 
 for s1, s2 in sides:
@@ -91,8 +70,43 @@ def point_in_triangle(a, b, c, p):
 def point_in_surface(s, p):
     return point_in_triangle(s[0], s[1], s[2], p) or point_in_triangle(s[2], s[3], s[0], p)
 
+def find_quat(start, end):
+    cross = np.cross(start, end)
+    axis = cross / np.linalg.norm(cross)
+    theta = np.arctan(np.linalg.norm(cross) / np.dot(start, end))
+    return Quaternion(axis=axis, angle=theta)
+
+center_line = [(0, -triangle_height/3, 0), (0, 0, tetra_height)]
+center_point = find_edge_pos(center_line, PROJECTION_BOTTOM + (PROJECTION_TOP - PROJECTION_BOTTOM) / 2)
+target_vector = np.array([center_point[0], center_point[1], center_point[2] - HUMAN_HEIGHT])
+ax.plot([center_point[0]], [center_point[1]], [center_point[2]], c='b', linestyle='', marker='o')
+
+p1 = np.array([center_point[0], center_point[1], 0])
+p2 = np.array([center_point[0], center_point[1], center_point[2] - HUMAN_HEIGHT])
+deg90 = Quaternion(axis=[0, 0, 1], angle=3.14159265 / 2)
+mouse_offset = find_quat(p1, p2) * deg90
+
+def joystick_quaternion():
+    import pygame
+    pygame.init()
+    controller = pygame.joystick.Joystick(0)
+    WAND_OFFSET = Quaternion(1, 0, 0, -1)
+    while True:
+        pygame.event.pump()
+        q = Quaternion(w=controller.get_axis(5), x=controller.get_axis(0), y=controller.get_axis(1), z=controller.get_axis(2))
+        yield WAND_OFFSET.rotate(q)
+
+def mouse_quaternion():
+    import pyautogui
+    MOUSE_OFFSET = np.array([1, 0, 0])
+    while True:
+        mouse = pyautogui.position()
+        end = np.array([1, np.interp(mouse.x, [0, 1920], [1, -1]), np.interp(mouse.y, [0, 1080], [-1, 1])])
+        yield mouse_offset * find_quat(MOUSE_OFFSET, end)
+
+quaternion_generator = mouse_quaternion()
+
 def animate(_):
-    global last_press
     q = next(quaternion_generator)
 
     for i, (line, start, end) in enumerate(zip(lines, startpoints, endpoints)):
