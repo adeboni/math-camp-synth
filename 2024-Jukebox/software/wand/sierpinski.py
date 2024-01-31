@@ -76,15 +76,13 @@ def find_quat(start, end):
     theta = np.arctan(np.linalg.norm(cross) / np.dot(start, end))
     return Quaternion(axis=axis, angle=theta)
 
-center_line = [(0, -triangle_height/3, 0), (0, 0, tetra_height)]
+def get_edge_midpoint(p1, p2):
+    return (np.array(p1) + np.array(p2)) / 2
+
+center_line = [get_edge_midpoint(sides[4][0], sides[5][0]), (0, 0, tetra_height)]
 center_point = find_edge_pos(center_line, PROJECTION_BOTTOM + (PROJECTION_TOP - PROJECTION_BOTTOM) / 2)
 target_vector = np.array([center_point[0], center_point[1], center_point[2] - HUMAN_HEIGHT])
 ax.plot([center_point[0]], [center_point[1]], [center_point[2]], c='b', linestyle='', marker='o')
-
-p1 = np.array([center_point[0], center_point[1], 0])
-p2 = np.array([center_point[0], center_point[1], center_point[2] - HUMAN_HEIGHT])
-deg90 = Quaternion(axis=[0, 0, 1], angle=3.14159265 / 2)
-mouse_offset = find_quat(p1, p2) * deg90
 
 def joystick_quaternion():
     import pygame
@@ -98,11 +96,12 @@ def joystick_quaternion():
 
 def mouse_quaternion():
     import pyautogui
-    MOUSE_OFFSET = np.array([1, 0, 0])
+    start = np.array([1, 0, 0])
+    mouse_offset = find_quat(start, target_vector)
     while True:
         mouse = pyautogui.position()
         end = np.array([1, np.interp(mouse.x, [0, 1920], [1, -1]), np.interp(mouse.y, [0, 1080], [-1, 1])])
-        yield mouse_offset * find_quat(MOUSE_OFFSET, end)
+        yield mouse_offset * find_quat(start, end)
 
 quaternion_generator = mouse_quaternion()
 
