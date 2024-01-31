@@ -18,35 +18,38 @@ ax.view_init(20, 50)
 
 triangle_height = math.sqrt(SIDE_LENGTH**2 - (SIDE_LENGTH/2)**2)
 tetra_height = SIDE_LENGTH * math.sqrt(2/3)
-sides = [
-    [(-SIDE_LENGTH/2, -triangle_height/3, 0), (SIDE_LENGTH/2, -triangle_height/3, 0)],
-    [(-SIDE_LENGTH/2, -triangle_height/3, 0), (0, triangle_height*2/3, 0)],
-    [(SIDE_LENGTH/2, -triangle_height/3, 0), (0, triangle_height*2/3, 0)],
-    [(SIDE_LENGTH/2, -triangle_height/3, 0), (0, 0, tetra_height)],
-    [(-SIDE_LENGTH/2, -triangle_height/3, 0), (0, 0, tetra_height)],
-    [(0, triangle_height*2/3, 0), (0, 0, tetra_height)],
+
+vertices = [
+    np.array([-SIDE_LENGTH/2, -triangle_height/3, 0]),
+    np.array([SIDE_LENGTH/2, -triangle_height/3, 0]),
+    np.array([0, triangle_height*2/3, 0]),
+    np.array([0, 0, tetra_height]),
 ]
 
-for s1, s2 in sides:
-    ax.plot([s1[0], s2[0]], [s1[1], s2[1]], [s1[2], s2[2]], color='k')
+edges = [
+    (vertices[0], vertices[1]),
+    (vertices[0], vertices[2]),
+    (vertices[1], vertices[2]),
+    (vertices[1], vertices[3]),
+    (vertices[0], vertices[3]),
+    (vertices[2], vertices[3])
+]
+
+for e1, e2 in edges:
+    ax.plot([e1[0], e2[0]], [e1[1], e2[1]], [e1[2], e2[2]], color='k')
 
 def find_edge_pos(edge, z):
     x = edge[0][0] + (z - edge[0][2]) * (edge[1][0] - edge[0][0]) / (edge[1][2] - edge[0][2])
     y = edge[0][1] + (z - edge[0][2]) * (edge[1][1] - edge[0][1]) / (edge[1][2] - edge[0][2])
     return (x, y, z)
 
-def find_surface_normal(surface):
-    ab = surface[1] - surface[0]
-    ac = surface[2] - surface[0]
-    return np.cross(ab, ac)
-
 surfaces = [
-    np.array([find_edge_pos(sides[3], PROJECTION_BOTTOM), find_edge_pos(sides[3], PROJECTION_TOP), 
-              find_edge_pos(sides[4], PROJECTION_TOP), find_edge_pos(sides[4], PROJECTION_BOTTOM)]),
-    np.array([find_edge_pos(sides[3], PROJECTION_BOTTOM), find_edge_pos(sides[3], PROJECTION_TOP), 
-              find_edge_pos(sides[5], PROJECTION_TOP), find_edge_pos(sides[5], PROJECTION_BOTTOM)]),
-    np.array([find_edge_pos(sides[4], PROJECTION_BOTTOM), find_edge_pos(sides[4], PROJECTION_TOP), 
-              find_edge_pos(sides[5], PROJECTION_TOP), find_edge_pos(sides[5], PROJECTION_BOTTOM)]),
+    np.array([find_edge_pos(edges[3], PROJECTION_BOTTOM), find_edge_pos(edges[3], PROJECTION_TOP), 
+              find_edge_pos(edges[4], PROJECTION_TOP), find_edge_pos(edges[4], PROJECTION_BOTTOM)]),
+    np.array([find_edge_pos(edges[3], PROJECTION_BOTTOM), find_edge_pos(edges[3], PROJECTION_TOP), 
+              find_edge_pos(edges[5], PROJECTION_TOP), find_edge_pos(edges[5], PROJECTION_BOTTOM)]),
+    np.array([find_edge_pos(edges[4], PROJECTION_BOTTOM), find_edge_pos(edges[4], PROJECTION_TOP), 
+              find_edge_pos(edges[5], PROJECTION_TOP), find_edge_pos(edges[5], PROJECTION_BOTTOM)]),
 ]
 
 for surface in surfaces:
@@ -55,13 +58,16 @@ for surface in surfaces:
     z = [s[2] for s in surface]
     ax.plot_trisurf(x, y, z, color='y', alpha=0.2)
 
+def find_surface_normal(surface):
+    return np.cross(surface[1] - surface[0], surface[2] - surface[0])
+
 lines = sum([ax.plot([], [], [], c=c) for c in ['r', 'g', 'b']], [])
 startpoints = np.array([[-2, 0, 0], [0, -2, 0], [0, 0, -2]])
 endpoints =  np.array([[2, 0, 0], [0, 2, 0], [0, 0, 2]])
 
 projection = ax.plot([], [], [], c='r', linestyle='', marker='o')
-plane_normals = np.array([find_surface_normal(surfaces[0]), find_surface_normal(surfaces[1]), find_surface_normal(surfaces[2])])
-plane_points = np.array([surfaces[0][0], surfaces[1][0], surfaces[2][0]])
+plane_normals = np.array([find_surface_normal(surface) for surface in surfaces])
+plane_points = np.array([surface[0] for surface in surfaces])
 
 def point_in_triangle(a, b, c, p):
     same_side = lambda p1, p2, a, b: np.cross(b - a, p1 - a).dot(np.cross(b - a, p2 - a)) >= 0
@@ -76,10 +82,7 @@ def find_quat(start, end):
     theta = np.arctan(np.linalg.norm(cross) / np.dot(start, end))
     return Quaternion(axis=axis, angle=theta)
 
-def get_edge_midpoint(p1, p2):
-    return (np.array(p1) + np.array(p2)) / 2
-
-center_line = [get_edge_midpoint(sides[4][0], sides[5][0]), (0, 0, tetra_height)]
+center_line = [(vertices[0] + vertices[2]) / 2, (0, 0, tetra_height)]
 center_point = find_edge_pos(center_line, PROJECTION_BOTTOM + (PROJECTION_TOP - PROJECTION_BOTTOM) / 2)
 target_vector = np.array([center_point[0], center_point[1], center_point[2] - HUMAN_HEIGHT])
 ax.plot([center_point[0]], [center_point[1]], [center_point[2]], c='b', linestyle='', marker='o')
@@ -88,11 +91,11 @@ def joystick_quaternion():
     import pygame
     pygame.init()
     controller = pygame.joystick.Joystick(0)
-    WAND_OFFSET = Quaternion(1, 0, 0, -1)
+    wand_offset = Quaternion(1, 0, 0, -1)
     while True:
         pygame.event.pump()
         q = Quaternion(w=controller.get_axis(5), x=controller.get_axis(0), y=controller.get_axis(1), z=controller.get_axis(2))
-        yield WAND_OFFSET.rotate(q)
+        yield wand_offset.rotate(q)
 
 def mouse_quaternion():
     import pyautogui
