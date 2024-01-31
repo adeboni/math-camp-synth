@@ -133,7 +133,7 @@ void hid_task() {
     static uint8_t mode_states[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
     static uint8_t button_states[7] = { 0, 0, 0, 0, 0, 0, 0 };
 
-    if (sacn_started && millis() - start_ms > HID_UPDATE_MS) { 
+    if (millis() - start_ms > HID_UPDATE_MS) { 
         start_ms = millis();
 
         for (int i = 0; i < 8; i++) {
@@ -217,13 +217,7 @@ int main() {
 
     show_message("Initializing");
 
-    sleep_ms(500);
     w5500_init();
-    sleep_ms(500);
-    board_init();
-    sleep_ms(500);
-    tusb_init();
-    sleep_ms(500);
 
     int sockfd;
     e131_packet_t packet;
@@ -267,16 +261,21 @@ int main() {
             continue;
 
         if (!sacn_started) {
+            board_init();
+            tusb_init();
+            sleep_ms(2000);
+            sacn_started = true;
             current_volume = 100;
             target_volume = 0;
             volume_task();
-            sacn_started = true;
         }
 
+        /*
         if (sacn_started && millis() - last_mode_update > MODE_UPDATE_MS) {
             refresh_mode();
             last_mode_update = millis();
         }
+        */
         
         if (millis() - last_display_update > DISPLAY_UPDATE_MS) {
             lcd_setCursor(LCD_EN0, 0, 0);
