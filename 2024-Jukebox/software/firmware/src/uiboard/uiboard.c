@@ -263,7 +263,6 @@ int main() {
         if (!sacn_started) {
             board_init();
             tusb_init();
-            sleep_ms(2000);
             sacn_started = true;
             current_volume = 100;
             target_volume = 0;
