@@ -5,9 +5,11 @@
 
 #define F32_TO_INT(X) ((uint16_t)(X * 16384 + 16384))
 #define DEBUG_PRINT        0
-#define QUEUE_SIZE         20
-#define MOVE_THRESHOLD     0.5
-#define RETURN_THRESHOLD   0.1
+//#define QUEUE_SIZE         20
+#define QUEUE_SIZE         10 //TODO
+#define SPEED_THRESHOLD    0.5 //TODO
+//#define MOVE_THRESHOLD     0.5
+//#define RETURN_THRESHOLD   0.1
 #define TOUCH_PIN          32
 #define VBUS_PIN           9
 #define CHARGE_PIN         34
@@ -18,20 +20,24 @@
 #define STATE_UNPLUGGED    2
 #define MODE_MOTION        0
 #define MODE_MICROPHONE    1
-
+/*
 typedef struct {
   double x;
   double y;
   double z;
 } Quat;
-
+*/
+double prevSpeed = 0;
 int currentMode = MODE_MOTION;
-int queue_index = 0;
-Quat queue[QUEUE_SIZE];
+int queueIndex = 0;
+//Quat queue[QUEUE_SIZE];
+double queue[QUEUE_SIZE];
+int numAddedToQueue = 0;
 Adafruit_NeoPixel strip(1, 2, NEO_RGB + NEO_KHZ800);
 BleGamepad bleGamepad("Math Camp Wand", "Alex DeBoni", 100);
 ICM_20948_I2C myICM;
 
+/*
 double quatDist(const Quat& q1, const Quat& q2) {
   return abs(q1.x - q2.x) + abs(q1.y - q2.y) + abs(q1.z - q2.z);
 }
@@ -42,6 +48,7 @@ double maxQuatDist(const Quat& q) {
     maxDist = max(maxDist, quatDist(q, queue[i]));
   return maxDist;
 }
+*/
 
 int getState() {
   if (digitalRead(VBUS_PIN) == LOW)
@@ -108,8 +115,8 @@ void initI2S() {
 
 void initICM() {
   for (int i = 0; i < QUEUE_SIZE; i++) {
-    Quat q = {0, 0, 0};
-    queue[i] = q;
+    //Quat q = {0, 0, 0};
+    //queue[i] = q;
   }
 
   Wire.begin();
@@ -224,15 +231,28 @@ bool checkICM() {
       double q3 = ((double)data.Quat9.Data.Q3) / 1073741824.0;
       double q0 = sqrt(1.0 - ((q1 * q1) + (q2 * q2) + (q3 * q3)));
 
+      if (numAddedToQueue == QUEUE_SIZE) {
+        double speed = q3 - queue[queueIndex];
+        Serial.println(speed);
+        if (prevSpeed > SPEED_THRESHOLD && speed < SPEED_THRESHOLD)
+          bleGamepad.press(BUTTON_2);
+        else 
+          bleGamepad.release(BUTTON_2);
+      }
+      queue[queueIndex] = q3;
+      queueIndex = (queueIndex + 1) % QUEUE_SIZE;
+      if (numAddedToQueue < QUEUE_SIZE) numAddedToQueue++;
+      /*
       Quat newQ = {q1, q2, q3};
-      bool backToStart = quatDist(newQ, queue[queue_index]) < RETURN_THRESHOLD;
+      bool backToStart = quatDist(newQ, queue[queueIndex]) < RETURN_THRESHOLD;
       bool movedEnough = maxQuatDist(newQ) > MOVE_THRESHOLD;
-      queue[queue_index] = newQ;
-      queue_index = (queue_index + 1) % QUEUE_SIZE;
+      queue[queueIndex] = newQ;
+      queueIndex = (queueIndex + 1) % QUEUE_SIZE;
       if (backToStart && movedEnough)
         bleGamepad.press(BUTTON_2);
       else 
         bleGamepad.release(BUTTON_2);
+      */
 
       if (DEBUG_PRINT) {
         Serial.print(F("{\"quat_w\":"));
