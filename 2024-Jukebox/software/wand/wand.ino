@@ -18,17 +18,24 @@
 
 int currentMode = MODE_MOTION;
 Adafruit_NeoPixel strip(1, 2, NEO_RGB + NEO_KHZ800);
-BleGamepad bleGamepad("Math Camp Wand", "Alex DeBoni", 100);
+BleGamepad bleGamepad("Math Camp Wand 1", "Alex DeBoni", 100);
 ICM_20948_I2C myICM;
 
 int getState() {
-  if (digitalRead(VBUS_PIN) == LOW)
-    return STATE_UNPLUGGED;
-
+  int vbus = digitalRead(VBUS_PIN);
+  int charge = 0;
   for (int i = 0; i < 10; i++)
-    if (digitalRead(CHARGE_PIN) == HIGH)
-      return STATE_CHARGED;
+    charge |= digitalRead(CHARGE_PIN);
+  int battery = analogRead(BATTERY_PIN);
 
+  if (DEBUG_PRINT) {
+    Serial.print("VBUS: ");       Serial.print(vbus);
+    Serial.print("   CHARGE: ");  Serial.print(charge);
+    Serial.print("   BATTERY: "); Serial.println(battery);
+  }
+
+  if (vbus == LOW) return STATE_UNPLUGGED;
+  else if (charge == HIGH) return STATE_CHARGED;
   return STATE_CHARGING;
 }
 
@@ -36,34 +43,12 @@ void updateLEDCore0(void *parameter) {
   int _r = 0, _g = 0, _b = 0;
 
   while (1) {
-    float pulse = (sin(millis() / 1000.0 * 3.14 / 180.0) + 1) / 2;
-    int r = 0;
-    int g = 0;
-    int b = 0;
-
-    switch (currentMode) {
-      case MODE_MOTION:
-        if (bleGamepad.isConnected()) b = 255;
-        else r = 255;
-        break;
-      case MODE_MICROPHONE:
-        g = 255;
-        break;
-    }
-
-    switch (getState()) {
-      case STATE_CHARGING:
-        if (pulse < 0.5)
-          r = g = b = 0;
-        break;
-      case STATE_CHARGED:
-        r = (int)(r * pulse);
-        g = (int)(g * pulse);
-        b = (int)(b * pulse);
-        break;
-      case STATE_UNPLUGGED:
-        break;
-    }
+    int r = currentMode == MODE_MICROPHONE ? 255 : 0;
+    int g = bleGamepad.isConnected() ? 255 : 0;
+    int b = getState() == STATE_CHARGED ? 255 : 0;
+    
+    if (r == 0 && g == 0 && b == 0)
+      r = g = b = 255;
 
     if (r != _r || _g != g || _b != b) {
       strip.setPixelColor(0, r, g, b);
@@ -71,7 +56,7 @@ void updateLEDCore0(void *parameter) {
       _r = r; _g = g; _b = b;
     }
     
-    delay(20);
+    delay(500);
   }
 }
 
