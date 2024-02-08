@@ -4,33 +4,36 @@ from pyquaternion import Quaternion
 import time
 import random
 
+pygame.init()
+
 SPEED_THRESHOLD = 0.4
+NUM_WANDS = 2
 
 files = []
 for file in os.listdir("."):
     if file.endswith(".wav"):
-        files.append(file)
+        files.append(pygame.mixer.Sound(file))
 
-vector = [1, 0, 0]
-pygame.init()
-wand = pygame.joystick.Joystick(0)
-prev_press = 0
 wand_offset = Quaternion(1, 0, 0, -1)
-queue = []
-prev_speed = 0
+vector = [1, 0, 0]
+wands = [pygame.joystick.Joystick(i) for i in range(NUM_WANDS)]
+queues = [[] for i in range(NUM_WANDS)]
+prev_speeds = [0 for i in range(NUM_WANDS)]
+
+def check_for_hit(wand_num):
+    q = Quaternion(w=wands[wand_num].get_axis(5), x=wands[wand_num].get_axis(0), y=wands[wand_num].get_axis(1), z=wands[wand_num].get_axis(2))
+    q = wand_offset.rotate(q)
+    pos = q.rotate(vector)[2]
+    if len(queues[wand_num]) > 10:
+        queues[wand_num].pop(0)
+    queues[wand_num].append(pos)
+    new_speed = queues[wand_num][-1] - queues[wand_num][0]
+    if prev_speeds[wand_num] > SPEED_THRESHOLD and new_speed < SPEED_THRESHOLD:
+        files[random.randrange(len(files))].play()
+    prev_speeds[wand_num] = new_speed
 
 while True:
     pygame.event.pump()
-    q = Quaternion(w=wand.get_axis(5), x=wand.get_axis(0), y=wand.get_axis(1), z=wand.get_axis(2))
-    q = wand_offset.rotate(q)
-    pos = q.rotate(vector)[2]
-    if len(queue) > 10:
-        queue.pop(0)
-    queue.append(pos)
-    new_speed = queue[-1] - queue[0]
-    if prev_speed > SPEED_THRESHOLD and new_speed < SPEED_THRESHOLD:
-        print("hit")
-        pygame.mixer.music.load(files[random.randrange(len(files))])
-        pygame.mixer.music.play()
-    prev_speed = new_speed
+    for i in range(NUM_WANDS):
+        check_for_hit(i)
     time.sleep(0.02)
