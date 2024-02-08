@@ -15,6 +15,7 @@
 #define STATE_UNPLUGGED    2
 #define MODE_MOTION        0
 #define MODE_MICROPHONE    1
+#define MODE_CHARGING      2
 
 int currentMode = MODE_MOTION;
 Adafruit_NeoPixel strip(1, 2, NEO_RGB + NEO_KHZ800);
@@ -43,13 +44,23 @@ void updateLEDCore0(void *parameter) {
   int _r = 0, _g = 0, _b = 0;
 
   while (1) {
-    int r = currentMode == MODE_MICROPHONE ? 255 : 0;
-    int g = bleGamepad.isConnected() ? 255 : 0;
-    int b = getState() == STATE_CHARGED ? 255 : 0;
-    
-    if (r == 0 && g == 0 && b == 0)
-      r = g = b = 255;
-
+    int r = 0;
+    int g = 0;
+    int b = 0;
+     
+    switch (currentMode) {
+      case (MODE_CHARGING):
+        if (getState() == STATE_CHARGING) r = 255;
+        else g = 255;
+        break;
+      case (MODE_MICROPHONE):
+        g = 255;
+        break;
+      case (MODE_MOTION):
+        if (bleGamepad.isConnected()) b = 255;
+        else r = 255;
+    }
+      
     if (r != _r || _g != g || _b != b) {
       strip.setPixelColor(0, r, g, b);
       strip.show();
@@ -61,6 +72,7 @@ void updateLEDCore0(void *parameter) {
 }
 
 void initI2S() {
+  if (currentMode != MODE_MICROPHONE) return;
   I2S.setAllPins(14, 15, 25, 25, 25);
   // start I2S at 8 kHz with 32-bits per sample
   if (!I2S.begin(I2S_PHILIPS_MODE, 8000, 32)) {
@@ -70,6 +82,8 @@ void initI2S() {
 }
 
 void initICM() {
+  if (currentMode != MODE_MOTION) return;
+  
   Wire.begin();
   Wire.setClock(400000);
   
@@ -102,6 +116,7 @@ void initICM() {
 }
 
 void initGamepad() {
+  if (currentMode != MODE_MOTION) return;
   BleGamepadConfiguration bleGamepadConfig;
   bleGamepadConfig.setAutoReport(false);
   bleGamepadConfig.setButtonCount(128);
@@ -121,6 +136,9 @@ void setup() {
   pinMode(CHARGE_PIN, INPUT);
   pinMode(BATTERY_PIN, INPUT);
   analogReadResolution(12);
+  
+  if (digitalRead(VBUS_PIN) == HIGH && !Serial)
+    currentMode = MODE_CHARGING;
   
   initI2S();
   initICM();
