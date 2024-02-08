@@ -4,7 +4,7 @@
 #include <Adafruit_NeoPixel.h>
 
 #define F32_TO_INT(X) ((uint16_t)(X * 16384 + 16384))
-#define DEBUG_PRINT        0
+#define DEBUG_PRINT        false
 #define TOUCH_PIN          32
 #define VBUS_PIN           9
 #define CHARGE_PIN         34
@@ -137,7 +137,7 @@ void setup() {
   pinMode(BATTERY_PIN, INPUT);
   analogReadResolution(12);
   
-  if (digitalRead(VBUS_PIN) == HIGH && !Serial)
+  if (digitalRead(VBUS_PIN) == HIGH && !DEBUG_PRINT)
     currentMode = MODE_CHARGING;
   
   initI2S();
