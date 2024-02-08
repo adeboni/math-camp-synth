@@ -6,6 +6,7 @@ import random
 
 pygame.init()
 
+QUEUE_LIMIT = 5
 SPEED_THRESHOLD = 0.4
 NUM_WANDS = 2
 
@@ -24,7 +25,7 @@ def check_for_hit(wand_num):
     q = Quaternion(w=wands[wand_num].get_axis(5), x=wands[wand_num].get_axis(0), y=wands[wand_num].get_axis(1), z=wands[wand_num].get_axis(2))
     q = wand_offset.rotate(q)
     pos = q.rotate(vector)[2]
-    if len(queues[wand_num]) > 10:
+    if len(queues[wand_num]) > QUEUE_LIMIT:
         queues[wand_num].pop(0)
     queues[wand_num].append(pos)
     new_speed = queues[wand_num][-1] - queues[wand_num][0]
