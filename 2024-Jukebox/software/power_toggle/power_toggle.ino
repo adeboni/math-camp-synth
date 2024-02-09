@@ -4,10 +4,13 @@
 
 bool power_on = false;
 bool powering_off = false;
-bool button_pressed = false;
 unsigned long power_off_start_time = 0;
 unsigned long led_time = 0;
 bool led_state = true;
+
+unsigned long last_debounce_time = 0;
+int last_button_state = LOW;
+int button_state;
 
 void setup() {
   pinMode(LED_PIN, OUTPUT);
@@ -19,13 +22,22 @@ void setup() {
 }
 
 bool check_button() {
-  if (digitalRead(BTN_PIN) == LOW && !button_pressed) {
-    button_pressed = true;
-  } else if (digitalRead(BTN_PIN) == HIGH && button_pressed) {
-    button_pressed = false;
-    return true;
+  bool result = false;
+  int reading = digitalRead(BTN_PIN);
+
+  if (reading != last_button_state) 
+    last_debounce_time = millis();
+
+  if (millis() - last_debounce_time > 50UL) {
+    if (reading != button_state) {
+      button_state = reading;
+      if (button_state == LOW) 
+        result = true;
+    }
   }
-  return false;
+
+  last_button_state = reading;
+  return result;
 }
 
 void loop() {
