@@ -223,7 +223,7 @@ int main() {
         if (e131_recv(&packet) <= 0)
             continue;
 
-        if ((error = e131_pkt_validate(&packet)) != E131_ERR_NONE)
+        if (e131_pkt_validate(&packet) != E131_ERR_NONE)
             continue;
 
         if (packet.dmp.prop_val_cnt < 193)
