@@ -107,10 +107,11 @@ extern "C"
     E131_ERR_TYPE_DMP,
     E131_ERR_FIRST_ADDR_DMP,
     E131_ERR_ADDR_INC_DMP,
+	E131_ERR_SEQUENCE,
   } e131_error_t;
 
   /* Create a socket file descriptor suitable for E1.31 communication */
-  extern int e131_socket(void);
+  extern bool e131_socket(void);
 
   /* Initialize an E1.31 packet using a universe and a number of slots */
   extern int e131_pkt_init(e131_packet_t *packet, const uint16_t universe, const uint16_t num_slots);
@@ -122,16 +123,16 @@ extern "C"
   extern int e131_set_option(e131_packet_t *packet, const e131_option_t option, const bool state);
 
   /* Send an E1.31 packet to a socket file descriptor using a destination */
-  extern int e131_send(int sockfd, const e131_packet_t *packet);
+  extern int e131_send(const e131_packet_t *packet);
 
   /* Receive an E1.31 packet from a socket file descriptor */
-  extern int e131_recv(int sockfd, e131_packet_t *packet);
+  extern int e131_recv(e131_packet_t *packet);
 
   /* Validate that an E1.31 packet is well-formed */
   extern e131_error_t e131_pkt_validate(const e131_packet_t *packet);
 
   /* Check if an E1.31 packet should be discarded (sequence number out of order) */
-  extern bool e131_pkt_discard(const e131_packet_t *packet, const uint8_t last_seq_number);
+  extern bool e131_pkt_discard(const e131_packet_t *packet);
 
   /* Dump an E1.31 packet to a stream (i.e. stdout, stderr) */
   extern int e131_pkt_dump(const e131_packet_t *packet);

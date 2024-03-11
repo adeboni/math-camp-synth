@@ -17,7 +17,7 @@
 
 #define HID_UPDATE_MS 10
 #define MODE_UPDATE_MS 2000
-#define DISPLAY_UPDATE_MS 500
+#define DISPLAY_UPDATE_MS 100
 #define LCD_EN0 9
 #define LCD_EN1 15
 #define MAX7313_ADDR0 0x20
@@ -159,16 +159,6 @@ void hid_task() {
     }
 }
 
-void refresh_mode() {
-    for (int i = 0; i < 8; i++) {
-        uint8_t state = 1 - max7313_digitalRead(MAX7313_ADDR2, MODE_IN[i]);
-        if (state == 1) {
-            key_task(MODE_KEYS[i]);
-            break;
-        }
-    }
-}
-
 void update_display(const e131_packet_t *packet, uint8_t start, uint8_t end, uint8_t en) {
     for (int i = start; i < end; i++)
         lcd_print(en, packet->dmp.prop_val[i]);
@@ -218,44 +208,23 @@ int main() {
     show_message("Initializing");
 
     w5500_init();
-
-    int sockfd;
     e131_packet_t packet;
-    e131_error_t error;
-    uint8_t last_seq = 0x00;
-
-    if ((sockfd = e131_socket()) < 0) {
-        while (1) {
-            gpio_put(PICO_DEFAULT_LED_PIN, 1);
-            sleep_ms(500);
-            gpio_put(PICO_DEFAULT_LED_PIN, 0);
-            sleep_ms(500);
-        }
-    }
-
     uint32_t last_display_update = 0;
     uint32_t last_mode_update = 0;
-
-    show_message("Initialized");
-
     while (1) {
         if (sacn_started) {
             _tud_task();
             hid_task();
         }
+		
+		if (e131_socket())
+			continue;
 
-        if (e131_recv(sockfd, &packet) <= 0)
+        if (e131_recv(&packet) <= 0)
             continue;
 
         if ((error = e131_pkt_validate(&packet)) != E131_ERR_NONE)
             continue;
-
-        if (e131_pkt_discard(&packet, last_seq)) {
-            last_seq = packet.frame.seq_number;
-            continue;
-        }
-
-        last_seq = packet.frame.seq_number;
 
         if (packet.dmp.prop_val_cnt < 193)
             continue;
@@ -267,15 +236,9 @@ int main() {
             current_volume = 100;
             target_volume = 0;
             volume_task();
+			show_message("Initialized");
         }
 
-        /*
-        if (sacn_started && millis() - last_mode_update > MODE_UPDATE_MS) {
-            refresh_mode();
-            last_mode_update = millis();
-        }
-        */
-        
         if (millis() - last_display_update > DISPLAY_UPDATE_MS) {
             lcd_setCursor(LCD_EN0, 0, 0);
             update_display(&packet, 1, 41, LCD_EN0);

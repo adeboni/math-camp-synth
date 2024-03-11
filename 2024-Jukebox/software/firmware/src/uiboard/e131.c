@@ -44,12 +44,17 @@ const uint16_t _E131_DMP_ADDR_INC = 0x0001;
 uint8_t destip[4];
 uint16_t destport;
 int8_t socknum = 0;
+uint8_t last_seq = 0x00;
 
 /* Create a socket file descriptor suitable for E1.31 communication */
-int e131_socket(void)
+bool e131_socket(void)
 {
-	socknum = socket(0, Sn_MR_UDP, E131_DEFAULT_PORT, SF_IO_NONBLOCK);
-	return socknum;
+	if (getSn_SR(socknum) == SOCK_CLOSED) 
+	{
+		socknum = socket(0, Sn_MR_UDP, E131_DEFAULT_PORT, SF_IO_NONBLOCK);
+		return true;
+	}
+	return false;
 }
 
 /* Initialize an E1.31 packet using a universe and a number of slots */
@@ -111,7 +116,7 @@ int e131_set_option(e131_packet_t *packet, const e131_option_t option, const boo
 }
 
 /* Send an E1.31 packet to a socket file descriptor using a destination */
-int e131_send(int sockfd, const e131_packet_t *packet)
+int e131_send(const e131_packet_t *packet)
 {
 	if (packet == NULL)
 		return -1;
@@ -120,7 +125,7 @@ int e131_send(int sockfd, const e131_packet_t *packet)
 }
 
 /* Receive an E1.31 packet from a socket file descriptor */
-int e131_recv(int sockfd, e131_packet_t *packet)
+int e131_recv(e131_packet_t *packet)
 {
 	if (packet == NULL)
 		return -1;
@@ -152,18 +157,20 @@ e131_error_t e131_pkt_validate(const e131_packet_t *packet)
 		return E131_ERR_FIRST_ADDR_DMP;
 	if (htons(packet->dmp.addr_inc) != _E131_DMP_ADDR_INC)
 		return E131_ERR_ADDR_INC_DMP;
+	if (e131_pkt_discard(packet))
+		return E131_ERR_SEQUENCE;
 	return E131_ERR_NONE;
 }
 
 /* Check if an E1.31 packet should be discarded (sequence number out of order) */
-bool e131_pkt_discard(const e131_packet_t *packet, const uint8_t last_seq_number)
+bool e131_pkt_discard(const e131_packet_t *packet)
 {
 	if (packet == NULL)
 		return true;
-	int8_t seq_num_diff = packet->frame.seq_number - last_seq_number;
-	if (seq_num_diff > -20 && seq_num_diff <= 0)
-		return true;
-	return false;
+	int8_t seq_num_diff = packet->frame.seq_number - last_seq;
+	bool result = seq_num_diff > -20 && seq_num_diff <= 0;
+	last_seq = packet->frame.seq_number;
+	return result;
 }
 
 /* Dump an E1.31 packet to a stream (i.e. stdout, stderr) */
@@ -230,6 +237,8 @@ const char *e131_strerror(const e131_error_t error)
 		return "Invalid DMP First Address";
 	case E131_ERR_ADDR_INC_DMP:
 		return "Invalid DMP Address Increment";
+	case E131_ERR_SEQUENCE:
+		return "Invalid Sequence Number";
 	default:
 		return "Unknown error";
 	}
