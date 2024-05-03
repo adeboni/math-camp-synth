@@ -27,10 +27,10 @@ ICM_20948_I2C myICM;
 
 bool bleConnected = false;
 #define SERVER_NAME "Math Camp Wand 1"
-#define SERVICE_UUID "1375dbce-72b3-4e47-9022-deb798969a07"
-BLECharacteristic buttonCharacteristics("c3850c47-f815-4d0a-980b-ca210894ce42", BLECharacteristic::PROPERTY_NOTIFY);
+#define SERVICE_UUID "64a70011-f691-4b93-a6f4-0968f5b648f8"
+BLECharacteristic buttonCharacteristics("64a7000d-f691-4b93-a6f4-0968f5b648f8", BLECharacteristic::PROPERTY_NOTIFY);
 BLEDescriptor buttonDescriptor(BLEUUID((uint16_t)0x2902));
-BLECharacteristic quaternionCharacteristics("da662d4c-5444-4557-b1fd-f1a0e66c3b44", BLECharacteristic::PROPERTY_NOTIFY);
+BLECharacteristic quaternionCharacteristics("64a70002-f691-4b93-a6f4-0968f5b648f8", BLECharacteristic::PROPERTY_NOTIFY);
 BLEDescriptor quaternionDescriptor(BLEUUID((uint16_t)0x2902));
 
 class ConnectionCallbacks: public BLEServerCallbacks {
@@ -211,7 +211,7 @@ void checkButton() {
   uint8_t touched = rawTouch < TOUCH_THRESHOLD ? LOW : HIGH;
   if (touched != prevTouchState) {
     uint8_t data[1] = { touched };
-    buttonCharacteristics.setValue(&data, 1);
+    buttonCharacteristics.setValue(data, 1);
     buttonCharacteristics.notify();
     prevTouchState = touched;
   }
@@ -239,9 +239,16 @@ void checkICM() {
         Serial.print(q3, 3);
         Serial.println(F("}"));
       }
-      
-      uint16_t data[4] = { F32_TO_INT(q1), F32_TO_INT(q2), F32_TO_INT(q3), F32_TO_INT(q0) };
-      quaternionCharacteristics.setValue(&data, 8);
+
+      uint16_t x = F32_TO_INT(q1);
+      uint16_t y = F32_TO_INT(q2);
+      uint16_t z = F32_TO_INT(q3);
+      uint16_t w = F32_TO_INT(q0);
+      uint8_t data[8] = { (uint8_t)x, (uint8_t)(x >> 8), 
+                          (uint8_t)y, (uint8_t)(y >> 8),
+                          (uint8_t)z, (uint8_t)(z >> 8),
+                          (uint8_t)w, (uint8_t)(w >> 8) };
+      quaternionCharacteristics.setValue(data, 8);
       quaternionCharacteristics.notify();
     }
   }
