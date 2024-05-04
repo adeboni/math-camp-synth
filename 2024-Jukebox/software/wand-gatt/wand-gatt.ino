@@ -34,7 +34,7 @@ BLECharacteristic quaternionCharacteristics("64a70002-f691-4b93-a6f4-0968f5b648f
 BLEDescriptor quaternionDescriptor(BLEUUID((uint16_t)0x2902));
 
 class ConnectionCallbacks: public BLEServerCallbacks {
-  void onConnect(BLEServer* pServer) { bleConnected = true; };
+  void onConnect(BLEServer* pServer) { bleConnected = true; delay(1000); }
   void onDisconnect(BLEServer* pServer) { bleConnected = false; }
 };
 
