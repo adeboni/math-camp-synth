@@ -116,8 +116,8 @@ void initICM() {
 
   bool success = true;
   success &= (myICM.initializeDMP() == ICM_20948_Stat_Ok);
-  success &= (myICM.enableDMPSensor(INV_ICM20948_SENSOR_ORIENTATION) == ICM_20948_Stat_Ok);
-  success &= (myICM.setDMPODRrate(DMP_ODR_Reg_Quat9, 0) == ICM_20948_Stat_Ok);
+  success &= (myICM.enableDMPSensor(INV_ICM20948_SENSOR_GAME_ROTATION_VECTOR) == ICM_20948_Stat_Ok);
+  success &= (myICM.setDMPODRrate(DMP_ODR_Reg_Quat6, 0) == ICM_20948_Stat_Ok);
   success &= (myICM.enableFIFO() == ICM_20948_Stat_Ok);
   success &= (myICM.enableDMP() == ICM_20948_Stat_Ok);
   success &= (myICM.resetDMP() == ICM_20948_Stat_Ok);
@@ -222,10 +222,10 @@ void checkICM() {
   icm_20948_DMP_data_t data;
   myICM.readDMPdataFromFIFO(&data);
   if ((myICM.status == ICM_20948_Stat_Ok) || (myICM.status == ICM_20948_Stat_FIFOMoreDataAvail)) {
-    if ((data.header & DMP_header_bitmap_Quat9) > 0) {
-      double q1 = ((double)data.Quat9.Data.Q1) / 1073741824.0;
-      double q2 = ((double)data.Quat9.Data.Q2) / 1073741824.0;
-      double q3 = ((double)data.Quat9.Data.Q3) / 1073741824.0;
+    if ((data.header & DMP_header_bitmap_Quat6) > 0) {
+      double q1 = ((double)data.Quat6.Data.Q1) / 1073741824.0;
+      double q2 = ((double)data.Quat6.Data.Q2) / 1073741824.0;
+      double q3 = ((double)data.Quat6.Data.Q3) / 1073741824.0;
       double q0 = sqrt(1.0 - ((q1 * q1) + (q2 * q2) + (q3 * q3)));
 
       if (DEBUG_PRINT) {
