@@ -115,7 +115,7 @@ void key_task(uint8_t scancode) {
 }
 
 void volume_task() {
-    uint8_t vol_inc = 5;
+    uint8_t vol_inc = 2;
     uint8_t vol_dir = current_volume < target_volume ? HID_USAGE_CONSUMER_VOLUME_INCREMENT : HID_USAGE_CONSUMER_VOLUME_DECREMENT;
     uint16_t empty_key = 0;
 
@@ -133,6 +133,7 @@ void hid_task() {
     static uint8_t mode_states[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
     static uint8_t button_states[7] = { 0, 0, 0, 0, 0, 0, 0 };
 
+    _tud_task();
     if (millis() - start_ms > HID_UPDATE_MS) { 
         start_ms = millis();
 
@@ -204,21 +205,23 @@ int main() {
         max7313_analogWrite(MAX7313_ADDR0, i, 0);
         max7313_analogWrite(MAX7313_ADDR1, i, 0);
     }
-
-    show_message("Initializing");
-
+    
+    show_message("Initializing hardware");
+    
     w5500_init();
+    board_init();
+    tusb_init();
+
+    show_message("Waiting for boot to finish");
+
     e131_packet_t packet;
     uint32_t last_display_update = 0;
     uint32_t last_mode_update = 0;
     while (1) {
-        if (sacn_started) {
-            _tud_task();
-            hid_task();
-        }
-		
-		if (e131_socket())
-			continue;
+        hid_task();
+        
+        if (e131_socket())
+            continue;
 
         if (e131_recv(&packet) <= 0)
             continue;
@@ -228,16 +231,6 @@ int main() {
 
         if (packet.dmp.prop_val_cnt < 193)
             continue;
-
-        if (!sacn_started) {
-            board_init();
-            tusb_init();
-            sacn_started = true;
-            current_volume = 100;
-            target_volume = 0;
-            volume_task();
-			show_message("Initialized");
-        }
 
         if (millis() - last_display_update > DISPLAY_UPDATE_MS) {
             lcd_setCursor(LCD_EN0, 0, 0);
