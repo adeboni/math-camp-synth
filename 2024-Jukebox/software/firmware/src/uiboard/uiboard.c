@@ -42,7 +42,6 @@ uint8_t BUTTON_KEYS[7] = {HID_KEY_SPACE, HID_KEY_ARROW_LEFT,
                           HID_KEY_ARROW_DOWN, HID_KEY_ARROW_RIGHT,
                           HID_KEY_ENTER, HID_KEY_ARROW_UP, HID_KEY_POWER};
 
-bool sacn_started = false;
 uint8_t target_volume = 0;
 uint8_t current_volume = 0;
 
