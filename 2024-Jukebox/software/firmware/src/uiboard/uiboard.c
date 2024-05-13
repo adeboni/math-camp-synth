@@ -43,7 +43,7 @@ uint8_t BUTTON_KEYS[7] = {HID_KEY_SPACE, HID_KEY_ARROW_LEFT,
                           HID_KEY_ENTER, HID_KEY_ARROW_UP, HID_KEY_POWER};
 
 uint8_t target_volume = 0;
-uint8_t current_volume = 0;
+uint8_t current_volume = 255;
 
 static void set_clock_khz(void) {
     set_sys_clock_khz(PLL_SYS_KHZ, true);
@@ -155,7 +155,10 @@ void hid_task() {
             sum += adc_read();
         sum /= 5;
         target_volume = 100 - sum / 41;
-        volume_task();
+        if (current_volume == 255)
+            current_volume = target_volume;
+        else
+            volume_task();
     }
 }
 
