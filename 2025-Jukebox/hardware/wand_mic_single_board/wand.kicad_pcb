@@ -692,9 +692,9 @@
       (net 91 "Net-(D2-DIN)") (pinfunction "DIN") (pintype "input") (tstamp cc18bc33-d1c2-4cf2-80a7-b2566d01e6a7))
     (pad "4" smd rect (at 1 -0.65 180) (size 1 0.6) (layers "F.Cu" "F.Paste" "F.Mask")
       (net 2 "PWR_4V5_5V") (pinfunction "VDD") (pintype "power_in") (tstamp f69d1cb8-9a6f-46b0-98b0-968db5ad386b))
-    (model "${KICAD7_3DMODEL_DIR}/LED_SMD.3dshapes/LED_SK6805_PLCC4_2.4x2.7mm_P1.3mm.wrl"
+    (model "${KICAD7_3DMODEL_DIR}/LED_SMD.3dshapes/LED_SK6812_PLCC4_5.0x5.0mm_P3.2mm.wrl"
       (offset (xyz 0 0 0))
-      (scale (xyz 1 1 1))
+      (scale (xyz 0.5 0.5 0.5))
       (rotate (xyz 0 0 0))
     )
   )
