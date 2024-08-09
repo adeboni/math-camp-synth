@@ -229,9 +229,9 @@
       (stroke (width 0.1) (type solid)) (layer "F.Fab") (tstamp 7eae080f-f3bf-4d01-b593-d1a61a2e3f60))
     (fp_line (start 1.6 0.8) (end -1.6 0.8)
       (stroke (width 0.1) (type solid)) (layer "F.Fab") (tstamp c9195888-01a2-4111-b8a0-5e9c6a074a8b))
-    (pad "1" smd roundrect (at -1.5625 0 180) (size 1.325 1.8) (layers "F.Cu" "F.Paste" "F.Mask") (roundrect_rratio 0.188679)
+    (pad "1" smd roundrect (at -1.5625 0 180) (size 1.325 1.8) (layers "F.Cu" "F.Paste" "F.Mask") (roundrect_rratio 0.1886792453)
       (net 76 "Net-(AE1-FEED)") (pinfunction "FEED") (pintype "input") (tstamp 6e7619dd-d16c-414b-a9d9-f89743ae708c))
-    (pad "2" smd roundrect (at 1.5625 0 180) (size 1.325 1.8) (layers "F.Cu" "F.Paste" "F.Mask") (roundrect_rratio 0.188679)
+    (pad "2" smd roundrect (at 1.5625 0 180) (size 1.325 1.8) (layers "F.Cu" "F.Paste" "F.Mask") (roundrect_rratio 0.1886792453)
       (net 86 "unconnected-(AE1-PCB_Trace-Pad2)") (pinfunction "PCB_Trace") (pintype "passive") (tstamp 536d9f83-8291-438a-ae8e-dff2c849a4bd))
     (model "${KICAD6_3DMODEL_DIR}/Capacitor_SMD.3dshapes/C_1206_3216Metric.wrl"
       (offset (xyz 0 0 0))
