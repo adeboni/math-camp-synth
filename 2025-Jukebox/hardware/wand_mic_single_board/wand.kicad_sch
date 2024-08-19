@@ -3287,7 +3287,7 @@
     (property "Value" "SW_Push" (at 274.32 130.175 0)
       (effects (font (size 1.27 1.27)))
     )
-    (property "Footprint" "Button_Switch_THT:SW_PUSH_6mm" (at 268.605 129.54 0)
+    (property "Footprint" "Button_Switch_THT:SW_PUSH_6mm_H13mm" (at 268.605 129.54 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~" (at 268.605 129.54 0)
