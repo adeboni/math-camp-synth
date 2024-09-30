@@ -15,7 +15,6 @@
 #define STATE_CHARGING     0
 #define STATE_CHARGED      1
 #define STATE_UNPLUGGED    2
-#define SAMPLE_DELAY_US    10
 
 bool charging = false;
 bool wifiConnected = false;
