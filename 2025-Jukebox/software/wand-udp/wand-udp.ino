@@ -15,6 +15,7 @@
 #define STATE_CHARGING     0
 #define STATE_CHARGED      1
 #define STATE_UNPLUGGED    2
+#define SAMPLE_DELAY_US    10
 
 bool charging = false;
 bool wifiConnected = false;
@@ -87,8 +88,8 @@ void updateLEDCore0(void *parameter) {
 void initI2S() {
   Serial.print(F("Connecting to microphone... "));
   I2S.setAllPins(14, 15, 25, 25, 25);
-  // start I2S at 8 kHz with 32-bits per sample
-  if (!I2S.begin(I2S_PHILIPS_MODE, 8000, 32)) {
+  // start I2S at 8 kHz with 16-bits per sample
+  if (!I2S.begin(I2S_PHILIPS_MODE, 8000, 16)) {
     Serial.println(F("Failed to initialize I2S!"));
     while (1);
   }
@@ -234,15 +235,14 @@ bool checkI2S(uint8_t *buf) {
     }
     buf[0] = sample & 0xFF;
     buf[1] = (sample >> 8) & 0xFF;
-    buf[2] = (sample >> 16) & 0xFF;
-    buf[3] = (sample >> 24) & 0xFF;
     return true;
   }
   return false;
 }
 
 void sendData() {
-  uint8_t data[1469];
+  //Targeting 57 packets/second
+  uint8_t data[1405]; //1472 max
   data[0] = vbusPresent;
   data[1] = chargeState;
   data[2] = batteryLevel & 0xFF;
@@ -250,19 +250,17 @@ void sendData() {
   data[4] = checkButton();
 
   uint8_t icmBuf[8];
-  uint8_t i2sBuf[4];
-  for (int i = 0; i < 122; i++) {
+  uint8_t i2sBuf[2];
+  for (int i = 5; i < 145; i++) {
     while (!checkICM(icmBuf));
     while (!checkI2S(i2sBuf));
     memcpy(data + (5 + i * 12), icmBuf, 8);
-    memcpy(data + (5 + i * 12 + 8), i2sBuf, 4);
+    memcpy(data + (5 + i * 12 + 8), i2sBuf, 2);
   }
 
   udp.beginPacket(udpAddress, udpPort);
   udp.write(data);
   udp.endPacket();
-
-  //delay(10);
 }
 
 void loop() {
