@@ -241,20 +241,23 @@ bool checkI2S(uint8_t *buf) {
 
 void sendData() {
   //Targeting 57 packets/second
-  uint8_t data[1405]; //1472 max
-  data[0] = vbusPresent;
-  data[1] = chargeState;
-  data[2] = batteryLevel & 0xFF;
-  data[3] = (batteryLevel >> 8) & 0xFF;
-  data[4] = checkButton();
-
+  uint8_t data[1408]; //1472 max
+  data[0] = 170;
+  data[1] = 170;
+  data[2] = 170;
+  data[3] = vbusPresent;
+  data[4] = chargeState;
+  data[5] = batteryLevel & 0xFF;
+  data[6] = (batteryLevel >> 8) & 0xFF;
+  data[7] = checkButton();
+  
   uint8_t icmBuf[8];
   uint8_t i2sBuf[2];
   for (int i = 0; i < 140; i++) {
     while (!checkICM(icmBuf));
     while (!checkI2S(i2sBuf));
-    memcpy(data + (5 + i * 10), icmBuf, 8);
-    memcpy(data + (5 + i * 10 + 8), i2sBuf, 2);
+    memcpy(data + (8 + i * 10), icmBuf, 8);
+    memcpy(data + (8 + i * 10 + 8), i2sBuf, 2);
   }
 
   udp.beginPacket(udpAddress, udpPort);
