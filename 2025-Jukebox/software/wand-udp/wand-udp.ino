@@ -250,11 +250,11 @@ void sendData() {
 
   uint8_t icmBuf[8];
   uint8_t i2sBuf[2];
-  for (int i = 5; i < 145; i++) {
+  for (int i = 0; i < 140; i++) {
     while (!checkICM(icmBuf));
     while (!checkI2S(i2sBuf));
-    memcpy(data + (5 + i * 12), icmBuf, 8);
-    memcpy(data + (5 + i * 12 + 8), i2sBuf, 2);
+    memcpy(data + (5 + i * 10), icmBuf, 8);
+    memcpy(data + (5 + i * 10 + 8), i2sBuf, 2);
   }
 
   udp.beginPacket(udpAddress, udpPort);
