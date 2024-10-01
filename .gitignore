@@ -8,3 +8,4 @@ bin/
 build/
 !*.uf2
 fp-info-cache
+wifi_credentials.h

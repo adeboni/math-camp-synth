@@ -3,9 +3,10 @@
 #include <Adafruit_NeoPixel.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
+#include "wifi_credentials.h"
 
 #define F32_TO_INT(X) ((uint16_t)(X * 16384 + 16384))
-#define FORCE_BOOT         false
+#define FORCE_BOOT         true
 #define DEBUG_PRINT        false
 #define TOUCH_PIN          32
 #define VBUS_PIN           9
@@ -26,10 +27,10 @@ uint8_t powerState = STATE_UNPLUGGED;
 Adafruit_NeoPixel strip(1, 2, NEO_RGB + NEO_KHZ800);
 ICM_20948_I2C myICM;
 WiFiUDP udp;
-const char* udpAddress = "10.0.0.2";
+const char* udpAddress = "192.168.68.71";
 const int udpPort = 5005;
 
-int checkPowerState() {
+void checkPowerState() {
   static unsigned long lastUpdate = 0;
   if (millis() - lastUpdate < 2000)
     return;
@@ -47,9 +48,9 @@ int checkPowerState() {
     Serial.print("   BATTERY: "); Serial.println(batteryLevel);
   }
 
-  if (vbus == LOW) 
+  if (vbusPresent == LOW) 
     powerState = STATE_UNPLUGGED;
-  else if (charge == HIGH) 
+  else if (chargeState == HIGH) 
     powerState = STATE_CHARGED;
   else
     powerState = STATE_CHARGING;
@@ -87,10 +88,10 @@ void updateLEDCore0(void *parameter) {
 void initI2S() {
   Serial.print(F("Connecting to microphone... "));
   I2S.setAllPins(14, 15, 25, 25, 25);
-  // start I2S at 8 kHz with 16-bits per sample
-  if (!I2S.begin(I2S_PHILIPS_MODE, 8000, 16)) {
+  // start I2S at 16 kHz with 16-bits per sample
+  if (!I2S.begin(I2S_PHILIPS_MODE, 16000, 16)) {
     Serial.println(F("Failed to initialize I2S!"));
-    while (1);
+    ESP.restart();
   }
   Serial.println(F("connected"));
 }
@@ -121,30 +122,29 @@ void initICM() {
 
   if (!success) {
     Serial.println(F("Enable DMP failed!"));
-    while (1);
+    ESP.restart();
   }
   
-  Serial.println(F("Connected"));
+  Serial.println(F("connected"));
 }
 
 void initWiFi() {
-  WiFi.mode(WIFI_STA);
-  WiFi.begin("Robbie", "just one two three four five");
   Serial.println(F("Connecting to Wifi... "));
-
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_NAME, WIFI_PASSWORD);
+  
   int timeoutCounter = 0;
   while (WiFi.status() != WL_CONNECTED){
     delay(200);
-    timeoutCounter++;
-    if (timeoutCounter > 50) {
+    if (timeoutCounter++ > 150) {
       Serial.println(F("Failed to connect to Wifi, restarting... "));
       ESP.restart();
     }
   }
 
-  Serial.println(F("Connected to the WiFi network"));
-  Serial.print(F("Local IP: "));
+  Serial.print(F("connected with IP: "));
   Serial.println(WiFi.localIP());
+  wifiConnected = true;
 }
 
 void initNeopixel() {
@@ -155,6 +155,7 @@ void initNeopixel() {
 
 void setup() {
   Serial.begin(115200);
+  Serial.println(F("Booting... "));
   pinMode(VBUS_PIN, INPUT);
   pinMode(CHARGE_PIN, INPUT);
   pinMode(BATTERY_PIN, INPUT);
@@ -164,7 +165,7 @@ void setup() {
     charging = true;
   
   if (!charging) {
-    initWifi();
+    initWiFi();
     initI2S();
     initICM();
   }
@@ -240,7 +241,6 @@ bool checkI2S(uint8_t *buf) {
 }
 
 void sendData() {
-  //Targeting 57 packets/second
   uint8_t data[1408]; //1472 max
   data[0] = 170;
   data[1] = 170;
@@ -253,15 +253,21 @@ void sendData() {
   
   uint8_t icmBuf[8];
   uint8_t i2sBuf[2];
-  for (int i = 0; i < 140; i++) {
-    while (!checkICM(icmBuf));
+  int bufIndex = 8;
+  for (int i = 0; i < 500; i++) {
     while (!checkI2S(i2sBuf));
-    memcpy(data + (8 + i * 10), icmBuf, 8);
-    memcpy(data + (8 + i * 10 + 8), i2sBuf, 2);
+    memcpy(data + bufIndex, i2sBuf, 2);
+    bufIndex += 2;
+
+    if (i % 10 == 0) {
+      while (!checkICM(icmBuf));
+      memcpy(data + bufIndex, icmBuf, 8);
+      bufIndex += 8;
+    }
   }
 
   udp.beginPacket(udpAddress, udpPort);
-  udp.write(data);
+  udp.write(data, sizeof(data));
   udp.endPacket();
 }
 
