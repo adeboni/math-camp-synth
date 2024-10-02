@@ -1,9 +1,8 @@
+#include "wifi_credentials.h"
 #include <I2S.h>
 #include <ICM_20948.h>
 #include <Adafruit_NeoPixel.h>
 #include <WiFi.h>
-#include <WiFiUdp.h>
-#include "wifi_credentials.h"
 
 #define F32_TO_INT(X) ((uint16_t)(X * 16384 + 16384))
 #define FORCE_BOOT         true
@@ -16,19 +15,16 @@
 #define STATE_CHARGING     0
 #define STATE_CHARGED      1
 #define STATE_UNPLUGGED    2
+#define PACKET_SIZE        1408 //1472 max
 
 bool charging = false;
 bool wifiConnected = false;
-uint8_t vbusPresent = 0;
-uint8_t chargeState = 0;
-uint16_t batteryLevel = 0;
 uint8_t powerState = STATE_UNPLUGGED;
 
 Adafruit_NeoPixel strip(1, 2, NEO_RGB + NEO_KHZ800);
 ICM_20948_I2C myICM;
-WiFiUDP udp;
-const char* udpAddress = "192.168.68.71";
-const int udpPort = 5005;
+WiFiClient client;
+uint8_t tcpData[PACKET_SIZE];
 
 void checkPowerState() {
   static unsigned long lastUpdate = 0;
@@ -36,11 +32,11 @@ void checkPowerState() {
     return;
   lastUpdate = millis();
 
-  vbusPresent = digitalRead(VBUS_PIN);
-  chargeState = 0;
+  uint8_t vbusPresent = digitalRead(VBUS_PIN);
+  uint8_t chargeState = 0;
   for (int i = 0; i < 10; i++)
     chargeState |= digitalRead(CHARGE_PIN);
-  batteryLevel = analogRead(BATTERY_PIN);
+  uint16_t batteryLevel = analogRead(BATTERY_PIN);
 
   if (DEBUG_PRINT) {
     Serial.print("VBUS: ");       Serial.print(vbusPresent);
@@ -54,6 +50,11 @@ void checkPowerState() {
     powerState = STATE_CHARGED;
   else
     powerState = STATE_CHARGING;
+
+  tcpData[3] = vbusPresent;
+  tcpData[4] = chargeState;
+  tcpData[5] = batteryLevel & 0xFF;
+  tcpData[6] = (batteryLevel >> 8) & 0xFF;
 }
 
 void updateLEDCore0(void *parameter) {
@@ -144,6 +145,12 @@ void initWiFi() {
 
   Serial.print(F("connected with IP: "));
   Serial.println(WiFi.localIP());
+
+  if (!client.connect(TARGET_IP, TARGET_PORT)) {
+    Serial.println(F("TCP connection failed!"));
+    ESP.restart();
+  }
+  
   wifiConnected = true;
 }
 
@@ -154,6 +161,10 @@ void initNeopixel() {
 }
 
 void setup() {
+  tcpData[0] = 170;
+  tcpData[1] = 170;
+  tcpData[2] = 170;
+  
   Serial.begin(115200);
   Serial.println(F("Booting... "));
   pinMode(VBUS_PIN, INPUT);
@@ -175,7 +186,7 @@ void setup() {
   xTaskCreatePinnedToCore(updateLEDCore0, "LEDHandler", 10000, NULL, 0, &taskCore0, 0);
 }
 
-uint8_t checkButton() {
+void checkButton() {
   int rawTouch = touchRead(TOUCH_PIN);
 
   if (DEBUG_PRINT) {
@@ -183,10 +194,10 @@ uint8_t checkButton() {
     Serial.println(rawTouch);
   }
 
-  return rawTouch < TOUCH_THRESHOLD ? LOW : HIGH;
+  tcpData[7] = rawTouch < TOUCH_THRESHOLD ? LOW : HIGH;
 }
 
-bool checkICM(uint8_t *buf) {
+bool checkICM(int startIndex) {
   icm_20948_DMP_data_t data;
   myICM.readDMPdataFromFIFO(&data);
   if ((myICM.status == ICM_20948_Stat_Ok) || (myICM.status == ICM_20948_Stat_FIFOMoreDataAvail)) {
@@ -212,67 +223,52 @@ bool checkICM(uint8_t *buf) {
       uint16_t y = F32_TO_INT(q2);
       uint16_t z = F32_TO_INT(q3);
       uint16_t w = F32_TO_INT(q0);
-      buf[0] = x & 0xFF;
-      buf[1] = (x >> 8) & 0xFF;
-      buf[2] = y & 0xFF;
-      buf[3] = (y >> 8) & 0xFF;
-      buf[4] = z & 0xFF;
-      buf[5] = (z >> 8) & 0xFF;
-      buf[6] = w & 0xFF;
-      buf[7] = (w >> 8) & 0xFF;
+      tcpData[startIndex] = x & 0xFF;
+      tcpData[startIndex + 1] = (x >> 8) & 0xFF;
+      tcpData[startIndex + 2] = y & 0xFF;
+      tcpData[startIndex + 3] = (y >> 8) & 0xFF;
+      tcpData[startIndex + 4] = z & 0xFF;
+      tcpData[startIndex + 5] = (z >> 8) & 0xFF;
+      tcpData[startIndex + 6] = w & 0xFF;
+      tcpData[startIndex + 7] = (w >> 8) & 0xFF;
       return true;
     }
   }
   return false;
 }
 
-bool checkI2S(uint8_t *buf) {
+bool checkI2S(int startIndex) {
   int sample = I2S.read();
   if (sample && sample != -1 && sample != 1) {
     if (DEBUG_PRINT) {
       Serial.print(F("Audio sample: "));
       Serial.println(sample);
     }
-    buf[0] = sample & 0xFF;
-    buf[1] = (sample >> 8) & 0xFF;
+    tcpData[startIndex] = sample & 0xFF;
+    tcpData[startIndex + 1] = (sample >> 8) & 0xFF;
     return true;
   }
   return false;
 }
 
 void sendData() {
-  uint8_t data[1408]; //1472 max
-  data[0] = 170;
-  data[1] = 170;
-  data[2] = 170;
-  data[3] = vbusPresent;
-  data[4] = chargeState;
-  data[5] = batteryLevel & 0xFF;
-  data[6] = (batteryLevel >> 8) & 0xFF;
-  data[7] = checkButton();
-  
-  uint8_t icmBuf[8];
-  uint8_t i2sBuf[2];
   int bufIndex = 8;
   for (int i = 0; i < 500; i++) {
-    while (!checkI2S(i2sBuf));
-    memcpy(data + bufIndex, i2sBuf, 2);
+    while (!checkI2S(bufIndex));
     bufIndex += 2;
 
     if (i % 10 == 0) {
-      while (!checkICM(icmBuf));
-      memcpy(data + bufIndex, icmBuf, 8);
+      while (!checkICM(bufIndex));
       bufIndex += 8;
     }
   }
 
-  udp.beginPacket(udpAddress, udpPort);
-  udp.write(data, sizeof(data));
-  udp.endPacket();
+  client.write(tcpData, PACKET_SIZE);
 }
 
 void loop() {
   checkPowerState();
-  if (!charging)
+  checkButton();
+  if (wifiConnected)
     sendData();
 }
