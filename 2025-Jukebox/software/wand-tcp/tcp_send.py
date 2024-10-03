@@ -10,8 +10,7 @@ sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
 sock.connect(('127.0.0.1', 5005))
 
 def get_packet():
-    data = np.array([np.uint8(x) for x in [170, 170, 170, 0, 0, 0, 0, 0]]).tobytes()
-    data += np.array([np.int16(x) for x in range(4)]).tobytes()
+    data = np.array([np.int16(x) for x in range(8)]).tobytes()
     for i in range(AUDIO_SAMPLES):
         data += np.array([np.int16(10000 * np.sin(i * SIN_SCALING))]).tobytes()
     return data

@@ -95,7 +95,7 @@ void initWiFi() {
   WiFi.begin(WIFI_NAME, WIFI_PASSWORD);
   
   int timeoutCounter = 0;
-  while (WiFi.status() != WL_CONNECTED){
+  while (WiFi.status() != WL_CONNECTED) {
     delay(200);
     if (timeoutCounter++ > 150) {
       Serial.println(F("Failed to connect to Wifi, restarting... "));
@@ -156,10 +156,12 @@ void checkPowerState() {
     updateLED();
   prevPowerState = powerState;
   
-  buffer[3] = vbusPresent;
-  buffer[4] = chargeState;
-  buffer[5] = batteryLevel & 0xFF;
-  buffer[6] = (batteryLevel >> 8) & 0xFF;
+  buffer[0] = vbusPresent;
+  buffer[1] = 0;
+  buffer[2] = chargeState;
+  buffer[3] = 0;
+  buffer[4] = batteryLevel & 0xFF;
+  buffer[5] = (batteryLevel >> 8) & 0xFF;
 }
 
 void checkButton() {
@@ -170,7 +172,8 @@ void checkButton() {
     Serial.println(rawTouch);
   }
 
-  buffer[7] = rawTouch < TOUCH_THRESHOLD ? 0 : 1;
+  buffer[6] = rawTouch < TOUCH_THRESHOLD ? 1 : 0;
+  buffer[7] = 0;
 }
 
 void checkICM() {
@@ -238,11 +241,7 @@ void runCore0(void *parameter) {
   }
 }
 
-void setup() {
-  buffer[0] = 170;
-  buffer[1] = 170;
-  buffer[2] = 170;
-  
+void setup() { 
   Serial.begin(115200);
   Serial.println(F("Booting... "));
   pinMode(VBUS_PIN, INPUT);

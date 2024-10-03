@@ -16,8 +16,30 @@ class AddressState(enum.Enum):
     CLOSING = 2
     CLOSED = 3
 
-class WandServer():
+class WandData():
+    def __init__(self, address) -> None:
+        self.address = address
+        self.plugged_in = False
+        self.charged = False
+        self.battery_level = 0
+        self.button = False
+        self.quaternion = (0, 0, 0, 0)
 
+    def __repr__(self) -> str:
+        return (
+            f"WandData(address='{self.address}', plugged_in={self.plugged_in}, "
+            f"charged={self.charged}, battery_level={self.battery_level}, "
+            f"button={self.button}, quaternion={self.quaternion})"
+        )
+    
+    def update_data(self, data) -> None:
+        self.plugged_in = data[0] == 1
+        self.charged = data[1] == 1
+        self.battery_level = data[2]
+        self.button = data[3] == 1
+        self.quaternion = (data[4], data[5], data[6], data[7])
+
+class WandServer():
     def __init__(self) -> None:
         self.tcp_thread_running = False
         self.audio_thread_running = False
@@ -25,6 +47,7 @@ class WandServer():
         self.addresses = {}
         self.buffer = {}
         self.buffering = {}
+        self.wand_data = {}
         self.pa = pyaudio.PyAudio()
 
     def print_audio_output_devices(self) -> None:
@@ -77,6 +100,8 @@ class WandServer():
             conn, addr = sock.accept()
             print(f'Connected to wand at {addr}')
 
+            if addr not in self.wand_data:
+                self.wand_data[addr] = WandData(addr)
             self.buffer[addr] = []
             self.buffering[addr] = False
             self.addresses[addr] = AddressState.OPEN
@@ -93,6 +118,8 @@ class WandServer():
                 break
 
             data = np.frombuffer(raw_data, np.int16)
+            self.wand_data[addr].update_data(data)
+            #print(repr(self.wand_data[addr]))
             self.buffer[addr].append(data[8:])
             if len(self.buffer[addr]) > BUFFER_LIMIT and self.buffering[addr]:
                 self.buffering[addr] = False
