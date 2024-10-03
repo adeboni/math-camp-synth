@@ -27,6 +27,7 @@ WiFiClient client;
 bool wifiConnected = false;
 uint8_t powerState = PWR_STATE_INVALID;
 uint8_t buffer[PACKET_SIZE];
+uint8_t packetBuffer[PACKET_SIZE];
 bool dataReadyToSend = false;
 int audioSample = 0;
 
@@ -232,7 +233,8 @@ void runCore0(void *parameter) {
       buffer[16 + i * 2] = audioSample & 0xFF;
       buffer[16 + i * 2 + 1] = (audioSample >> 8) & 0xFF;
     }
-    client.write(buffer, PACKET_SIZE);
+    memcpy(packetBuffer, buffer, PACKET_SIZE);
+    dataReadyToSend = true;
   }
 }
 
@@ -265,5 +267,10 @@ void loop() {
   if (wifiConnected) {
     checkButton();
     checkICM();
+
+    if (dataReadyToSend) {
+      client.write(packetBuffer, PACKET_SIZE);
+      dataReadyToSend = false;
+    }
   }
 }
