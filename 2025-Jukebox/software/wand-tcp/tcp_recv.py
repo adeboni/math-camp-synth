@@ -37,7 +37,7 @@ class WandData():
         self.charged = data[1] == 1
         self.battery_volts = data[2] / 4095 * 3.7
         self.button = data[3] == 1
-        self.quaternion = (data[4], data[5], data[6], data[7])
+        self.quaternion = (data[4:8] - 16384) / 16384
 
 class WandServer():
     def __init__(self) -> None:
@@ -119,7 +119,7 @@ class WandServer():
 
             data = np.frombuffer(raw_data, np.int16)
             self.wand_data[addr].update_data(data)
-            #print(repr(self.wand_data[addr]))
+            print(repr(self.wand_data[addr]))
             self.buffer[addr].append(data[8:])
             if len(self.buffer[addr]) > BUFFER_LIMIT and self.buffering[addr]:
                 self.buffering[addr] = False

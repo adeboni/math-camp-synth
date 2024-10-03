@@ -5,7 +5,7 @@
 #include <WiFi.h>
 
 #define F32_TO_INT(X) ((uint16_t)(X * 16384 + 16384))
-#define FORCE_BOOT          true
+#define FORCE_BOOT          false
 #define DEBUG_PRINT         false
 #define TOUCH_PIN           32
 #define VBUS_PIN            9
