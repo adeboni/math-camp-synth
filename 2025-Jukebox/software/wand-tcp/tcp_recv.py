@@ -21,21 +21,21 @@ class WandData():
         self.address = address
         self.plugged_in = False
         self.charged = False
-        self.battery_level = 0
+        self.battery_volts = 0
         self.button = False
         self.quaternion = (0, 0, 0, 0)
 
     def __repr__(self) -> str:
         return (
             f"WandData(address='{self.address}', plugged_in={self.plugged_in}, "
-            f"charged={self.charged}, battery_level={self.battery_level}, "
+            f"charged={self.charged}, battery_volts={self.battery_volts}, "
             f"button={self.button}, quaternion={self.quaternion})"
         )
     
     def update_data(self, data) -> None:
         self.plugged_in = data[0] == 1
         self.charged = data[1] == 1
-        self.battery_level = data[2]
+        self.battery_volts = data[2] / 4095 * 3.7
         self.button = data[3] == 1
         self.quaternion = (data[4], data[5], data[6], data[7])
 
