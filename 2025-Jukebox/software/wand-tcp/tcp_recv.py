@@ -6,7 +6,6 @@ import time
 import itertools
 import numpy as np
 
-AUDIO_SAMPLES = 320
 INT16_MIN = np.iinfo(np.int16).min
 INT16_MAX = np.iinfo(np.int16).max
 BUFFER_LIMIT = 10 # TODO: check latency with real microphone
@@ -86,10 +85,6 @@ class WandServer():
             thread.start()
 
     def _read_data_from_socket(self, conn, addr) -> None:
-        audio_indexes = set(range(8, 8 + AUDIO_SAMPLES))
-        current_index = 0
-        prev_value = None
-
         while self.tcp_thread_running:
             raw_data = conn.recv(4096)
             if raw_data == b"":
@@ -98,17 +93,7 @@ class WandServer():
                 break
 
             data = np.frombuffer(raw_data, np.int16)
-            audio_data = []
-
-            for x in data:
-                if x == 170 and prev_value == -21846:
-                    current_index = 1
-                prev_value = x
-                if current_index in audio_indexes:
-                    audio_data.append(x)
-                current_index += 1
-
-            self.buffer[addr].append(np.array(audio_data, dtype=np.int32))
+            self.buffer[addr].append(data[8:])
             if len(self.buffer[addr]) > BUFFER_LIMIT and self.buffering[addr]:
                 self.buffering[addr] = False
 
@@ -117,7 +102,7 @@ class WandServer():
             audio_buffer = []
             for addr in [a for a in self.addresses if self.addresses[a] != AddressState.CLOSED]:
                 if not self.buffering[addr] and len(self.buffer[addr]) > 0:
-                    audio_buffer.append(self.buffer[addr].pop(0))
+                    audio_buffer.append(self.buffer[addr].pop(0).astype(np.int32))
                     if len(self.buffer[addr]) == 0:
                         self.buffering[addr] = True
                 elif self.addresses[addr] == AddressState.CLOSING:
@@ -132,8 +117,10 @@ class WandServer():
 
 ws = WandServer()
 ws.start_tcp()
-ws.start_audio_output(4)
-time.sleep(10)
-ws.stop_audio_output()
-time.sleep(5)
-ws.stop_tcp()
+ws.start_audio_output(5)
+try:
+    while True:
+        time.sleep(0.5)
+except KeyboardInterrupt:
+    ws.stop_audio_output()
+    ws.stop_tcp()

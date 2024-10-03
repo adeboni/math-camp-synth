@@ -28,6 +28,7 @@ bool wifiConnected = false;
 uint8_t powerState = PWR_STATE_INVALID;
 uint8_t buffer[PACKET_SIZE];
 bool dataReadyToSend = false;
+int audioSample = 0;
 
 
 void updateLED() {
@@ -153,7 +154,7 @@ void checkPowerState() {
   if (powerState != prevPowerState)
     updateLED();
   prevPowerState = powerState;
-
+  
   buffer[3] = vbusPresent;
   buffer[4] = chargeState;
   buffer[5] = batteryLevel & 0xFF;
@@ -168,7 +169,7 @@ void checkButton() {
     Serial.println(rawTouch);
   }
 
-  buffer[7] = rawTouch < TOUCH_THRESHOLD ? LOW : HIGH;
+  buffer[7] = rawTouch < TOUCH_THRESHOLD ? 0 : 1;
 }
 
 void checkICM() {
@@ -209,15 +210,13 @@ void checkICM() {
   }
 }
 
-bool checkI2S(uint8_t *i2sBuffer, int startIndex) {
-  int sample = I2S.read();
-  if (sample && sample != -1 && sample != 1) {
+bool checkI2S() {
+  audioSample = I2S.read();
+  if (audioSample && audioSample != -1 && audioSample != 1) {
     if (DEBUG_PRINT) {
       Serial.print(F("Audio sample: "));
-      Serial.println(sample);
+      Serial.println(audioSample);
     }
-    i2sBuffer[startIndex] = sample & 0xFF;
-    i2sBuffer[startIndex + 1] = (sample >> 8) & 0xFF;
     return true;
   }
   return false;
@@ -227,12 +226,13 @@ bool checkI2S(uint8_t *i2sBuffer, int startIndex) {
 ///// CORE FUNCTIONS /////
 
 void runCore0(void *parameter) {
-  uint8_t i2sBuffer[SAMPLES_PER_PACKET * 2];
   while (1) {
-    for (int i = 0; i < SAMPLES_PER_PACKET; i++)
-      while (!checkI2S(i * 2));
-    memcpy(buffer + 16, i2sBuffer, SAMPLES_PER_PACKET * 2);
-    dataReadyToSend = true;
+    for (int i = 0; i < SAMPLES_PER_PACKET; i++) {
+      while (!checkI2S());
+      buffer[16 + i * 2] = audioSample & 0xFF;
+      buffer[16 + i * 2 + 1] = (audioSample >> 8) & 0xFF;
+    }
+    client.write(buffer, PACKET_SIZE);
   }
 }
 
@@ -265,10 +265,5 @@ void loop() {
   if (wifiConnected) {
     checkButton();
     checkICM();
-
-    if (dataReadyToSend) {
-      client.write(buffer, PACKET_SIZE);
-      dataReadyToSend = false;
-    }
   }
 }
