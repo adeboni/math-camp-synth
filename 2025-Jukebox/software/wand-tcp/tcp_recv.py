@@ -8,6 +8,10 @@ import numpy as np
 
 INT16_MIN = np.iinfo(np.int16).min
 INT16_MAX = np.iinfo(np.int16).max
+FADE_LENGTH = 6
+FADE_OUT = np.linspace(1, 0, FADE_LENGTH)
+FADE_IN = np.linspace(0, 1, FADE_LENGTH)
+
 BUFFER_LIMIT = 10 # TODO: check latency with real microphone
 PORT = 5005
 
@@ -46,6 +50,7 @@ class WandServer():
         self.stream = None
         self.addresses = {}
         self.buffer = {}
+        self.prev_audio_data = {}
         self.buffering = {}
         self.wand_data = {}
         self.pa = pyaudio.PyAudio()
@@ -103,6 +108,7 @@ class WandServer():
             if addr not in self.wand_data:
                 self.wand_data[addr] = WandData(addr)
             self.buffer[addr] = []
+            self.prev_audio_data[addr] = np.zeros(FADE_LENGTH)
             self.buffering[addr] = False
             self.addresses[addr] = AddressState.OPEN
 
@@ -119,17 +125,24 @@ class WandServer():
 
             data = np.frombuffer(raw_data, np.int16)
             self.wand_data[addr].update_data(data)
-            print(repr(self.wand_data[addr]))
+            #print(repr(self.wand_data[addr]))
             self.buffer[addr].append(data[8:])
             if len(self.buffer[addr]) > BUFFER_LIMIT and self.buffering[addr]:
                 self.buffering[addr] = False
+
+    def _transition_audio_data(self, x, y) -> np.array:
+        transition = x[-FADE_LENGTH:] * FADE_OUT + y[:FADE_LENGTH] * FADE_IN
+        return np.concatenate((transition, y[FADE_LENGTH:-FADE_LENGTH]))
 
     def _audio_thread(self) -> None:
         while self.audio_thread_running:
             audio_buffer = []
             for addr in [a for a in self.addresses if self.addresses[a] != AddressState.CLOSED]:
                 if not self.buffering[addr] and len(self.buffer[addr]) > 0:
-                    audio_buffer.append(self.buffer[addr].pop(0).astype(np.int32))
+                    curr_packet = self.buffer[addr].pop(0).astype(np.int32)
+                    prev_packet = self.prev_audio_data[addr]
+                    audio_buffer.append(self._transition_audio_data(prev_packet, curr_packet))
+                    self.prev_audio_data[addr] = curr_packet
                     if len(self.buffer[addr]) == 0:
                         self.buffering[addr] = True
                 elif self.addresses[addr] == AddressState.CLOSING:

@@ -3,7 +3,7 @@ import time
 import numpy as np
 
 AUDIO_SAMPLES = 320
-SIN_SCALING = 2 * np.pi * 10 / AUDIO_SAMPLES
+SIN_SCALING = 0.2
 
 sock = socket.socket()
 sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
