@@ -1,24 +1,27 @@
 #include "wifi_credentials.h"
-#include <I2S.h>
+#include <driver/i2s.h>
 #include <ICM_20948.h>
 #include <Adafruit_NeoPixel.h>
 #include <WiFi.h>
 
 #define F32_TO_INT(X) ((uint16_t)(X * 16384 + 16384))
-#define FORCE_BOOT          false
+#define FORCE_BOOT          true
 #define DEBUG_PRINT         false
 #define TOUCH_PIN           32
 #define VBUS_PIN            9
 #define CHARGE_PIN          34
 #define BATTERY_PIN         35
+#define I2S_SERIAL_CLK_PIN  14
+#define I2S_LR_CLK_PIN      15
+#define I2S_SERIAL_DATA_PIN 25
 #define TOUCH_THRESHOLD     40
 #define PWR_STATE_CHARGING  0
 #define PWR_STATE_CHARGED   1
 #define PWR_STATE_UNPLUGGED 2
 #define PWR_STATE_INVALID   3
-#define AUDIO_RATE_HZ       16000
-#define SAMPLES_PER_PACKET  320 // 16000 / 50 packets per sec
-#define PACKET_SIZE         656 // 16 + 320 * 2 (1472 max)
+#define AUDIO_RATE_HZ       8000
+#define SAMPLES_PER_PACKET  512
+#define PACKET_SIZE         (16 + SAMPLES_PER_PACKET * 2)
 
 TaskHandle_t taskCore0;
 Adafruit_NeoPixel strip(1, 2, NEO_RGB + NEO_KHZ800);
@@ -27,9 +30,8 @@ WiFiClient client;
 bool wifiConnected = false;
 uint8_t powerState = PWR_STATE_INVALID;
 uint8_t buffer[PACKET_SIZE];
-uint8_t packetBuffer[PACKET_SIZE];
+int32_t rawSamples[SAMPLES_PER_PACKET];
 bool dataReadyToSend = false;
-int audioSample = 0;
 
 
 void updateLED() {
@@ -49,11 +51,29 @@ void updateLED() {
 
 void initI2S() {
   Serial.print(F("Connecting to microphone... "));
-  I2S.setAllPins(14, 15, 25, 25, 25);
-  if (!I2S.begin(I2S_PHILIPS_MODE, AUDIO_RATE_HZ, 16)) {
-    Serial.println(F("Failed to initialize I2S!"));
-    ESP.restart();
-  }
+  
+  i2s_config_t i2s_config = {
+    .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
+    .sample_rate = AUDIO_RATE_HZ,
+    .bits_per_sample = I2S_BITS_PER_SAMPLE_32BIT,
+    .channel_format = I2S_CHANNEL_FMT_ONLY_RIGHT,
+    .communication_format = I2S_COMM_FORMAT_I2S,
+    .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
+    .dma_buf_count = 4,
+    .dma_buf_len = 1024,
+    .use_apll = false,
+    .tx_desc_auto_clear = false,
+    .fixed_mclk = 0};
+    
+  i2s_pin_config_t i2s_mic_pins = {
+    .bck_io_num = I2S_SERIAL_CLK_PIN,
+    .ws_io_num = I2S_LR_CLK_PIN,
+    .data_out_num = I2S_PIN_NO_CHANGE,
+    .data_in_num = I2S_SERIAL_DATA_PIN};
+    
+  i2s_driver_install(I2S_NUM_0, &i2s_config, 0, NULL);
+  i2s_set_pin(I2S_NUM_0, &i2s_mic_pins);
+  
   Serial.println(F("connected"));
 }
 
@@ -214,30 +234,15 @@ void checkICM() {
   }
 }
 
-bool checkI2S() {
-  audioSample = I2S.read();
-  if (audioSample && audioSample != -1 && audioSample != 1) {
-    if (DEBUG_PRINT) {
-      Serial.print(F("Audio sample: "));
-      Serial.println(audioSample);
-    }
-    return true;
-  }
-  return false;
-}
-
-
 ///// CORE FUNCTIONS /////
 
 void runCore0(void *parameter) {
   while (1) {
-    for (int i = 0; i < SAMPLES_PER_PACKET; i++) {
-      while (!checkI2S());
-      buffer[16 + i * 2] = audioSample & 0xFF;
-      buffer[16 + i * 2 + 1] = (audioSample >> 8) & 0xFF;
+    checkPowerState();
+    if (wifiConnected) {
+      checkButton();
+      checkICM();
     }
-    memcpy(packetBuffer, buffer, PACKET_SIZE);
-    dataReadyToSend = true;
   }
 }
 
@@ -261,15 +266,17 @@ void setup() {
 }
 
 void loop() {
-  checkPowerState();
+  size_t bytesRead = 0;
+  i2s_read(I2S_NUM_0, rawSamples, 4 * SAMPLES_PER_PACKET, &bytesRead, portMAX_DELAY);
 
-  if (wifiConnected) {
-    checkButton();
-    checkICM();
-
-    if (dataReadyToSend) {
-      client.write(packetBuffer, PACKET_SIZE);
-      dataReadyToSend = false;
-    }
+  int bufferIndex = 16;
+  for (int i = 0; i < bytesRead / 4; i++) {
+    double x = ((double)rawSamples[i]) / 2147483648.0;
+    uint16_t y = F32_TO_INT(x);
+    buffer[bufferIndex++] = y & 0xFF;
+    buffer[bufferIndex++] = (y >> 8) & 0xFF;
   }
+  
+  if (wifiConnected) 
+    client.write(buffer, PACKET_SIZE);
 }

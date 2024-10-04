@@ -64,7 +64,7 @@ class WandServer():
     def start_audio_output(self, device_index) -> None:
         self.stream = self.pa.open(
             output=True,
-            rate=16000,
+            rate=8000,
             channels=1,
             format=pyaudio.paInt16,
             output_device_index=device_index,
