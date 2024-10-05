@@ -127,6 +127,7 @@ void initWiFi() {
   Serial.print(F("connected with IP: "));
   Serial.println(WiFi.localIP());
 
+  client.setNoDelay(true);
   if (!client.connect(TARGET_IP, TARGET_PORT)) {
     Serial.println(F("TCP connection failed!"));
     ESP.restart();
@@ -277,6 +278,6 @@ void loop() {
     buffer[bufferIndex++] = (y >> 8) & 0xFF;
   }
   
-  if (wifiConnected) 
+  if (wifiConnected)
     client.write(buffer, PACKET_SIZE);
 }

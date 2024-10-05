@@ -124,8 +124,11 @@ class WandServer():
                 break
 
             data = np.frombuffer(raw_data, np.int16)
+            #if data[0] > 1 or data[1] > 1:
+            #    continue
             self.wand_data[addr].update_data(data)
-            #print(repr(self.wand_data[addr]))
+            print(repr(self.wand_data[addr]))
+            #print(data[:16])
             self.buffer[addr].append(data[8:])
             if len(self.buffer[addr]) > BUFFER_LIMIT and self.buffering[addr]:
                 self.buffering[addr] = False
