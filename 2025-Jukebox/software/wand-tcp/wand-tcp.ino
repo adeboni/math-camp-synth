@@ -19,12 +19,11 @@
 #define PWR_STATE_CHARGED   1
 #define PWR_STATE_UNPLUGGED 2
 #define PWR_STATE_INVALID   3
-#define AUDIO_RATE_HZ       8000
+#define AUDIO_RATE_HZ       16000
 #define SAMPLES_PER_PACKET  512
-#define PACKET_SIZE         (16 + SAMPLES_PER_PACKET * 2)
+#define PACKET_SIZE         (20 + SAMPLES_PER_PACKET * 2)
 
 TaskHandle_t taskCore0;
-static portMUX_TYPE mutex = portMUX_INITIALIZER_UNLOCKED;
 Adafruit_NeoPixel strip(1, 2, NEO_RGB + NEO_KHZ800);
 ICM_20948_I2C myICM;
 WiFiClient client;
@@ -273,15 +272,16 @@ void loop() {
 
   int bufferIndex = 16;
   for (int i = 0; i < bytesRead / 4; i++) {
-    double x = ((double)rawSamples[i]) / 2147483648.0;
+    double x = ((double)rawSamples[i]) / 1073741824.0;
     uint16_t y = F32_TO_INT(x);
     buffer[bufferIndex++] = y & 0xFF;
     buffer[bufferIndex++] = (y >> 8) & 0xFF;
   }
+
+  for (int i = 0; i < 4; i++)
+    buffer[bufferIndex++] = 170;
   
   if (wifiConnected) {
-    portENTER_CRITICAL(&mutex);
     client.write(buffer, PACKET_SIZE);
-    portEXIT_CRITICAL(&mutex);
   }
 }

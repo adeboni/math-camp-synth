@@ -13,6 +13,7 @@ def get_packet():
     data = np.array([np.int16(x) for x in range(8)]).tobytes()
     for i in range(AUDIO_SAMPLES):
         data += np.array([np.int16(10000 * np.sin(i * SIN_SCALING))]).tobytes()
+    data += np.array([np.int16(-21846), np.int16(-21846)]).tobytes()
     return data
 
 start_time = time.time()

@@ -12,7 +12,7 @@ FADE_LENGTH = 6
 FADE_OUT = np.linspace(1, 0, FADE_LENGTH)
 FADE_IN = np.linspace(0, 1, FADE_LENGTH)
 
-BUFFER_LIMIT = 10 # TODO: check latency with real microphone
+BUFFER_LIMIT = 10
 PORT = 5005
 
 class AddressState(enum.Enum):
@@ -42,6 +42,7 @@ class WandData():
         self.battery_volts = data[2] / 4095 * 3.7
         self.button = data[3] == 1
         self.quaternion = (data[4:8] - 16384) / 16384
+        
 
 class WandServer():
     def __init__(self) -> None:
@@ -64,7 +65,7 @@ class WandServer():
     def start_audio_output(self, device_index) -> None:
         self.stream = self.pa.open(
             output=True,
-            rate=8000,
+            rate=16000,
             channels=1,
             format=pyaudio.paInt16,
             output_device_index=device_index,
@@ -115,23 +116,32 @@ class WandServer():
             thread = threading.Thread(target=self._read_data_from_socket, args=(conn, addr), daemon=True)
             thread.start()
 
+    def _try_parse_buffer(self, tcp_buffer, addr) -> int:
+        for i in range(1, len(tcp_buffer)):
+            if tcp_buffer[i] == -21846 and tcp_buffer[i-1] == -21846:
+                data = tcp_buffer[:i-2]
+                self.wand_data[addr].update_data(data)
+                self.buffer[addr].append(data[8:])
+                if len(self.buffer[addr]) > BUFFER_LIMIT and self.buffering[addr]:
+                    self.buffering[addr] = False
+                return i + 1
+        return None
+
     def _read_data_from_socket(self, conn, addr) -> None:
+        tcp_buffer = None
         while self.tcp_thread_running:
             raw_data = conn.recv(4096)
             if raw_data == b"":
                 print(f"Lost connection from wand at {addr}")
                 self.addresses[addr] = AddressState.CLOSING
                 break
-
-            data = np.frombuffer(raw_data, np.int16)
-            #if data[0] > 1 or data[1] > 1:
-            #    continue
-            self.wand_data[addr].update_data(data)
-            print(repr(self.wand_data[addr]))
-            #print(data[:16])
-            self.buffer[addr].append(data[8:])
-            if len(self.buffer[addr]) > BUFFER_LIMIT and self.buffering[addr]:
-                self.buffering[addr] = False
+            
+            if tcp_buffer is None:
+                tcp_buffer = np.frombuffer(raw_data, np.int16)
+            else:
+                tcp_buffer = np.concatenate((tcp_buffer, np.frombuffer(raw_data, np.int16)))
+            if (start_index := self._try_parse_buffer(tcp_buffer, addr)):
+                tcp_buffer = tcp_buffer[start_index:]
 
     def _transition_audio_data(self, x, y) -> np.array:
         transition = x[-FADE_LENGTH:] * FADE_OUT + y[:FADE_LENGTH] * FADE_IN
