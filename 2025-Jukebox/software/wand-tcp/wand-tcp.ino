@@ -24,6 +24,7 @@
 #define PACKET_SIZE         (16 + SAMPLES_PER_PACKET * 2)
 
 TaskHandle_t taskCore0;
+static portMUX_TYPE mutex = portMUX_INITIALIZER_UNLOCKED;
 Adafruit_NeoPixel strip(1, 2, NEO_RGB + NEO_KHZ800);
 ICM_20948_I2C myICM;
 WiFiClient client;
@@ -278,6 +279,9 @@ void loop() {
     buffer[bufferIndex++] = (y >> 8) & 0xFF;
   }
   
-  if (wifiConnected)
+  if (wifiConnected) {
+    portENTER_CRITICAL(&mutex);
     client.write(buffer, PACKET_SIZE);
+    portEXIT_CRITICAL(&mutex);
+  }
 }
