@@ -22,25 +22,23 @@
 #define AUDIO_RATE_HZ       16000
 
 TaskHandle_t taskCore0;
-static portMUX_TYPE mutex = portMUX_INITIALIZER_UNLOCKED;
 Adafruit_NeoPixel strip(1, 2, NEO_RGB + NEO_KHZ800);
 ICM_20948_I2C myICM;
 I2SSampler *i2sSampler = new I2SSampler();
-WiFiClient *wifi_client = new WiFiClient();
+WiFiClient *client = new WiFiClient();
 bool wifiConnected = false;
 uint8_t powerState = PWR_STATE_INVALID;
 uint8_t buffer[32768];
-bool dataReadyToSend = false;
 
 
 void updateLED() {
-  if (wifiConnected) 
+  if (wifiConnected)
     strip.setPixelColor(0, 0, 0, 255);
-  else if (powerState == PWR_STATE_CHARGING) 
+  else if (powerState == PWR_STATE_CHARGING)
     strip.setPixelColor(0, 255, 0, 0);
-  else if (powerState == PWR_STATE_CHARGED) 
+  else if (powerState == PWR_STATE_CHARGED)
     strip.setPixelColor(0, 0, 255, 0);
-  else 
+  else
     strip.setPixelColor(0, 255, 255, 0);
   strip.show();
 }
@@ -48,26 +46,23 @@ void updateLED() {
 
 ///// INIT METHODS /////
 
-void i2sWriterTask(void *param)
-{
+void i2sWriterTask(void *param) {
   I2SSampler *sampler = (I2SSampler *)param;
   const TickType_t xMaxBlockTime = pdMS_TO_TICKS(100);
-  while (true)
-  {
+  while (true) {
     // wait for some samples to save
     uint32_t ulNotificationValue = ulTaskNotifyTake(pdTRUE, xMaxBlockTime);
-    if (ulNotificationValue > 0)
-    {
+    if (ulNotificationValue > 0 && wifiConnected) {
       int32_t sampleSize = sampler->getBufferSizeInBytes();
       memcpy(buffer + 16, sampler->getCapturedAudioBuffer(), sampleSize);
-      client.write(buffer, 16 + sampleSize);
+      client->write(buffer, 16 + sampleSize);
     }
   }
 }
 
 void initI2S() {
   Serial.print(F("Connecting to microphone... "));
-  
+
   i2s_config_t i2s_config = {
     .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
     .sample_rate = AUDIO_RATE_HZ,
@@ -79,18 +74,20 @@ void initI2S() {
     .dma_buf_len = 1024,
     .use_apll = false,
     .tx_desc_auto_clear = false,
-    .fixed_mclk = 0};
-    
+    .fixed_mclk = 0
+  };
+
   i2s_pin_config_t i2s_mic_pins = {
     .bck_io_num = I2S_SERIAL_CLK_PIN,
     .ws_io_num = I2S_LR_CLK_PIN,
     .data_out_num = I2S_PIN_NO_CHANGE,
-    .data_in_num = I2S_SERIAL_DATA_PIN};
-    
+    .data_in_num = I2S_SERIAL_DATA_PIN
+  };
+
   TaskHandle_t writer_task_handle;
   xTaskCreate(i2sWriterTask, "I2S Writer Task", 4096, i2sSampler, 1, &writer_task_handle);
   i2sSampler->start(I2S_NUM_0, i2s_mic_pins, i2s_config, 32768 - 16, writer_task_handle);
-  
+
   Serial.println(F("connected"));
 }
 
@@ -99,7 +96,7 @@ void initICM() {
 
   Wire.begin();
   Wire.setClock(400000);
-  
+
   int i2cAddr = 0;
   while (1) {
     myICM.begin(Wire, i2cAddr);
@@ -122,7 +119,7 @@ void initICM() {
     Serial.println(F("Enable DMP failed!"));
     ESP.restart();
   }
-  
+
   Serial.println(F("connected"));
 }
 
@@ -130,7 +127,7 @@ void initWiFi() {
   Serial.print(F("Connecting to Wifi... "));
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_NAME, WIFI_PASSWORD);
-  
+
   int timeoutCounter = 0;
   while (WiFi.status() != WL_CONNECTED) {
     delay(200);
@@ -144,12 +141,12 @@ void initWiFi() {
   Serial.print(F("connected with IP: "));
   Serial.println(WiFi.localIP());
 
-  client.setNoDelay(true);
-  if (!client.connect(TARGET_IP, TARGET_PORT)) {
+  client->setNoDelay(true);
+  if (!client->connect(TARGET_IP, TARGET_PORT)) {
     Serial.println(F("TCP connection failed!"));
     ESP.restart();
   }
-  
+
   wifiConnected = true;
   updateLED();
 }
@@ -178,14 +175,17 @@ void checkPowerState() {
   uint16_t batteryLevel = analogRead(BATTERY_PIN);
 
   if (DEBUG_PRINT) {
-    Serial.print("VBUS: ");       Serial.print(vbusPresent);
-    Serial.print("   CHARGE: ");  Serial.print(chargeState);
-    Serial.print("   BATTERY: "); Serial.println(batteryLevel);
+    Serial.print("VBUS: ");
+    Serial.print(vbusPresent);
+    Serial.print("   CHARGE: ");
+    Serial.print(chargeState);
+    Serial.print("   BATTERY: ");
+    Serial.println(batteryLevel);
   }
 
-  if (vbusPresent == LOW) 
+  if (vbusPresent == LOW)
     powerState = PWR_STATE_UNPLUGGED;
-  else if (chargeState == HIGH) 
+  else if (chargeState == HIGH)
     powerState = PWR_STATE_CHARGED;
   else
     powerState = PWR_STATE_CHARGING;
@@ -193,7 +193,7 @@ void checkPowerState() {
   if (powerState != prevPowerState)
     updateLED();
   prevPowerState = powerState;
-  
+
   buffer[0] = vbusPresent;
   buffer[1] = 0;
   buffer[2] = chargeState;
@@ -254,7 +254,7 @@ void checkICM() {
 
 ///// CORE FUNCTIONS /////
 
-void setup() { 
+void setup() {
   Serial.begin(115200);
   Serial.println(F("Booting... "));
   pinMode(VBUS_PIN, INPUT);
@@ -262,7 +262,7 @@ void setup() {
   pinMode(BATTERY_PIN, INPUT);
   analogReadResolution(12);
   initNeopixel();
-  
+
   bool charging = (digitalRead(VBUS_PIN) == HIGH && !FORCE_BOOT);
   if (!charging) {
     initWiFi();
@@ -271,7 +271,7 @@ void setup() {
   }
 }
 
-void loop() { 
+void loop() {
   checkPowerState();
   if (wifiConnected) {
     checkButton();
