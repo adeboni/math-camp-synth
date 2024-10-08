@@ -219,18 +219,18 @@ void checkICM() {
         Serial.println(F("}"));
       }
 
+      uint16_t w = F32_TO_INT(q0);
       uint16_t x = F32_TO_INT(q1);
       uint16_t y = F32_TO_INT(q2);
       uint16_t z = F32_TO_INT(q3);
-      uint16_t w = F32_TO_INT(q0);
-      buffer[8] = x & 0xFF;
-      buffer[9] = (x >> 8) & 0xFF;
-      buffer[10] = y & 0xFF;
-      buffer[11] = (y >> 8) & 0xFF;
-      buffer[12] = z & 0xFF;
-      buffer[13] = (z >> 8) & 0xFF;
-      buffer[14] = w & 0xFF;
-      buffer[15] = (w >> 8) & 0xFF;
+      buffer[8] = w & 0xFF;
+      buffer[9] = (w >> 8) & 0xFF;
+      buffer[10] = x & 0xFF;
+      buffer[11] = (x >> 8) & 0xFF;
+      buffer[12] = y & 0xFF;
+      buffer[13] = (y >> 8) & 0xFF;
+      buffer[14] = z & 0xFF;
+      buffer[15] = (z >> 8) & 0xFF;
     }
   }
 }
@@ -281,7 +281,6 @@ void loop() {
   for (int i = 0; i < 4; i++)
     buffer[bufferIndex++] = 170;
   
-  if (wifiConnected) {
+  if (wifiConnected)
     client.write(buffer, PACKET_SIZE);
-  }
 }

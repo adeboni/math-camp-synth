@@ -4,6 +4,7 @@ import socket
 import threading
 import time
 import itertools
+import pyquaternion
 import numpy as np
 
 INT16_MIN = np.iinfo(np.int16).min
@@ -11,7 +12,6 @@ INT16_MAX = np.iinfo(np.int16).max
 FADE_LENGTH = 6
 FADE_OUT = np.linspace(1, 0, FADE_LENGTH)
 FADE_IN = np.linspace(0, 1, FADE_LENGTH)
-
 BUFFER_LIMIT = 10
 PORT = 5005
 
@@ -41,13 +41,15 @@ class WandData():
         self.charged = data[1] == 1
         self.battery_volts = data[2] / 4095 * 3.7
         self.button = data[3] == 1
-        self.quaternion = (data[4:8] - 16384) / 16384
+        self.quaternion = pyquaternion.Quaternion((data[4:8] - 16384) / 16384)
         
 
 class WandServer():
     def __init__(self) -> None:
         self.tcp_thread_running = False
+        self.tcp_thread = threading.Thread(target=self._tcp_thread, daemon=True)
         self.audio_thread_running = False
+        self.audio_thread = threading.Thread(target=self._audio_thread, daemon=True)
         self.stream = None
         self.addresses = {}
         self.buffer = {}
@@ -73,27 +75,27 @@ class WandServer():
         )
 
         self.audio_thread_running = True
-        self.audio_thread = threading.Thread(target=self._audio_thread, daemon=True)
         self.audio_thread.start()
 
     def stop_audio_output(self) -> None:
-        self.audio_thread_running = False
-        self.audio_thread.join()
-        self.pa.close(self.stream)
-        self.stream = None
+        if self.audio_thread_running:
+            self.audio_thread_running = False
+            self.audio_thread.join()
+            self.pa.close(self.stream)
+            self.stream = None
 
     def start_tcp(self) -> None:
         self.tcp_thread_running = True
-        self.tcp_thread = threading.Thread(target=self._tcp_thread, daemon=True)
         self.tcp_thread.start()
 
     def stop_tcp(self) -> None:
-        self.tcp_thread_running = False
-        sock = socket.socket()
-        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        sock.connect(('127.0.0.1', PORT))
-        sock.close()
-        self.tcp_thread.join()
+        if self.tcp_thread_running:
+            self.tcp_thread_running = False
+            sock = socket.socket()
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            sock.connect(('127.0.0.1', PORT))
+            sock.close()
+            self.tcp_thread.join()
 
     def _tcp_thread(self) -> None:
         sock = socket.socket()
@@ -121,9 +123,10 @@ class WandServer():
             if tcp_buffer[i] == -21846 and tcp_buffer[i-1] == -21846:
                 data = tcp_buffer[:i-2]
                 self.wand_data[addr].update_data(data)
-                self.buffer[addr].append(data[8:])
-                if len(self.buffer[addr]) > BUFFER_LIMIT and self.buffering[addr]:
-                    self.buffering[addr] = False
+                if self.audio_thread_running:
+                    self.buffer[addr].append(data[8:])
+                    if len(self.buffer[addr]) > BUFFER_LIMIT and self.buffering[addr]:
+                        self.buffering[addr] = False
                 return i + 1
         return None
 
@@ -170,7 +173,7 @@ class WandServer():
 
 ws = WandServer()
 ws.start_tcp()
-ws.start_audio_output(5)
+#ws.start_audio_output(4)
 try:
     while True:
         time.sleep(0.5)
