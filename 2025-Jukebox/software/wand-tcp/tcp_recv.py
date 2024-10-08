@@ -17,8 +17,7 @@ PORT = 5005
 
 class AddressState(enum.Enum):
     OPEN = 1
-    CLOSING = 2
-    CLOSED = 3
+    CLOSED = 2
 
 class WandData():
     def __init__(self, address) -> None:
@@ -136,7 +135,7 @@ class WandServer():
             raw_data = conn.recv(4096)
             if raw_data == b"":
                 print(f"Lost connection from wand at {addr}")
-                self.addresses[addr] = AddressState.CLOSING
+                self.addresses[addr] = AddressState.CLOSED
                 break
             
             if tcp_buffer is None:
@@ -161,8 +160,6 @@ class WandServer():
                     self.prev_audio_data[addr] = curr_packet
                     if len(self.buffer[addr]) == 0:
                         self.buffering[addr] = True
-                elif self.addresses[addr] == AddressState.CLOSING:
-                    self.addresses[addr] = AddressState.CLOSED
             else:
                 time.sleep(0.001)
 
