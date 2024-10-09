@@ -6,7 +6,7 @@
 #include <WiFiUdp.h>
 
 #define F32_TO_INT(X) ((uint16_t)(X * 16384 + 16384))
-#define FORCE_BOOT          true
+#define FORCE_BOOT          false
 #define DEBUG_PRINT         false
 #define TOUCH_PIN           32
 #define VBUS_PIN            9
@@ -27,7 +27,7 @@
 TaskHandle_t taskCore0;
 Adafruit_NeoPixel strip(1, 2, NEO_RGB + NEO_KHZ800);
 ICM_20948_I2C myICM;
-WifiUDP udp;
+WiFiUDP udp;
 bool wifiConnected = false;
 uint8_t seq_num = 0;
 uint8_t powerState = PWR_STATE_INVALID;
@@ -236,6 +236,10 @@ void checkICM() {
 void runCore0(void *parameter) {
   while (1) {
     checkPowerState();
+    if (wifiConnected) {
+      checkButton();
+      checkICM();
+    }
   }
 }
 
@@ -259,6 +263,9 @@ void setup() {
 }
 
 void loop() {
+  if (!wifiConnected)
+    return;
+    
   size_t bytesRead = 0;
   i2s_read(I2S_NUM_0, rawSamples, 4 * SAMPLES_PER_PACKET, &bytesRead, portMAX_DELAY);
 
@@ -273,13 +280,9 @@ void loop() {
   for (int i = 0; i < 4; i++)
     buffer[bufferIndex++] = 170;
   
-  if (wifiConnected) {
-    buffer[0] = seq_num++;
-    buffer[1] = 0;
-    checkButton();
-    checkICM();
-    udp.beginPacket(TARGET_IP, TARGET_PORT);
-    udp.write(buffer, PACKET_SIZE);
-    udp.endPacket();
-  }
+  buffer[0] = seq_num++;
+  buffer[1] = 0;
+  udp.beginPacket(TARGET_IP, TARGET_PORT);
+  udp.write(buffer, PACKET_SIZE);
+  udp.endPacket();
 }
