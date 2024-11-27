@@ -20,6 +20,8 @@
 #define DISPLAY_UPDATE_MS 100
 #define LCD_EN0 9
 #define LCD_EN1 15
+#define LCD_BACKLIGHT_1 4
+#define LCD_BACKLIGHT_2 5
 #define MAX7313_ADDR0 0x20
 #define MAX7313_ADDR1 0x21
 #define MAX7313_ADDR2 0x23
@@ -28,14 +30,14 @@
 
 // MAX7313 pin numbers
 uint8_t DOTS_OUT[6]    = {7, 6, 4, 2, 0, 15};        //ADDR1
-uint8_t BUTTONS_OUT[7] = {14, 13, 12, 11, 10, 9, 8}; //ADDR1
+uint8_t BUTTONS_OUT[7] = {14, 13, 8, 11, 10, 9, 12}; //ADDR1
 uint8_t MOTORS_OUT[3]  = {5, 3, 1};                  //ADDR1
 uint8_t LAMP_OUT[1]    = {8};                        //ADDR0
 uint8_t MOUTH_OUT[15]  = {13, 12, 11, 10, 9, //RED     ADDR0
                           7, 5, 3, 1, 15,    //WHITE
                           6, 4, 2, 0, 14};   //BLUE
 uint8_t MODE_IN[8]     = {7, 5, 3, 1, 0, 6, 4, 2};   //ADDR2
-uint8_t BUTTONS_IN[7]  = {14, 13, 12, 11, 10, 9, 8}; //ADDR2
+uint8_t BUTTONS_IN[7]  = {14, 13, 8, 11, 10, 9, 12}; //ADDR2
 uint8_t MODE_KEYS[8] = {HID_KEY_8, HID_KEY_7, HID_KEY_6, HID_KEY_5, 
                         HID_KEY_4, HID_KEY_3, HID_KEY_2, HID_KEY_1};
 uint8_t BUTTON_KEYS[7] = {HID_KEY_SPACE, HID_KEY_ARROW_LEFT, 
@@ -186,6 +188,14 @@ int main() {
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
     gpio_put(PICO_DEFAULT_LED_PIN, 0);
+
+    gpio_init(LCD_BACKLIGHT_1);
+    gpio_set_dir(LCD_BACKLIGHT_1, GPIO_OUT);
+    gpio_put(LCD_BACKLIGHT_1, 1);
+
+    gpio_init(LCD_BACKLIGHT_2);
+    gpio_set_dir(LCD_BACKLIGHT_2, GPIO_OUT);
+    gpio_put(LCD_BACKLIGHT_2, 1);
 
     lcd_init(LCD_EN0);
     lcd_init(LCD_EN1);
