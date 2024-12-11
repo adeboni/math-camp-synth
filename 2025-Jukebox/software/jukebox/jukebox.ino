@@ -111,7 +111,6 @@ uint8_t packetBuffer[UDP_TX_PACKET_MAX_SIZE];
 
 //Packet ID, song selection, num songs in queue, queued songs, current song, 
 uint8_t metaDataPacketBuffer[1 + 2 + 1 + SONG_QUEUE_LIMIT * 2 + MAX_SONG_NAME_LEN];
-unsigned long lastAudioMetadataUpdate = 0;
 
 IPAddress ioIP(10, 0, 0, 31);
 IPAddress laserControllerIP(10, 0, 0, 33);
@@ -140,11 +139,9 @@ void setup1() {
 }
 
 void loop1() {
-  updateDisplay();
   checkButtons();
   checkForPacket();
   sendUDPAudioData();
-  sendUDPAudioMetadata();
 }
 
 void setup() {
@@ -188,8 +185,8 @@ void setup() {
 }
 
 void loop() {
-  updateSegDisplay();
   updateAudio();
+  updateSegDisplay();
 }
 
 
@@ -267,6 +264,8 @@ void updateAudio() {
       wav->begin(source, out);
       playingSongIndex = nextSongIndex;
     }
+    sendUDPAudioMetadata();
+    updateDisplay();
   } else {
     if (!wav->loop()) wav->stop();
   }
@@ -325,7 +324,8 @@ void buttonAction(int index) {
     default:
       break;
   }
-  lastAudioMetadataUpdate = 0;
+  sendUDPAudioMetadata();
+  updateDisplay();
 }
 
 void checkButtons() {
@@ -347,45 +347,34 @@ void checkButtons() {
 }
 
 void updateDisplay() {
-  static unsigned long lastDisplayUpdate = 0;
-  if (millis() - lastDisplayUpdate > 100) {
-    display.clearDisplay();
-    display.setCursor(0, 0);
-
-    switch (menuMode) {
-      case 0:
-        display.println("Selected Song: ");
-        display.println(songList[getSelectedSongIndex()]);
-        break;
-      case 1:
-        display.println("Song Playing: ");
-        display.print(wav->isRunning() ? songList[playingSongIndex] : "None");
-        break;
-      case 2:
-        display.println("Song Queue: ");
-        for (int i = 0; i < songQueueLength; i++) {
-          int songIndex = songQueue[(songQueueIndex + i) % SONG_QUEUE_LIMIT];
-          display.print((char)((songIndex / 10) + 65));
-          display.print((char)((songIndex % 10) + 48));
-          display.print(" ");
-        }
-        break;
-      case 3:
-        display.print("Robbie Mode: ");
-        display.println(robbieMode);
-      default:
-        break;
-    }
-      
-    display.display();
-    lastDisplayUpdate = millis();
-  }
-}
-
-void displayMessage(const char *message) {
   display.clearDisplay();
   display.setCursor(0, 0);
-  display.println(message);
+ 
+  switch (menuMode) {
+    case 0:
+      display.println("Selected Song: ");
+      display.println(songList[getSelectedSongIndex()]);
+      break;
+    case 1:
+      display.println("Song Playing: ");
+      display.print(wav->isRunning() ? songList[playingSongIndex] : "None");
+      break;
+    case 2:
+      display.println("Song Queue: ");
+      for (int i = 0; i < songQueueLength; i++) {
+        int songIndex = songQueue[(songQueueIndex + i) % SONG_QUEUE_LIMIT];
+        display.print((char)((songIndex / 10) + 65));
+        display.print((char)((songIndex % 10) + 48));
+        display.print(" ");
+      }
+      break;
+    case 3:
+      display.print("Robbie Mode: ");
+      display.println(robbieMode);
+    default:
+      break;
+  }
+    
   display.display();
 }
 
