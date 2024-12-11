@@ -98,6 +98,7 @@ int numSongs = 0;
 volatile int playingSongIndex = 0;
 int menuMode = 0;
 volatile int robbieMode = 0;
+volatile bool displayUpdating = false;
 
 File file;
 AudioFileSourceSD *source = NULL;
@@ -123,7 +124,6 @@ void setup1() {
   Wire1.setSCL(SCL_PIN);
   Wire1.begin();
 
-  pinMode(VOL_PIN, INPUT);
   pinMode(BTN_PL_PIN, OUTPUT);
   pinMode(BTN_Q7_PIN, INPUT);
   pinMode(BTN_CP_PIN, OUTPUT);
@@ -136,6 +136,7 @@ void setup1() {
   display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS);
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
+  updateDisplay();
 }
 
 void loop1() {
@@ -145,12 +146,12 @@ void loop1() {
 }
 
 void setup() {
+  pinMode(VOL_PIN, INPUT);
   pinMode(SEG_DIG1_PIN, OUTPUT);
   pinMode(SEG_DIG2_PIN, OUTPUT);
   pinMode(SEG_SER_PIN, OUTPUT);
   pinMode(SEG_SCK_PIN, OUTPUT);
   pinMode(SEG_EN_PIN, OUTPUT);
-
   digitalWrite(SEG_DIG1_PIN, LOW);
   digitalWrite(SEG_DIG2_PIN, LOW);
 
@@ -194,7 +195,7 @@ void loop() {
 
 void sendUDPAudioData() {
   static unsigned long lastAudioDataUpdate = 0;
-  if (millis() - lastAudioDataUpdate > 33 && wav->isRunning()) {
+  if (millis() - lastAudioDataUpdate > 50 && wav->isRunning()) {
     udp.beginPacket(laserControllerIP, 8888);
     udp.write(out->udpBuffer, UDP_AUDIO_BUFF_SIZE);
     udp.endPacket();
@@ -203,19 +204,16 @@ void sendUDPAudioData() {
 }
 
 void sendUDPAudioMetadata() {
-  if (millis() - lastAudioMetadataUpdate > 1000) {
-    metaDataPacketBuffer[1] = (uint16_t)getSelectedSongIndex();
-    metaDataPacketBuffer[3] = songQueueLength;
-    for (int i = 0; i < songQueueLength; i++)
-      metaDataPacketBuffer[4 + i * 2] = (uint16_t)songQueue[(songIndex + i) % SONG_QUEUE_LIMIT];
-    if (!wav->isRunning()) {
-      for (int i = 0; i < MAX_SONG_NAME_LEN; i++)
-        metaDataPacketBuffer[4 + songQueueLength * 2 + i] = 0;
-    } else {
-      for (int i = 0; i < MAX_SONG_NAME_LEN; i++)
-        metaDataPacketBuffer[4 + songQueueLength * 2 + i] = songList[getSelectedSongIndex()][i];
-    }
-    lastAudioMetadataUpdate = millis();
+  metaDataPacketBuffer[1] = (uint16_t)getSelectedSongIndex();
+  metaDataPacketBuffer[3] = songQueueLength;
+  for (int i = 0; i < songQueueLength; i++)
+    metaDataPacketBuffer[4 + i * 2] = (uint16_t)songQueue[(songQueueIndex + i) % SONG_QUEUE_LIMIT];
+  if (!wav->isRunning()) {
+    for (int i = 0; i < MAX_SONG_NAME_LEN; i++)
+      metaDataPacketBuffer[4 + songQueueLength * 2 + i] = 0;
+  } else {
+    for (int i = 0; i < MAX_SONG_NAME_LEN; i++)
+      metaDataPacketBuffer[4 + songQueueLength * 2 + i] = songList[getSelectedSongIndex()][i];
   }
 }
 
@@ -347,6 +345,8 @@ void checkButtons() {
 }
 
 void updateDisplay() {
+  if (displayUpdating) return;
+  displayUpdating = true;
   display.clearDisplay();
   display.setCursor(0, 0);
  
@@ -376,6 +376,7 @@ void updateDisplay() {
   }
     
   display.display();
+  displayUpdating = false;
 }
 
 int getSelectedSongIndex() { return getSongIndex(currentLetter, currentNumber); }
