@@ -96,6 +96,9 @@ volatile bool skipSong = false;
 char songList[260][MAX_SONG_NAME_LEN];
 int numSongs = 0;
 volatile int playingSongIndex = 0;
+volatile char effectFileName[MAX_SONG_NAME_LEN];
+volatile bool playEffect = false;
+
 int menuMode = 0;
 volatile int robbieMode = 0;
 volatile bool displayUpdating = false;
@@ -221,9 +224,9 @@ void checkForPacket() {
   int packetSize = udp.parsePacket();
   if (packetSize) {
     udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
-    if (packetSize == 2 && packetBuffer[0] == 1) {
+    if (packetBuffer[0] == 1 && packetSize == 2) {
       robbieMode = packetBuffer[1];
-    } else if (packetSize == 2 && packetBuffer[0] == 4) {
+    } else if (packetBuffer[0] == 4 && packetSize == 2) {
       switch (packetBuffer[1]) {
         case 0:
           buttonAction(6);
@@ -246,11 +249,18 @@ void checkForPacket() {
         default:
           break;
       }
+    } else if (packetBuffer[0] == 6 && packetSize - 1 <= MAX_SONG_NAME_LEN) {
+      for (int i = 1; i < packetSize; i++) {
+        effectFileName[i - 1] = packetBuffer[i];
+        if (packetBuffer[i] == 0) break;
+      }
+      playEffect = true;
     }
   }
 }
 
 void updateAudio() {
+  //TODO: play effect if ready
   out->SetGain(analogRead(VOL_PIN) / 1023.0);
   if (skipSong || !wav->isRunning()) {
     wav->stop();
