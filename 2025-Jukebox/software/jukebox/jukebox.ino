@@ -107,8 +107,7 @@ volatile bool displayUpdating = false;
 File file;
 AudioFileSourceSD *sdSource;
 AudioFileSourceFunction* funcSource;
-AudioGeneratorWAV *music;
-AudioGeneratorWAV *effect;
+AudioGeneratorWAV *wav;
 AudioOutputI2SExtra *out;
 
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x32 };
@@ -165,10 +164,8 @@ void setup() {
   sdSource = new AudioFileSourceSD();
   funcSource = new AudioFileSourceFunction(10.0);
   funcSource->addAudioGenerators(sine_wave);
-  music = new AudioGeneratorWAV();
-  music->SetBufferSize(1024);
-  effect = new AudioGeneratorWAV();
-  effect->SetBufferSize(1024);
+  wav = new AudioGeneratorWAV();
+  wav->SetBufferSize(1024);
   out = new AudioOutputI2SExtra();
   out->SetPinout(PCM_BCK_PIN, PCM_LRCLK_PIN, PCM_DAT_PIN);
   out->udpBuffer[0] = 3;
@@ -204,15 +201,15 @@ void loop() {
 /////////////////////////////////////////////////////////////////////
 
 float sine_wave(const float time) {
-  float v = sin(TWO_PI * hz * time);
-  v *= fmod(time, 1.f);
+  float v = sin(TWO_PI * 440.0f * time);
+  v *= fmod(time, 1.0f);
   v *= 0.5;
   return v;
 }
 
 void sendUDPAudioData() {
   static unsigned long lastAudioDataUpdate = 0;
-  if (millis() - lastAudioDataUpdate > 50 && music->isRunning()) {
+  if (millis() - lastAudioDataUpdate > 50 && wav->isRunning()) {
     udp.beginPacket(laserControllerIP, 8888);
     udp.write(out->udpBuffer, UDP_AUDIO_BUFF_SIZE);
     udp.endPacket();
@@ -220,12 +217,16 @@ void sendUDPAudioData() {
   }
 }
 
+bool isMusicMode() {
+  return robbieMode == 1 || robbieMode == 2 || robbieMode == 3 || robbieMode == 4;
+}
+
 void sendUDPAudioMetadata() {
   metaDataPacketBuffer[1] = (uint16_t)getSelectedSongIndex();
   metaDataPacketBuffer[3] = songQueueLength;
   for (int i = 0; i < songQueueLength; i++)
     metaDataPacketBuffer[4 + i * 2] = (uint16_t)songQueue[(songQueueIndex + i) % SONG_QUEUE_LIMIT];
-  if (!music->isRunning()) {
+  if (!wav->isRunning() && isMusicMode()) {
     for (int i = 0; i < MAX_SONG_NAME_LEN; i++)
       metaDataPacketBuffer[4 + songQueueLength * 2 + i] = 0;
   } else {
@@ -240,6 +241,8 @@ void checkForPacket() {
     udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
     if (packetBuffer[0] == 1 && packetSize == 2) {
       robbieMode = packetBuffer[1];
+      updateDisplay();
+      wav->stop();
     } else if (packetBuffer[0] == 4 && packetSize == 2) {
       switch (packetBuffer[1]) {
         case 0:
@@ -269,6 +272,8 @@ void checkForPacket() {
         if (packetBuffer[i] == 0) break;
       }
       playEffect = true;
+    } else if (packetBuffer[0] == 7) {
+      //TODO: update wand data
     }
   }
 }
@@ -276,36 +281,40 @@ void checkForPacket() {
 void updateAudio() {
   out->SetGain(analogRead(VOL_PIN) / 1023.0);
 
-  if (robbieMode == 1 || robbieMode == 2 || robbieMode == 3 || robbieMode == 4) { //Music
-    if (skipSong || !music->isRunning()) {
-      music->stop();
+  if (isMusicMode()) { //Music
+    if (skipSong || !wav->isRunning()) {
+      wav->stop();
       skipSong = false;
       int nextSongIndex = dequeueSong();
       if (nextSongIndex == -1) return;
       sdSource->close();
       if (sdSource->open((String("/songs/") + String(songList[nextSongIndex]) + String(".wav")).c_str())) {
-        music->begin(sdSource, out);
+        wav->begin(sdSource, out);
         playingSongIndex = nextSongIndex;
       }
       sendUDPAudioMetadata();
       updateDisplay();
     } else {
-      if (!music->loop()) music->stop();
+      if (!wav->loop()) wav->stop();
     }
   } else if (robbieMode == 8) { //Synthesizer
-    if (effect->isRunning()) {
-      if (!effect->loop()) effect->stop();
+    if (!wav->isRunning()) {
+      wav->stop();
+      wav->begin(funcSource, out);
     } else {
-      effect->begin(funcSource, out);
+      if (!wav->loop()) wav->stop();
     } 
   } else { //Effects
-    if (playEffect && !effect->isRunning()) {
-      playEffect = false;
-      sdSource->close();
-      if (sdSource->open(effectFileName))
-        effect->begin(sdSource, out);
+    if (!wav->isRunning()) {
+      if (playEffect) {      
+        playEffect = false;
+        wav->stop();
+        sdSource->close();
+        if (sdSource->open((const char*)effectFileName))
+          wav->begin(sdSource, out);
+      }
     } else {
-      if (!effect->loop()) effect->stop();
+      if (!wav->loop()) wav->stop();
     }
   }
 }
@@ -338,13 +347,13 @@ void shiftOut595(uint16_t val) {
 void buttonAction(int index) {
   switch (index) {
     case 1:
-      skipSong = true;
+      if (isMusicMode()) skipSong = true;
       break;
     case 2:
       if (currentNumber > 0) currentNumber--;
       break;
     case 3:
-      enqueueSong();
+      if (isMusicMode()) enqueueSong();
       break;
     case 4:
       if (currentNumber < 9 && getSongIndex(currentLetter, currentNumber + 1) < numSongs)
@@ -398,7 +407,7 @@ void updateDisplay() {
       break;
     case 1:
       display.println("Song Playing: ");
-      display.print(music->isRunning() ? songList[playingSongIndex] : "None");
+      display.print(wav->isRunning() && isMusicMode() ? songList[playingSongIndex] : "None");
       break;
     case 2:
       display.println("Song Queue: ");
