@@ -4,6 +4,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <AudioFileSourceSD.h>
+#include <AudioFileSourceFunction.h>
 #include <AudioGeneratorWAV.h>
 #include "AudioOutputI2SExtra.h"
 #include <Ethernet.h>
@@ -100,12 +101,14 @@ volatile char effectFileName[MAX_SONG_NAME_LEN];
 volatile bool playEffect = false;
 
 int menuMode = 0;
-volatile int robbieMode = 0;
+volatile int robbieMode = 1;
 volatile bool displayUpdating = false;
 
 File file;
-AudioFileSourceSD *source = NULL;
-AudioGeneratorWAV *wav;
+AudioFileSourceSD *sdSource;
+AudioFileSourceFunction* funcSource;
+AudioGeneratorWAV *music;
+AudioGeneratorWAV *effect;
 AudioOutputI2SExtra *out;
 
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x32 };
@@ -159,9 +162,13 @@ void setup() {
   digitalWrite(SEG_DIG2_PIN, LOW);
 
   audioLogger = &Serial;
-  source = new AudioFileSourceSD();
-  wav = new AudioGeneratorWAV();
-  wav->SetBufferSize(1024);
+  sdSource = new AudioFileSourceSD();
+  funcSource = new AudioFileSourceFunction(10.0);
+  funcSource->addAudioGenerators(sine_wave);
+  music = new AudioGeneratorWAV();
+  music->SetBufferSize(1024);
+  effect = new AudioGeneratorWAV();
+  effect->SetBufferSize(1024);
   out = new AudioOutputI2SExtra();
   out->SetPinout(PCM_BCK_PIN, PCM_LRCLK_PIN, PCM_DAT_PIN);
   out->udpBuffer[0] = 3;
@@ -196,9 +203,16 @@ void loop() {
 
 /////////////////////////////////////////////////////////////////////
 
+float sine_wave(const float time) {
+  float v = sin(TWO_PI * hz * time);
+  v *= fmod(time, 1.f);
+  v *= 0.5;
+  return v;
+}
+
 void sendUDPAudioData() {
   static unsigned long lastAudioDataUpdate = 0;
-  if (millis() - lastAudioDataUpdate > 50 && wav->isRunning()) {
+  if (millis() - lastAudioDataUpdate > 50 && music->isRunning()) {
     udp.beginPacket(laserControllerIP, 8888);
     udp.write(out->udpBuffer, UDP_AUDIO_BUFF_SIZE);
     udp.endPacket();
@@ -211,7 +225,7 @@ void sendUDPAudioMetadata() {
   metaDataPacketBuffer[3] = songQueueLength;
   for (int i = 0; i < songQueueLength; i++)
     metaDataPacketBuffer[4 + i * 2] = (uint16_t)songQueue[(songQueueIndex + i) % SONG_QUEUE_LIMIT];
-  if (!wav->isRunning()) {
+  if (!music->isRunning()) {
     for (int i = 0; i < MAX_SONG_NAME_LEN; i++)
       metaDataPacketBuffer[4 + songQueueLength * 2 + i] = 0;
   } else {
@@ -260,22 +274,39 @@ void checkForPacket() {
 }
 
 void updateAudio() {
-  //TODO: play effect if ready
   out->SetGain(analogRead(VOL_PIN) / 1023.0);
-  if (skipSong || !wav->isRunning()) {
-    wav->stop();
-    skipSong = false;
-    int nextSongIndex = dequeueSong();
-    if (nextSongIndex == -1) return;
-    source->close();
-    if (source->open((String("/songs/") + String(songList[nextSongIndex]) + String(".wav")).c_str())) {
-      wav->begin(source, out);
-      playingSongIndex = nextSongIndex;
+
+  if (robbieMode == 1 || robbieMode == 2 || robbieMode == 3 || robbieMode == 4) { //Music
+    if (skipSong || !music->isRunning()) {
+      music->stop();
+      skipSong = false;
+      int nextSongIndex = dequeueSong();
+      if (nextSongIndex == -1) return;
+      sdSource->close();
+      if (sdSource->open((String("/songs/") + String(songList[nextSongIndex]) + String(".wav")).c_str())) {
+        music->begin(sdSource, out);
+        playingSongIndex = nextSongIndex;
+      }
+      sendUDPAudioMetadata();
+      updateDisplay();
+    } else {
+      if (!music->loop()) music->stop();
     }
-    sendUDPAudioMetadata();
-    updateDisplay();
-  } else {
-    if (!wav->loop()) wav->stop();
+  } else if (robbieMode == 8) { //Synthesizer
+    if (effect->isRunning()) {
+      if (!effect->loop()) effect->stop();
+    } else {
+      effect->begin(funcSource, out);
+    } 
+  } else { //Effects
+    if (playEffect && !effect->isRunning()) {
+      playEffect = false;
+      sdSource->close();
+      if (sdSource->open(effectFileName))
+        effect->begin(sdSource, out);
+    } else {
+      if (!effect->loop()) effect->stop();
+    }
   }
 }
 
@@ -367,7 +398,7 @@ void updateDisplay() {
       break;
     case 1:
       display.println("Song Playing: ");
-      display.print(wav->isRunning() ? songList[playingSongIndex] : "None");
+      display.print(music->isRunning() ? songList[playingSongIndex] : "None");
       break;
     case 2:
       display.println("Song Queue: ");
