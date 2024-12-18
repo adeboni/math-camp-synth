@@ -37,6 +37,19 @@
 #define PCM_LRCLK_PIN 28
 #define VOL_PIN       29
 
+#define JUKEBOX_MODE_MUSIC   0
+#define JUKEBOX_MODE_SYNTH   1
+#define JUKEBOX_MODE_EFFECTS 2
+
+#define PACKET_ID_ROBBIE_MODE    1
+#define PACKET_ID_LASER_DATA     2
+#define PACKET_ID_AUDIO_DATA     3
+#define PACKET_ID_BUTTON_PRESS   4
+#define PACKET_ID_AUDIO_METADATA 5
+#define PACKET_ID_PLAY_EFFECT    6
+#define PACKET_ID_WAND_DATA      7
+#define PACKET_ID_JUKEBOX_MODE   8
+
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 32
 #define SCREEN_ADDRESS 0x3C
@@ -101,7 +114,7 @@ volatile char effectFileName[MAX_SONG_NAME_LEN];
 volatile bool playEffect = false;
 
 int menuMode = 0;
-volatile int robbieMode = 1;
+volatile int jukeboxMode = 1;
 volatile bool displayUpdating = false;
 
 File file;
@@ -220,16 +233,12 @@ void sendUDPAudioData() {
   }
 }
 
-bool isMusicMode() {
-  return robbieMode == 1 || robbieMode == 2 || robbieMode == 3 || robbieMode == 4;
-}
-
 void sendUDPAudioMetadata() {
   metaDataPacketBuffer[1] = (uint16_t)getSelectedSongIndex();
   metaDataPacketBuffer[3] = songQueueLength;
   for (int i = 0; i < songQueueLength; i++)
     metaDataPacketBuffer[4 + i * 2] = (uint16_t)songQueue[(songQueueIndex + i) % SONG_QUEUE_LIMIT];
-  if (!wav->isRunning() && isMusicMode()) {
+  if (!wav->isRunning() && jukeboxMode == JUKEBOX_MODE_MUSIC) {
     for (int i = 0; i < MAX_SONG_NAME_LEN; i++)
       metaDataPacketBuffer[4 + songQueueLength * 2 + i] = 0;
   } else {
@@ -242,11 +251,11 @@ void checkForPacket() {
   int packetSize = udp.parsePacket();
   if (packetSize) {
     udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
-    if (packetBuffer[0] == 1 && packetSize == 2) {
-      robbieMode = packetBuffer[1];
+    if (packetBuffer[0] == PACKET_ID_JUKEBOX_MODE && packetSize == 2) {
+      jukeboxMode = packetBuffer[1];
       updateDisplay();
       wav->stop();
-    } else if (packetBuffer[0] == 4 && packetSize == 2) {
+    } else if (packetBuffer[0] == PACKET_ID_BUTTON_PRESS && packetSize == 2) {
       switch (packetBuffer[1]) {
         case 0:
           buttonAction(6);
@@ -269,13 +278,13 @@ void checkForPacket() {
         default:
           break;
       }
-    } else if (packetBuffer[0] == 6 && packetSize - 1 <= MAX_SONG_NAME_LEN) {
+    } else if (packetBuffer[0] == PACKET_ID_PLAY_EFFECT && packetSize - 1 <= MAX_SONG_NAME_LEN) {
       for (int i = 1; i < packetSize; i++) {
         effectFileName[i - 1] = packetBuffer[i];
         if (packetBuffer[i] == 0) break;
       }
       playEffect = true;
-    } else if (packetBuffer[0] == 7) {
+    } else if (packetBuffer[0] == PACKET_ID_WAND_DATA && packetSize == 11) {
       //TODO: update wand data
     }
   }
@@ -284,7 +293,7 @@ void checkForPacket() {
 void updateAudio() {
   out->SetGain(analogRead(VOL_PIN) / 1023.0);
 
-  if (isMusicMode()) { //Music
+  if (jukeboxMode == JUKEBOX_MODE_MUSIC) {
     if (skipSong || !wav->isRunning()) {
       if (skipSong) {
         wav->stop();
@@ -302,13 +311,13 @@ void updateAudio() {
     } else {
       if (!wav->loop()) wav->stop();
     }
-  } else if (robbieMode == 8) { //Synthesizer
+  } else if (jukeboxMode == JUKEBOX_MODE_SYNTH) {
     if (!wav->isRunning()) {
       wav->begin(funcSource, out);
     } else {
       if (!wav->loop()) wav->stop();
     }
-  } else { //Effects
+  } else if (jukeboxMode == JUKEBOX_MODE_EFFECTS) {
     if (!wav->isRunning()) {
       if (playEffect) {
         playEffect = false;
@@ -350,13 +359,13 @@ void shiftOut595(uint16_t val) {
 void buttonAction(int index) {
   switch (index) {
     case 1:
-      if (isMusicMode()) skipSong = true;
+      if (jukeboxMode == JUKEBOX_MODE_MUSIC) skipSong = true;
       break;
     case 2:
       if (currentNumber > 0) currentNumber--;
       break;
     case 3:
-      if (isMusicMode()) enqueueSong();
+      if (jukeboxMode == JUKEBOX_MODE_MUSIC) enqueueSong();
       break;
     case 4:
       if (currentNumber < 9 && getSongIndex(currentLetter, currentNumber + 1) < numSongs)
@@ -410,7 +419,7 @@ void updateDisplay() {
       break;
     case 1:
       display.println("Song Playing: ");
-      display.print(wav->isRunning() && isMusicMode() ? songList[playingSongIndex] : "None");
+      display.print(wav->isRunning() && jukeboxMode == JUKEBOX_MODE_MUSIC ? songList[playingSongIndex] : "None");
       break;
     case 2:
       display.println("Song Queue: ");
@@ -422,8 +431,9 @@ void updateDisplay() {
       }
       break;
     case 3:
-      display.print("Robbie Mode: ");
-      display.println(robbieMode);
+      if (jukeboxMode == JUKEBOX_MODE_MUSIC) display.println("Jukebox Mode: Music");
+      else if (jukeboxMode == JUKEBOX_MODE_SYNTH) display.println("Jukebox Mode: Synth");
+      else if (jukeboxMode == JUKEBOX_MODE_EFFECTS) display.println("Jukebox Mode: Effects");
     default:
       break;
   }
