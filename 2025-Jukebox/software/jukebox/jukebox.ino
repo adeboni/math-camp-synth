@@ -216,7 +216,7 @@ void loop() {
 /////////////////////////////////////////////////////////////////////
 
 float sine_wave(const float time) {
-  return sin(TWO_PI * 440.0f * time) * fmod(time, 1.0f) * 0.5f;
+  return sin(TWO_PI * 440.0f * time) * 0.25;
 }
 
 void sendUDPAudioData() {
