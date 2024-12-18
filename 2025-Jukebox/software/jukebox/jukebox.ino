@@ -115,7 +115,7 @@ IPAddress ip(10, 0, 0, 32);
 EthernetUDP udp;
 uint8_t packetBuffer[UDP_TX_PACKET_MAX_SIZE];
 
-//Packet ID, song selection, num songs in queue, queued songs, current song, 
+//Packet ID, song selection, num songs in queue, queued songs, current song
 uint8_t metaDataPacketBuffer[1 + 2 + 1 + SONG_QUEUE_LIMIT * 2 + MAX_SONG_NAME_LEN];
 
 IPAddress ioIP(10, 0, 0, 31);
@@ -135,6 +135,8 @@ void setup1() {
 
   Ethernet.init(WIZ_CS_PIN);
   Ethernet.begin(mac, ip);
+  Ethernet.setRetransmissionCount(0);
+  Ethernet.setRetransmissionTimeout(0);
   udp.begin(8888);
   metaDataPacketBuffer[0] = 5;
 
@@ -186,10 +188,10 @@ void setup() {
         songList[numSongs][charIndex++] = ch;
       }
       if (charIndex > 3)
-        songList[numSongs++][charIndex] = '\0'; 
+        songList[numSongs++][charIndex] = '\0';
     }
     file.close();
-  } 
+  }
 }
 
 void loop() {
@@ -209,10 +211,14 @@ float sine_wave(const float time) {
 
 void sendUDPAudioData() {
   static unsigned long lastAudioDataUpdate = 0;
-  if (millis() - lastAudioDataUpdate > 50 && wav->isRunning()) {
-    udp.beginPacket(laserControllerIP, 8888);
-    udp.write(out->udpBuffer, UDP_AUDIO_BUFF_SIZE);
-    udp.endPacket();
+  static unsigned long extraDelay = 0;
+  if (millis() - lastAudioDataUpdate > 50 + extraDelay && wav->isRunning()) {
+    if (udp.beginPacket(laserControllerIP, 8888) == 1) {
+      udp.write(out->udpBuffer, UDP_AUDIO_BUFF_SIZE);
+      extraDelay = udp.endPacket() == 1 ? 0 : 1000;
+    } else {
+      extraDelay = 1000;
+    }
     lastAudioDataUpdate = millis();
   }
 }
@@ -303,10 +309,10 @@ void updateAudio() {
       wav->begin(funcSource, out);
     } else {
       if (!wav->loop()) wav->stop();
-    } 
+    }
   } else { //Effects
     if (!wav->isRunning()) {
-      if (playEffect) {      
+      if (playEffect) {
         playEffect = false;
         wav->stop();
         sdSource->close();
@@ -360,7 +366,7 @@ void buttonAction(int index) {
         currentNumber++;
       break;
     case 5:
-      if (currentLetter < 25 && getSongIndex(currentLetter + 1, currentNumber) < numSongs) 
+      if (currentLetter < 25 && getSongIndex(currentLetter + 1, currentNumber) < numSongs)
         currentLetter++;
       break;
     case 6:
@@ -381,7 +387,7 @@ void checkButtons() {
   if (millis() - lastButtonCheck > 50) {
     digitalWrite(BTN_PL_PIN, LOW);
     digitalWrite(BTN_PL_PIN, HIGH);
-  
+
     for (int i = 0; i < 8; i++) {
       uint8_t buttonState = digitalRead(BTN_Q7_PIN);
       if (buttonState && !buttonStates[i])
@@ -399,7 +405,7 @@ void updateDisplay() {
   displayUpdating = true;
   display.clearDisplay();
   display.setCursor(0, 0);
- 
+
   switch (menuMode) {
     case 0:
       display.println("Selected Song: ");
@@ -424,13 +430,17 @@ void updateDisplay() {
     default:
       break;
   }
-    
+
   display.display();
   displayUpdating = false;
 }
 
-int getSelectedSongIndex() { return getSongIndex(currentLetter, currentNumber); }
-int getSongIndex(int letter, int number) { return 10 * letter + number; }
+int getSelectedSongIndex() {
+  return getSongIndex(currentLetter, currentNumber);
+}
+int getSongIndex(int letter, int number) {
+  return 10 * letter + number;
+}
 
 void enqueueSong() {
   if (songQueueLength == SONG_QUEUE_LIMIT)
@@ -438,7 +448,7 @@ void enqueueSong() {
   if (songQueueLength > 0 && songQueue[(songQueueIndex + songQueueLength - 1) % SONG_QUEUE_LIMIT] == getSelectedSongIndex())
     return;
   songQueue[(songQueueIndex + songQueueLength) % SONG_QUEUE_LIMIT] = getSelectedSongIndex();
-  songQueueLength++;  
+  songQueueLength++;
 }
 
 int dequeueSong() {
