@@ -203,10 +203,7 @@ void loop() {
 /////////////////////////////////////////////////////////////////////
 
 float sine_wave(const float time) {
-  float v = sin(TWO_PI * 440.0f * time);
-  v *= fmod(time, 1.0f);
-  v *= 0.5;
-  return v;
+  return sin(TWO_PI * 440.0f * time) * fmod(time, 1.0f) * 0.5f;
 }
 
 void sendUDPAudioData() {
@@ -289,8 +286,10 @@ void updateAudio() {
 
   if (isMusicMode()) { //Music
     if (skipSong || !wav->isRunning()) {
-      wav->stop();
-      skipSong = false;
+      if (skipSong) {
+        wav->stop();
+        skipSong = false;
+      }
       int nextSongIndex = dequeueSong();
       if (nextSongIndex == -1) return;
       sdSource->close();
@@ -305,7 +304,6 @@ void updateAudio() {
     }
   } else if (robbieMode == 8) { //Synthesizer
     if (!wav->isRunning()) {
-      wav->stop();
       wav->begin(funcSource, out);
     } else {
       if (!wav->loop()) wav->stop();
@@ -314,7 +312,6 @@ void updateAudio() {
     if (!wav->isRunning()) {
       if (playEffect) {
         playEffect = false;
-        wav->stop();
         sdSource->close();
         if (sdSource->open((const char*)effectFileName))
           wav->begin(sdSource, out);
