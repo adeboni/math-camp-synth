@@ -438,6 +438,7 @@ void updateDisplay() {
 int getSelectedSongIndex() {
   return getSongIndex(currentLetter, currentNumber);
 }
+
 int getSongIndex(int letter, int number) {
   return 10 * letter + number;
 }
