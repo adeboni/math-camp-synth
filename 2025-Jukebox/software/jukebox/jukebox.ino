@@ -3,7 +3,7 @@
 #include <SD.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#include <AudioFileSourceSD.h>
+#include "AudioFileSourceSDExtra.h"
 #include <AudioFileSourceFunction.h>
 #include <AudioGeneratorWAV.h>
 #include "AudioOutputI2SExtra.h"
@@ -59,6 +59,10 @@
 #define SCREEN_HEIGHT 32
 #define SCREEN_ADDRESS 0x3C
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire1, -1);
+
+typedef struct {
+    uint16_t yaw, pitch, rotation;
+} wand_data_t;
 
 const uint16_t seg_lookup[36] = {
   // pjhgfcaxdklmneb
@@ -117,13 +121,15 @@ int numSongs = 0;
 int playingSongIndex = 0;
 char effectFileName[MAX_SONG_NAME_LEN];
 bool playEffect = false;
+bool songPaused = false;
+int32_t songPosition = 0;
 
 int menuMode = MENU_MODE_SELECTED_SONG;
 int jukeboxMode = JUKEBOX_MODE_MUSIC;
 bool displayUpdating = false;
 
 File file;
-AudioFileSourceSD *sdSource;
+AudioFileSourceSDExtra *sdSource;
 AudioFileSourceFunction* funcSource;
 AudioGeneratorWAV *wav;
 AudioOutputI2SExtra *out;
@@ -139,6 +145,7 @@ uint8_t metaDataPacketBuffer[1 + 2 + 1 + SONG_QUEUE_LIMIT * 2 + MAX_SONG_NAME_LE
 IPAddress ioIP(10, 0, 0, 31);
 IPAddress laserControllerIP(10, 0, 0, 33);
 
+wand_data_t wandData = {0, 0, 0};
 
 /////////////////////////////////////////////////////////////////////
 
@@ -181,7 +188,7 @@ void setup() {
   digitalWrite(SEG_DIG2_PIN, LOW);
 
   audioLogger = &Serial;
-  sdSource = new AudioFileSourceSD();
+  sdSource = new AudioFileSourceSDExtra();
   wav = new AudioGeneratorWAV();
   wav->SetBufferSize(1024);
   out = new AudioOutputI2SExtra();
@@ -256,6 +263,10 @@ void checkForPacket() {
     udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
     if (packetBuffer[0] == PACKET_ID_JUKEBOX_MODE && packetSize == 2) {
       jukeboxMode = packetBuffer[1];
+      if (jukeboxMode == JUKEBOX_MODE_MUSIC && sdSource->isOpen()) {
+        songPaused = true;
+        songPosition = sdSource->position();
+      }
       updateDisplay();
       wav->stop();
     } else if (packetBuffer[0] == PACKET_ID_BUTTON_PRESS && packetSize == 2) {
@@ -287,8 +298,8 @@ void checkForPacket() {
         if (packetBuffer[i] == 0) break;
       }
       playEffect = true;
-    } else if (packetBuffer[0] == PACKET_ID_WAND_DATA && packetSize == 11) {
-      //TODO: update wand data
+    } else if (packetBuffer[0] == PACKET_ID_WAND_DATA && packetSize == sizeof(wand_data_t) + 1) {
+      memcpy(&wand_data_t, packetBuffer[1], sizeof(wand_data_t));
     }
   }
 }
@@ -298,16 +309,25 @@ void updateAudio() {
 
   if (jukeboxMode == JUKEBOX_MODE_MUSIC) {
     if (skipSong || !wav->isRunning()) {
-      if (skipSong) {
-        wav->stop();
-        skipSong = false;
-      }
-      int nextSongIndex = dequeueSong();
-      if (nextSongIndex == -1) return;
-      sdSource->close();
-      if (sdSource->open((String("/songs/") + String(songList[nextSongIndex]) + String(".wav")).c_str())) {
-        wav->begin(sdSource, out);
-        playingSongIndex = nextSongIndex;
+      if (songPaused) {
+        songPaused = false;
+        sdSource->close();
+        if (sdSource->open((String("/songs/") + String(songList[playingSongIndex]) + String(".wav")).c_str())) {
+          sdSource->seek(songPosition, SEEK_SET);
+          wav->begin(sdSource, out);
+        }
+      } else {
+        if (skipSong) {
+          wav->stop();
+          skipSong = false;
+        }
+        int nextSongIndex = dequeueSong();
+        if (nextSongIndex == -1) return;
+        sdSource->close();
+        if (sdSource->open((String("/songs/") + String(songList[nextSongIndex]) + String(".wav")).c_str())) {
+          wav->begin(sdSource, out);
+          playingSongIndex = nextSongIndex;
+        }
       }
       sendUDPAudioMetadata();
       updateDisplay();
@@ -316,7 +336,7 @@ void updateAudio() {
     }
   } else if (jukeboxMode == JUKEBOX_MODE_SYNTH) {
     if (!wav->isRunning()) {
-      funcSource = new AudioFileSourceFunction(10.0);
+      funcSource = new AudioFileSourceFunction(120.0);
       funcSource->addAudioGenerators(sine_wave);
       wav->begin(funcSource, out);
     } else {
