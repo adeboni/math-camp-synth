@@ -50,6 +50,11 @@
 #define PACKET_ID_WAND_DATA      7
 #define PACKET_ID_JUKEBOX_MODE   8
 
+#define MENU_MODE_SELECTED_SONG 0
+#define MENU_MODE_CURRENT_SONG  1
+#define MENU_MODE_SONG_QUEUE    2
+#define MENU_MODE_JUKEBOX_MODE  3
+
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 32
 #define SCREEN_ADDRESS 0x3C
@@ -95,8 +100,8 @@ const uint16_t seg_lookup[36] = {
   0b0010000101000100  //Z
 };
 
-volatile uint8_t currentLetter = 0;
-volatile uint8_t currentNumber = 0;
+uint8_t currentLetter = 0;
+uint8_t currentNumber = 0;
 bool letterShowing = true;
 uint8_t buttonStates[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
@@ -104,18 +109,18 @@ uint8_t buttonStates[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 int songQueue[SONG_QUEUE_LIMIT];
 int songQueueIndex = 0;
 int songQueueLength = 0;
-volatile bool skipSong = false;
+bool skipSong = false;
 
 #define MAX_SONG_NAME_LEN 60
 char songList[260][MAX_SONG_NAME_LEN];
 int numSongs = 0;
-volatile int playingSongIndex = 0;
-volatile char effectFileName[MAX_SONG_NAME_LEN];
-volatile bool playEffect = false;
+int playingSongIndex = 0;
+char effectFileName[MAX_SONG_NAME_LEN];
+bool playEffect = false;
 
-int menuMode = 0;
-volatile int jukeboxMode = 1;
-volatile bool displayUpdating = false;
+int menuMode = MENU_MODE_SELECTED_SONG;
+int jukeboxMode = JUKEBOX_MODE_MUSIC;
+bool displayUpdating = false;
 
 File file;
 AudioFileSourceSD *sdSource;
@@ -177,8 +182,6 @@ void setup() {
 
   audioLogger = &Serial;
   sdSource = new AudioFileSourceSD();
-  funcSource = new AudioFileSourceFunction(10.0);
-  funcSource->addAudioGenerators(sine_wave);
   wav = new AudioGeneratorWAV();
   wav->SetBufferSize(1024);
   out = new AudioOutputI2SExtra();
@@ -313,6 +316,8 @@ void updateAudio() {
     }
   } else if (jukeboxMode == JUKEBOX_MODE_SYNTH) {
     if (!wav->isRunning()) {
+      funcSource = new AudioFileSourceFunction(10.0);
+      funcSource->addAudioGenerators(sine_wave);
       wav->begin(funcSource, out);
     } else {
       if (!wav->loop()) wav->stop();
@@ -413,15 +418,15 @@ void updateDisplay() {
   display.setCursor(0, 0);
 
   switch (menuMode) {
-    case 0:
+    case MENU_MODE_SELECTED_SONG:
       display.println("Selected Song: ");
       display.println(songList[getSelectedSongIndex()]);
       break;
-    case 1:
+    case MENU_MODE_CURRENT_SONG:
       display.println("Song Playing: ");
       display.print(wav->isRunning() && jukeboxMode == JUKEBOX_MODE_MUSIC ? songList[playingSongIndex] : "None");
       break;
-    case 2:
+    case MENU_MODE_SONG_QUEUE:
       display.println("Song Queue: ");
       for (int i = 0; i < songQueueLength; i++) {
         int songIndex = songQueue[(songQueueIndex + i) % SONG_QUEUE_LIMIT];
@@ -430,7 +435,7 @@ void updateDisplay() {
         display.print(" ");
       }
       break;
-    case 3:
+    case MENU_MODE_JUKEBOX_MODE:
       if (jukeboxMode == JUKEBOX_MODE_MUSIC) display.println("Jukebox Mode: Music");
       else if (jukeboxMode == JUKEBOX_MODE_SYNTH) display.println("Jukebox Mode: Synth");
       else if (jukeboxMode == JUKEBOX_MODE_EFFECTS) display.println("Jukebox Mode: Effects");
