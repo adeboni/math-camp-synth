@@ -3,7 +3,7 @@
 #include <SD.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#include "AudioFileSourceSDExtra.h"
+#include <AudioFileSourceSD.h>
 #include <AudioFileSourceFunction.h>
 #include <AudioGeneratorWAV.h>
 #include "AudioOutputI2SExtra.h"
@@ -121,15 +121,13 @@ int numSongs = 0;
 int playingSongIndex = 0;
 char effectFileName[MAX_SONG_NAME_LEN];
 bool playEffect = false;
-bool songPaused = false;
-int32_t songPosition = 0;
 
 int menuMode = MENU_MODE_SELECTED_SONG;
 int jukeboxMode = JUKEBOX_MODE_MUSIC;
 bool displayUpdating = false;
 
 File file;
-AudioFileSourceSDExtra *sdSource;
+AudioFileSourceSD *sdSource;
 AudioFileSourceFunction* funcSource;
 AudioGeneratorWAV *wav;
 AudioOutputI2SExtra *out;
@@ -188,7 +186,7 @@ void setup() {
   digitalWrite(SEG_DIG2_PIN, LOW);
 
   audioLogger = &Serial;
-  sdSource = new AudioFileSourceSDExtra();
+  sdSource = new AudioFileSourceSD();
   wav = new AudioGeneratorWAV();
   wav->SetBufferSize(1024);
   out = new AudioOutputI2SExtra();
@@ -262,13 +260,10 @@ void checkForPacket() {
   if (packetSize) {
     udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
     if (packetBuffer[0] == PACKET_ID_JUKEBOX_MODE && packetSize == 2) {
-      jukeboxMode = packetBuffer[1];
-      if (jukeboxMode == JUKEBOX_MODE_MUSIC && sdSource->isOpen()) {
-        songPaused = true;
-        songPosition = sdSource->position();
-      }
-      updateDisplay();
+      jukeboxMode = -1;
       wav->stop();
+      jukeboxMode = packetBuffer[1];
+      updateDisplay();
     } else if (packetBuffer[0] == PACKET_ID_BUTTON_PRESS && packetSize == 2) {
       switch (packetBuffer[1]) {
         case 0:
@@ -299,7 +294,9 @@ void checkForPacket() {
       }
       playEffect = true;
     } else if (packetBuffer[0] == PACKET_ID_WAND_DATA && packetSize == sizeof(wand_data_t) + 1) {
-      memcpy(&wand_data_t, packetBuffer[1], sizeof(wand_data_t));
+      wandData.yaw = (uint16_t)packetBuffer[1] | ((uint16_t)packetBuffer[2] << 8);
+      wandData.pitch = (uint16_t)packetBuffer[3] | ((uint16_t)packetBuffer[4] << 8);
+      wandData.rotation = (uint16_t)packetBuffer[5] | ((uint16_t)packetBuffer[6] << 8);
     }
   }
 }
@@ -309,25 +306,16 @@ void updateAudio() {
 
   if (jukeboxMode == JUKEBOX_MODE_MUSIC) {
     if (skipSong || !wav->isRunning()) {
-      if (songPaused) {
-        songPaused = false;
-        sdSource->close();
-        if (sdSource->open((String("/songs/") + String(songList[playingSongIndex]) + String(".wav")).c_str())) {
-          sdSource->seek(songPosition, SEEK_SET);
-          wav->begin(sdSource, out);
-        }
-      } else {
-        if (skipSong) {
-          wav->stop();
-          skipSong = false;
-        }
-        int nextSongIndex = dequeueSong();
-        if (nextSongIndex == -1) return;
-        sdSource->close();
-        if (sdSource->open((String("/songs/") + String(songList[nextSongIndex]) + String(".wav")).c_str())) {
-          wav->begin(sdSource, out);
-          playingSongIndex = nextSongIndex;
-        }
+      if (skipSong) {
+        wav->stop();
+        skipSong = false;
+      }
+      int nextSongIndex = dequeueSong();
+      if (nextSongIndex == -1) return;
+      sdSource->close();
+      if (sdSource->open((String("/songs/") + String(songList[nextSongIndex]) + String(".wav")).c_str())) {
+        wav->begin(sdSource, out);
+        playingSongIndex = nextSongIndex;
       }
       sendUDPAudioMetadata();
       updateDisplay();
