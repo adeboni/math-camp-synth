@@ -40,6 +40,7 @@
 #define JUKEBOX_MODE_MUSIC   0
 #define JUKEBOX_MODE_SYNTH   1
 #define JUKEBOX_MODE_EFFECTS 2
+#define JUKEBOX_MODE_INVALID 255
 
 #define PACKET_ID_ROBBIE_MODE    1
 #define PACKET_ID_LASER_DATA     2
@@ -117,13 +118,16 @@ bool skipSong = false;
 
 #define MAX_SONG_NAME_LEN 60
 char songList[260][MAX_SONG_NAME_LEN];
-int numSongs = 0;
-int playingSongIndex = 0;
+uint16_t numSongs = 0;
+uint16_t playingSongIndex = 0;
 char effectFileName[MAX_SONG_NAME_LEN];
 bool playEffect = false;
+bool songPaused = false;
+uint32_t songPausedPosition = 0;
 
-int menuMode = MENU_MODE_SELECTED_SONG;
-int jukeboxMode = JUKEBOX_MODE_MUSIC;
+uint8_t menuMode = MENU_MODE_SELECTED_SONG;
+uint8_t jukeboxMode = JUKEBOX_MODE_MUSIC;
+uint8_t nextJukeboxMode = JUKEBOX_MODE_INVALID;
 bool displayUpdating = false;
 
 File file;
@@ -260,10 +264,7 @@ void checkForPacket() {
   if (packetSize) {
     udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
     if (packetBuffer[0] == PACKET_ID_JUKEBOX_MODE && packetSize == 2) {
-      jukeboxMode = -1;
-      wav->stop();
-      jukeboxMode = packetBuffer[1];
-      updateDisplay();
+      nextJukeboxMode = packetBuffer[1];
     } else if (packetBuffer[0] == PACKET_ID_BUTTON_PRESS && packetSize == 2) {
       switch (packetBuffer[1]) {
         case 0:
@@ -294,8 +295,8 @@ void checkForPacket() {
       }
       playEffect = true;
     } else if (packetBuffer[0] == PACKET_ID_WAND_DATA && packetSize == sizeof(wand_data_t) + 1) {
-      wandData.yaw = (uint16_t)packetBuffer[1] | ((uint16_t)packetBuffer[2] << 8);
-      wandData.pitch = (uint16_t)packetBuffer[3] | ((uint16_t)packetBuffer[4] << 8);
+      wandData.yaw      = (uint16_t)packetBuffer[1] | ((uint16_t)packetBuffer[2] << 8);
+      wandData.pitch    = (uint16_t)packetBuffer[3] | ((uint16_t)packetBuffer[4] << 8);
       wandData.rotation = (uint16_t)packetBuffer[5] | ((uint16_t)packetBuffer[6] << 8);
     }
   }
@@ -304,12 +305,36 @@ void checkForPacket() {
 void updateAudio() {
   out->SetGain(analogRead(VOL_PIN) / 1023.0);
 
+  if (nextJukeboxMode != JUKEBOX_MODE_INVALID) {
+    if (jukeboxMode == JUKEBOX_MODE_MUSIC) {
+      songPausedPosition = sdSource->getPos();
+      songPaused = songPausedPosition > 0;
+    }
+    wav->stop();
+    jukeboxMode = nextJukeboxMode;
+    nextJukeboxMode = JUKEBOX_MODE_INVALID;
+    updateDisplay();
+  }
+
+  if (skipSong) {
+    wav->stop();
+    skipSong = false;
+  }
+
+  if (wav->isRunning()) {
+    if (!wav->loop()) wav->stop();
+    return;
+  }
+
   if (jukeboxMode == JUKEBOX_MODE_MUSIC) {
-    if (skipSong || !wav->isRunning()) {
-      if (skipSong) {
-        wav->stop();
-        skipSong = false;
+    if (songPaused) {
+      songPaused = false;
+      sdSource->close();
+      if (sdSource->open((String("/songs/") + String(songList[playingSongIndex]) + String(".wav")).c_str())) {
+        wav->begin(sdSource, out);
+        sdSource->seek(songPausedPosition, SEEK_SET);
       }
+    } else {
       int nextSongIndex = dequeueSong();
       if (nextSongIndex == -1) return;
       sdSource->close();
@@ -317,30 +342,18 @@ void updateAudio() {
         wav->begin(sdSource, out);
         playingSongIndex = nextSongIndex;
       }
-      sendUDPAudioMetadata();
-      updateDisplay();
-    } else {
-      if (!wav->loop()) wav->stop();
     }
+    sendUDPAudioMetadata();
+    updateDisplay();
   } else if (jukeboxMode == JUKEBOX_MODE_SYNTH) {
-    if (!wav->isRunning()) {
-      funcSource = new AudioFileSourceFunction(120.0);
-      funcSource->addAudioGenerators(sine_wave);
-      wav->begin(funcSource, out);
-    } else {
-      if (!wav->loop()) wav->stop();
-    }
-  } else if (jukeboxMode == JUKEBOX_MODE_EFFECTS) {
-    if (!wav->isRunning()) {
-      if (playEffect) {
-        playEffect = false;
-        sdSource->close();
-        if (sdSource->open((const char*)effectFileName))
-          wav->begin(sdSource, out);
-      }
-    } else {
-      if (!wav->loop()) wav->stop();
-    }
+    funcSource = new AudioFileSourceFunction(120.0);
+    funcSource->addAudioGenerators(sine_wave);
+    wav->begin(funcSource, out);
+  } else if (jukeboxMode == JUKEBOX_MODE_EFFECTS && playEffect) {
+    playEffect = false;
+    sdSource->close();
+    if (sdSource->open((const char*)effectFileName))
+      wav->begin(sdSource, out);
   }
 }
 
