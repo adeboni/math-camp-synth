@@ -338,6 +338,7 @@ void updateAudio() {
       int nextSongIndex = dequeueSong();
       if (nextSongIndex == -1) return;
       sdSource->close();
+      logSong(nextSongIndex);
       if (sdSource->open((String("/songs/") + String(songList[nextSongIndex]) + String(".wav")).c_str())) {
         wav->begin(sdSource, out);
         playingSongIndex = nextSongIndex;
@@ -492,4 +493,12 @@ int dequeueSong() {
   songQueueLength--;
   songQueueIndex = (songQueueIndex + 1) % SONG_QUEUE_LIMIT;
   return songIndex;
+}
+
+void logSong(int index) {
+  File f = SD.open("play_log.txt", FILE_WRITE);
+  if (f) {
+    f.println(songList[index]);
+    f.close();
+  }
 }
