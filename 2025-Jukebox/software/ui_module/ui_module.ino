@@ -46,13 +46,15 @@ LiquidCrystal lcd2(LCD_RS_PIN, LCD_2_EN_PIN, LCD_DB4_PIN, LCD_DB5_PIN, LCD_DB6_P
 
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x31 };
 IPAddress ip(10, 0, 0, 31);
+IPAddress jukeboxIP(10, 0, 0, 32);
+IPAddress laserControllerIP(10, 0, 0, 33);
 EthernetUDP udp;
 uint8_t packetBuffer[UDP_TX_PACKET_MAX_SIZE];
 
 #define MAX_SONG_NAME_LEN 60
 uint8_t buttonsToSend[7] = { 0, 0, 0, 0, 0, 0, 0 };
 uint8_t sendMode = 0;
-uint8_t currentRobbieMode = 255;
+uint8_t currentRobbieMode = 0;
 uint8_t currentJukeboxMode = JUKEBOX_MODE_INVALID;
 uint8_t MODE_MAPPING[10] = {
   JUKEBOX_MODE_INVALID, 
@@ -79,9 +81,6 @@ String MODE_NAMES[10] = {
   "Wand Synth",
   "Calibration"
 };
-
-IPAddress jukeboxIP(10, 0, 0, 32);
-IPAddress laserControllerIP(10, 0, 0, 33);
 
 MAX7313 io1(MAX7313_ADDR0, &Wire1);
 MAX7313 io2(MAX7313_ADDR1, &Wire1);
@@ -187,7 +186,11 @@ void checkForPacket() {
   int packetSize = udp.parsePacket();
   if (packetSize) {
     udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
-    if (packetBuffer[0] == PACKET_ID_AUDIO_METADATA) {
+    if (packetBuffer[0] == PACKET_ID_ROBBIE_MODE && packetSize == 2) {
+      currentRobbieMode = packetBuffer[1];
+    } else if (packetBuffer[0] == PACKET_ID_JUKEBOX_MODE && packetSize == 2) {
+      currentJukeboxMode = packetBuffer[1];
+    } else if (packetBuffer[0] == PACKET_ID_AUDIO_METADATA) {
       uint16_t selectedSongIndex = (uint16_t)packetBuffer[2] << 8 | packetBuffer[1];
       uint8_t songQueueLength = packetBuffer[3];
       
@@ -256,18 +259,19 @@ void checkButtons() {
 
 void sendUDPButtons() {
   if (sendMode == 1) {
-    sendMode = 0;
     if (udp.beginPacket(laserControllerIP, 8888) == 1) {
-      uint8_t buf1[2] = { PACKET_ID_ROBBIE_MODE, currentRobbieMode };
-      udp.write(buf1, 2);
+      uint8_t buf[2] = { PACKET_ID_ROBBIE_MODE, currentRobbieMode };
+      udp.write(buf, 2);
       udp.endPacket();
     }
 
     if (udp.beginPacket(jukeboxIP, 8888) == 1) {
-      uint8_t buf2[2] = { PACKET_ID_JUKEBOX_MODE, currentJukeboxMode };
-      udp.write(buf2, 2);
+      uint8_t buf[2] = { PACKET_ID_JUKEBOX_MODE, currentJukeboxMode };
+      udp.write(buf, 2);
       udp.endPacket();
     }
+
+    sendMode = 0;
   }
 
   for (int i = 0; i < 7; i++) {

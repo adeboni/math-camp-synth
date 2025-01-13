@@ -61,10 +61,6 @@
 #define SCREEN_ADDRESS 0x3C
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire1, -1);
 
-typedef struct {
-    uint16_t yaw, pitch, rotation;
-} wand_data_t;
-
 const uint16_t seg_lookup[36] = {
   // pjhgfcaxdklmneb
   0b0010011101000111, //0
@@ -139,13 +135,16 @@ AudioOutputI2SExtra *out;
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x32 };
 IPAddress ip(10, 0, 0, 32);
 EthernetUDP udp;
+IPAddress ioIP(10, 0, 0, 31);
+IPAddress laserControllerIP(10, 0, 0, 33);
 uint8_t packetBuffer[UDP_TX_PACKET_MAX_SIZE];
 
 //Packet ID, song selection, num songs in queue, queued songs, current song
 uint8_t metaDataPacketBuffer[1 + 2 + 1 + SONG_QUEUE_LIMIT * 2 + MAX_SONG_NAME_LEN];
 
-IPAddress ioIP(10, 0, 0, 31);
-IPAddress laserControllerIP(10, 0, 0, 33);
+typedef struct {
+    uint16_t yaw, pitch, rotation;
+} wand_data_t;
 
 wand_data_t wandData = {0, 0, 0};
 
