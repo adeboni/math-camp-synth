@@ -257,6 +257,11 @@ void sendUDPAudioMetadata() {
     for (int i = 0; i < MAX_SONG_NAME_LEN; i++)
       metaDataPacketBuffer[4 + songQueueLength * 2 + i] = songList[getSelectedSongIndex()][i];
   }
+
+  if (udp.beginPacket(ioIP, 8888) == 1) {
+    udp.write(metaDataPacketBuffer, 4 + songQueueLength * 2 + MAX_SONG_NAME_LEN);
+    udp.endPacket();
+  }
 }
 
 void checkForPacket() {
