@@ -51,6 +51,19 @@ wand_data_t wandData = {0, 0, 0};
 
 uint8_t sendMode = 0;
 uint8_t currentRobbieMode = 0;
+uint8_t MODE_MAPPING[10] = {
+  JUKEBOX_MODE_INVALID, 
+  JUKEBOX_MODE_MUSIC,
+  JUKEBOX_MODE_MUSIC,
+  JUKEBOX_MODE_MUSIC,
+  JUKEBOX_MODE_MUSIC,
+  JUKEBOX_MODE_EFFECTS,
+  JUKEBOX_MODE_EFFECTS,
+  JUKEBOX_MODE_EFFECTS,
+  JUKEBOX_MODE_SYNTH,
+  JUKEBOX_MODE_EFFECTS
+};
+
 uint8_t numWandsConnected = 0;
 const uint8_t seg_lookup[10] = {
   //pcdegfab
@@ -108,7 +121,6 @@ void setup() {
 }
 
 void loop() {
-  updateSegDisplay();
   checkButtons();
   checkWandData();
 }
@@ -122,6 +134,7 @@ void checkForPacket() {
     udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
     if (packetBuffer[0] == PACKET_ID_ROBBIE_MODE && packetSize == 2) {
       currentRobbieMode = packetBuffer[1];
+      updateSegDisplay();
     } 
   }
 }
@@ -151,7 +164,8 @@ void checkButtons() {
     if (btn1State == 0 && state == 1) {
       if (currentRobbieMode > 0)
       currentRobbieMode--;
-      sendMode = 1;        
+      sendMode = 1;
+      updateSegDisplay();
     }
     btn1State = state;
 
@@ -159,7 +173,8 @@ void checkButtons() {
     if (btn2State == 0 && state == 1) {
       if (currentRobbieMode < 9)
       currentRobbieMode++;
-      sendMode = 1;        
+      sendMode = 1;
+      updateSegDisplay();
     }
     btn2State = state;
 
@@ -173,14 +188,14 @@ void sendLaserData() {
 
 void sendButtonData() {
   if (sendMode == 1) {
-    uint8_t buf[2] = { PACKET_ID_ROBBIE_MODE, currentRobbieMode };
-
     if (udp.beginPacket(jukeboxIP, 8888) == 1) {
+      uint8_t buf[2] = { PACKET_ID_JUKEBOX_MODE, MODE_MAPPING[currentRobbieMode] };
       udp.write(buf, 2);
       udp.endPacket();
     }
 
     if (udp.beginPacket(ioIP, 8888) == 1) {
+      uint8_t buf[2] = { PACKET_ID_ROBBIE_MODE, currentRobbieMode };
       udp.write(buf, 2);
       udp.endPacket();
     }

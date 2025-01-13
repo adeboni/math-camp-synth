@@ -55,7 +55,6 @@ uint8_t packetBuffer[UDP_TX_PACKET_MAX_SIZE];
 uint8_t buttonsToSend[7] = { 0, 0, 0, 0, 0, 0, 0 };
 uint8_t sendMode = 0;
 uint8_t currentRobbieMode = 0;
-uint8_t currentJukeboxMode = JUKEBOX_MODE_INVALID;
 uint8_t MODE_MAPPING[10] = {
   JUKEBOX_MODE_INVALID, 
   JUKEBOX_MODE_MUSIC,
@@ -188,8 +187,6 @@ void checkForPacket() {
     udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
     if (packetBuffer[0] == PACKET_ID_ROBBIE_MODE && packetSize == 2) {
       currentRobbieMode = packetBuffer[1];
-    } else if (packetBuffer[0] == PACKET_ID_JUKEBOX_MODE && packetSize == 2) {
-      currentJukeboxMode = packetBuffer[1];
     } else if (packetBuffer[0] == PACKET_ID_AUDIO_METADATA) {
       uint16_t selectedSongIndex = (uint16_t)packetBuffer[2] << 8 | packetBuffer[1];
       uint8_t songQueueLength = packetBuffer[3];
@@ -240,7 +237,6 @@ void checkButtons() {
       uint8_t state = 1 - io3.digitalRead(MODE_IN[i]);
       if (mode_states[i] == 0 && state == 1) {
         currentRobbieMode = MODE_VAL[i];
-        currentJukeboxMode = MODE_MAPPING[currentRobbieMode];
         sendMode = 1;        
       }
       mode_states[i] = state;
@@ -266,7 +262,7 @@ void sendUDPButtons() {
     }
 
     if (udp.beginPacket(jukeboxIP, 8888) == 1) {
-      uint8_t buf[2] = { PACKET_ID_JUKEBOX_MODE, currentJukeboxMode };
+      uint8_t buf[2] = { PACKET_ID_JUKEBOX_MODE, MODE_MAPPING[currentRobbieMode] };
       udp.write(buf, 2);
       udp.endPacket();
     }
