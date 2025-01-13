@@ -107,9 +107,9 @@ bool letterShowing = true;
 uint8_t buttonStates[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 #define SONG_QUEUE_LIMIT 20
-int songQueue[SONG_QUEUE_LIMIT];
-int songQueueIndex = 0;
-int songQueueLength = 0;
+uint16_t songQueue[SONG_QUEUE_LIMIT];
+uint16_t songQueueIndex = 0;
+uint8_t songQueueLength = 0;
 bool skipSong = false;
 
 #define MAX_SONG_NAME_LEN 60
@@ -137,7 +137,8 @@ IPAddress ip(10, 0, 0, 32);
 EthernetUDP udp;
 IPAddress ioIP(10, 0, 0, 31);
 IPAddress laserControllerIP(10, 0, 0, 33);
-uint8_t packetBuffer[UDP_TX_PACKET_MAX_SIZE];
+#define PACKET_BUF_SIZE 1472
+uint8_t packetBuffer[PACKET_BUF_SIZE];
 
 //Packet ID, song selection, num songs in queue, queued songs, current song
 uint8_t metaDataPacketBuffer[1 + 2 + 1 + SONG_QUEUE_LIMIT * 2 + MAX_SONG_NAME_LEN];
@@ -169,13 +170,14 @@ void setup1() {
   display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS);
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
-  updateDisplay();
 }
 
 void loop1() {
   checkButtons();
   checkForPacket();
   sendUDPAudioData();
+  sendUDPAudioMetadata();
+  updateDisplay();
 }
 
 void setup() {
@@ -201,6 +203,10 @@ void setup() {
   SPI1.setSCK(SD_CLK_PIN);
   SPI1.setCS(SD_DAT3_PIN);
   SD.begin(SD_DAT3_PIN, SPI_FULL_SPEED, SPI1);
+
+  for (int i = 0; i < 260; i++)
+    for (int j = 0; j < MAX_SONG_NAME_LEN; j++)
+      songList[i][j] = 0;
 
   file = SD.open("/song_list.txt");
   if (file) {
@@ -245,28 +251,43 @@ void sendUDPAudioData() {
 }
 
 void sendUDPAudioMetadata() {
-  metaDataPacketBuffer[1] = (uint16_t)getSelectedSongIndex();
-  metaDataPacketBuffer[3] = songQueueLength;
-  for (int i = 0; i < songQueueLength; i++)
-    metaDataPacketBuffer[4 + i * 2] = (uint16_t)songQueue[(songQueueIndex + i) % SONG_QUEUE_LIMIT];
-  if (!wav->isRunning() && jukeboxMode == JUKEBOX_MODE_MUSIC) {
-    for (int i = 0; i < MAX_SONG_NAME_LEN; i++)
-      metaDataPacketBuffer[4 + songQueueLength * 2 + i] = 0;
-  } else {
-    for (int i = 0; i < MAX_SONG_NAME_LEN; i++)
-      metaDataPacketBuffer[4 + songQueueLength * 2 + i] = songList[getSelectedSongIndex()][i];
-  }
+  static unsigned long lastAudioDataUpdate = 0;
+  static unsigned long extraDelay = 0;
+  if (millis() - lastAudioDataUpdate > 100 + extraDelay) {
+    uint16_t selectedIndex = getSelectedSongIndex();
+    metaDataPacketBuffer[1] = ((uint16_t)selectedIndex >> 8) & 0xff;
+    metaDataPacketBuffer[2] = selectedIndex & 0xff;
+    metaDataPacketBuffer[3] = songQueueLength;
+    
+    for (uint8_t i = 0; i < songQueueLength; i++) {
+      uint16_t songIndex = songQueue[(songQueueIndex + i) % SONG_QUEUE_LIMIT];
+      metaDataPacketBuffer[4 + i * 2] = ((uint16_t)songIndex >> 8) & 0xff;
+      metaDataPacketBuffer[4 + i * 2 + 1] = songIndex & 0xff;
+    }
+    
+    if (!wav->isRunning() && jukeboxMode == JUKEBOX_MODE_MUSIC) {
+      for (int i = 0; i < MAX_SONG_NAME_LEN; i++)
+        metaDataPacketBuffer[4 + songQueueLength * 2 + i] = 0;
+    } else {
+      for (int i = 0; i < MAX_SONG_NAME_LEN; i++)
+        metaDataPacketBuffer[4 + songQueueLength * 2 + i] = songList[playingSongIndex][i];
+    }
+  
+    if (udp.beginPacket(ioIP, 8888) == 1) {
+      udp.write(metaDataPacketBuffer, 4 + songQueueLength * 2 + MAX_SONG_NAME_LEN);
+      extraDelay = udp.endPacket() == 1 ? 0 : 1000;
+    } else {
+      extraDelay = 1000;
+    }
 
-  if (udp.beginPacket(ioIP, 8888) == 1) {
-    udp.write(metaDataPacketBuffer, 4 + songQueueLength * 2 + MAX_SONG_NAME_LEN);
-    udp.endPacket();
+    lastAudioDataUpdate = millis();
   }
 }
 
 void checkForPacket() {
   int packetSize = udp.parsePacket();
   if (packetSize) {
-    udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
+    udp.read(packetBuffer, PACKET_BUF_SIZE);
     if (packetBuffer[0] == PACKET_ID_JUKEBOX_MODE && packetSize == 2) {
       nextJukeboxMode = packetBuffer[1];
     } else if (packetBuffer[0] == PACKET_ID_BUTTON_PRESS && packetSize == 2) {
@@ -299,9 +320,9 @@ void checkForPacket() {
       }
       playEffect = true;
     } else if (packetBuffer[0] == PACKET_ID_WAND_DATA && packetSize == sizeof(wand_data_t) + 1) {
-      wandData.yaw      = (uint16_t)packetBuffer[1] | ((uint16_t)packetBuffer[2] << 8);
-      wandData.pitch    = (uint16_t)packetBuffer[3] | ((uint16_t)packetBuffer[4] << 8);
-      wandData.rotation = (uint16_t)packetBuffer[5] | ((uint16_t)packetBuffer[6] << 8);
+      wandData.yaw      = ((uint16_t)packetBuffer[1] << 8) | (uint16_t)packetBuffer[2];
+      wandData.pitch    = ((uint16_t)packetBuffer[3] << 8) | (uint16_t)packetBuffer[4];
+      wandData.rotation = ((uint16_t)packetBuffer[5] << 8) | (uint16_t)packetBuffer[6];
     }
   }
 }
@@ -317,7 +338,6 @@ void updateAudio() {
     wav->stop();
     jukeboxMode = nextJukeboxMode;
     nextJukeboxMode = JUKEBOX_MODE_INVALID;
-    updateDisplay();
   }
 
   if (skipSong) {
@@ -348,8 +368,6 @@ void updateAudio() {
         playingSongIndex = nextSongIndex;
       }
     }
-    sendUDPAudioMetadata();
-    updateDisplay();
   } else if (jukeboxMode == JUKEBOX_MODE_SYNTH) {
     funcSource = new AudioFileSourceFunction(120.0);
     funcSource->addAudioGenerators(sine_wave);
@@ -415,8 +433,6 @@ void buttonAction(int index) {
     default:
       break;
   }
-  sendUDPAudioMetadata();
-  updateDisplay();
 }
 
 void checkButtons() {
@@ -438,47 +454,48 @@ void checkButtons() {
 }
 
 void updateDisplay() {
-  if (displayUpdating) return;
-  displayUpdating = true;
-  display.clearDisplay();
-  display.setCursor(0, 0);
-
-  switch (menuMode) {
-    case MENU_MODE_SELECTED_SONG:
-      display.println("Selected Song: ");
-      display.println(songList[getSelectedSongIndex()]);
-      break;
-    case MENU_MODE_CURRENT_SONG:
-      display.println("Song Playing: ");
-      display.print(wav->isRunning() && jukeboxMode == JUKEBOX_MODE_MUSIC ? songList[playingSongIndex] : "None");
-      break;
-    case MENU_MODE_SONG_QUEUE:
-      display.println("Song Queue: ");
-      for (int i = 0; i < songQueueLength; i++) {
-        int songIndex = songQueue[(songQueueIndex + i) % SONG_QUEUE_LIMIT];
-        display.print((char)((songIndex / 10) + 65));
-        display.print((char)((songIndex % 10) + 48));
-        display.print(" ");
-      }
-      break;
-    case MENU_MODE_JUKEBOX_MODE:
-      if (jukeboxMode == JUKEBOX_MODE_MUSIC) display.println("Jukebox Mode: Music");
-      else if (jukeboxMode == JUKEBOX_MODE_SYNTH) display.println("Jukebox Mode: Synth");
-      else if (jukeboxMode == JUKEBOX_MODE_EFFECTS) display.println("Jukebox Mode: Effects");
-    default:
-      break;
+  static unsigned long lastDisplayUpdate = 0;
+  if (millis() - lastDisplayUpdate > 100) {
+    display.clearDisplay();
+    display.setCursor(0, 0);
+  
+    switch (menuMode) {
+      case MENU_MODE_SELECTED_SONG:
+        display.println("Selected Song: ");
+        display.println(songList[getSelectedSongIndex()]);
+        break;
+      case MENU_MODE_CURRENT_SONG:
+        display.println("Song Playing: ");
+        display.print(wav->isRunning() && jukeboxMode == JUKEBOX_MODE_MUSIC ? songList[playingSongIndex] : "None");
+        break;
+      case MENU_MODE_SONG_QUEUE:
+        display.println("Song Queue: ");
+        for (uint8_t i = 0; i < songQueueLength; i++) {
+          int songIndex = songQueue[(songQueueIndex + i) % SONG_QUEUE_LIMIT];
+          display.print((char)((songIndex / 10) + 65));
+          display.print((char)((songIndex % 10) + 48));
+          display.print(" ");
+        }
+        break;
+      case MENU_MODE_JUKEBOX_MODE:
+        if (jukeboxMode == JUKEBOX_MODE_MUSIC) display.println("Jukebox Mode: Music");
+        else if (jukeboxMode == JUKEBOX_MODE_SYNTH) display.println("Jukebox Mode: Synth");
+        else if (jukeboxMode == JUKEBOX_MODE_EFFECTS) display.println("Jukebox Mode: Effects");
+      default:
+        break;
+    }
+  
+    display.display();
+    lastDisplayUpdate = millis();
   }
-
-  display.display();
-  displayUpdating = false;
 }
 
-int getSelectedSongIndex() {
+uint16_t getSelectedSongIndex() {
   return getSongIndex(currentLetter, currentNumber);
 }
 
-int getSongIndex(int letter, int number) {
-  return 10 * letter + number;
+uint16_t getSongIndex(uint8_t letter, uint8_t number) {
+  return 10 * (uint16_t)letter + number;
 }
 
 void enqueueSong() {
@@ -493,7 +510,7 @@ void enqueueSong() {
 int dequeueSong() {
   if (songQueueLength == 0)
     return -1;
-  int songIndex = songQueue[songQueueIndex];
+  uint16_t songIndex = songQueue[songQueueIndex];
   songQueueLength--;
   songQueueIndex = (songQueueIndex + 1) % SONG_QUEUE_LIMIT;
   return songIndex;

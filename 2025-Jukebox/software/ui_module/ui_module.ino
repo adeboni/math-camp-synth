@@ -49,7 +49,8 @@ IPAddress ip(10, 0, 0, 31);
 IPAddress jukeboxIP(10, 0, 0, 32);
 IPAddress laserControllerIP(10, 0, 0, 33);
 EthernetUDP udp;
-uint8_t packetBuffer[UDP_TX_PACKET_MAX_SIZE];
+#define PACKET_BUF_SIZE 1472
+uint8_t packetBuffer[PACKET_BUF_SIZE];
 
 #define MAX_SONG_NAME_LEN 60
 uint8_t buttonsToSend[7] = { 0, 0, 0, 0, 0, 0, 0 };
@@ -94,7 +95,7 @@ uint8_t MOUTH_OUT[15]  = {13, 12, 11, 10, 9, //RED     ADDR0
                           7, 5, 3, 1, 15,    //WHITE
                           6, 4, 2, 0, 14};   //BLUE
 uint8_t MODE_IN[8]     = {7, 5, 3, 1, 0, 6, 4, 2};   //ADDR2
-uint8_t MODE_VAL[8]    = {8, 7, 6, 5, 4, 3, 2, 1}
+uint8_t MODE_VAL[8]    = {8, 7, 6, 5, 4, 3, 2, 1};
 uint8_t BUTTONS_IN[7]  = {14, 13, 8, 11, 10, 9, 12}; //ADDR2
 uint8_t BUTTON_VAL[7]  = {0, 1, 2, 3, 4, 5, 6};
 
@@ -139,37 +140,32 @@ void setup() {
     io3.pinMode(i, INPUT);
   }
 
+  delay(500);
   for (int i = 0; i < 3; i++)
     io2.analogWrite(MOTORS_OUT[i], 0);
 
   for (int i = 0; i < 6; i++) {
     io2.analogWrite(DOTS_OUT[i], 0);
-    delay(50);
+    delay(100);
     io2.analogWrite(DOTS_OUT[i], 15);
   }
 
   for (int i = 0; i < 7; i++) {
     io2.analogWrite(BUTTONS_OUT[i], 0);
-    delay(50);
+    delay(100);
     io2.analogWrite(BUTTONS_OUT[i], 15);
   }
 
-  for (int i = 0; i < 3; i++) {
-    io2.analogWrite(MOTORS_OUT[i], 15);
-    delay(100);
-    io2.analogWrite(MOTORS_OUT[i], 0);
-  }
-
   for (int i = 0; i < 1; i++) {
-    io2.analogWrite(LAMP_OUT[i], 15);
-    delay(50);
-    io2.analogWrite(LAMP_OUT[i], 0);
+    io1.analogWrite(LAMP_OUT[i], 15);
+    delay(100);
+    io1.analogWrite(LAMP_OUT[i], 0);
   }
 
   for (int i = 0; i < 15; i++) {
-    io2.analogWrite(MOUTH_OUT[i], 15);
-    delay(50);
-    io2.analogWrite(MOUTH_OUT[i], 0);
+    io1.analogWrite(MOUTH_OUT[i], 15);
+    delay(100);
+    io1.analogWrite(MOUTH_OUT[i], 0);
   }
 }
 
@@ -184,17 +180,18 @@ void loop() {
 void checkForPacket() {
   int packetSize = udp.parsePacket();
   if (packetSize) {
-    udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
+    udp.read(packetBuffer, PACKET_BUF_SIZE);
     if (packetBuffer[0] == PACKET_ID_ROBBIE_MODE && packetSize == 2) {
       currentRobbieMode = packetBuffer[1];
     } else if (packetBuffer[0] == PACKET_ID_AUDIO_METADATA) {
-      uint16_t selectedSongIndex = (uint16_t)packetBuffer[2] << 8 | packetBuffer[1];
+      uint16_t selectedSongIndex = ((uint16_t)packetBuffer[1] << 8) | (uint16_t)packetBuffer[2];
       uint8_t songQueueLength = packetBuffer[3];
       
       char currentSong[MAX_SONG_NAME_LEN];
       for (int i = 0; i < MAX_SONG_NAME_LEN; i++)
         currentSong[i] = packetBuffer[4 + songQueueLength * 2 + i];
 
+      lcd1.clear();
       lcd1.setCursor(0, 0);
       lcd1.print("Playing: ");
       lcd1.print(currentSong[0] == 0 ? "None" : currentSong);
@@ -203,16 +200,17 @@ void checkForPacket() {
       lcd1.print("Queue: ");
    
       for (uint8_t i = 0; i < songQueueLength; i++) {
-        uint16_t songIndex = (uint16_t)packetBuffer[4 + i * 2 + 1] << 8 | packetBuffer[4 + i * 2];
+        uint16_t songIndex = ((uint16_t)packetBuffer[4 + i * 2] << 8) | (uint16_t)packetBuffer[4 + i * 2 + 1];
         lcd1.print((char)((songIndex / 10) + 65));
         lcd1.print((char)((songIndex % 10) + 48));
         lcd1.print(" ");
-        if (i == 7 && songQueueLength > 8) {
+        if (i == 8 && songQueueLength > 9) {
           lcd1.print("...");
           break;
         }
       }
 
+      lcd2.clear();
       lcd2.setCursor(0, 0);
       lcd2.print("Mode: ");
       lcd2.print(currentRobbieMode);

@@ -2,8 +2,8 @@
 #include <Ethernet.h>
 #include <EthernetUdp.h>
 
-#define BTN_1_PIN     8
-#define BTN_2_PIN     9
+#define BTN_2_PIN     8
+#define BTN_1_PIN     9
 #define ESP_SCK_PIN   10
 #define ESP_MOSI_PIN  11
 #define ESP_MISO_PIN  12
@@ -38,7 +38,8 @@
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x33 };
 IPAddress ip(10, 0, 0, 33);
 EthernetUDP udp;
-uint8_t packetBuffer[UDP_TX_PACKET_MAX_SIZE];
+#define PACKET_BUF_SIZE 1472
+uint8_t packetBuffer[PACKET_BUF_SIZE];
 IPAddress ioIP(10, 0, 0, 31);
 IPAddress jukeboxIP(10, 0, 0, 32);
 
@@ -66,17 +67,17 @@ uint8_t MODE_MAPPING[10] = {
 
 uint8_t numWandsConnected = 0;
 const uint8_t seg_lookup[10] = {
-  //pcdegfab
-  0b01110111, //0
-  0b01000001, //1
-  0b00111011, //2
-  0b01101011, //3
-  0b01001101, //4
-  0b01101110, //5
+  //bafgedcp
+  0b11101110, //0
+  0b10000010, //1
+  0b11011100, //2
+  0b11010110, //3
+  0b10110010, //4
+  0b01110110, //5
   0b01111110, //6
-  0b01000011, //7
-  0b01111111, //8
-  0b01101111, //9
+  0b11000010, //7
+  0b11111110, //8
+  0b11110110, //9
 };
 
 /////////////////////////////////////////////////////////////////////
@@ -104,6 +105,7 @@ void setup() {
   pinMode(SEG_SCK_PIN, OUTPUT);
   pinMode(SEG_EN_PIN, OUTPUT);
   digitalWrite(SEG_DIG1_PIN, LOW);
+  updateSegDisplay();
 
   pinMode(ESP_BUSY_PIN, INPUT);
   pinMode(ESP_RST_PIN, OUTPUT);
@@ -131,7 +133,7 @@ void loop() {
 void checkForPacket() {
   int packetSize = udp.parsePacket();
   if (packetSize) {
-    udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
+    udp.read(packetBuffer, PACKET_BUF_SIZE);
     if (packetBuffer[0] == PACKET_ID_ROBBIE_MODE && packetSize == 2) {
       currentRobbieMode = packetBuffer[1];
       updateSegDisplay();
