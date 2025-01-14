@@ -52,6 +52,11 @@ EthernetUDP udp;
 #define PACKET_BUF_SIZE 1472
 uint8_t packetBuffer[PACKET_BUF_SIZE];
 
+uint16_t prevSelectedSongIndex = 1000;
+uint16_t prevPlayingSongIndex = 1000;
+uint8_t prevSongQueueLength = 255;
+bool updateDisplay = false;
+
 #define MAX_SONG_NAME_LEN 60
 uint8_t buttonsToSend[7] = { 0, 0, 0, 0, 0, 0, 0 };
 uint8_t sendMode = 0;
@@ -183,44 +188,55 @@ void checkForPacket() {
     udp.read(packetBuffer, PACKET_BUF_SIZE);
     if (packetBuffer[0] == PACKET_ID_ROBBIE_MODE && packetSize == 2) {
       currentRobbieMode = packetBuffer[1];
+      updateDisplay = true;
     } else if (packetBuffer[0] == PACKET_ID_AUDIO_METADATA) {
       uint16_t selectedSongIndex = ((uint16_t)packetBuffer[1] << 8) | (uint16_t)packetBuffer[2];
-      uint8_t songQueueLength = packetBuffer[3];
+      uint16_t playingSongIndex = ((uint16_t)packetBuffer[3] << 8) | (uint16_t)packetBuffer[4];
+      uint8_t songQueueLength = packetBuffer[5];
+
+      if (selectedSongIndex != prevSelectedSongIndex || playingSongIndex != prevPlayingSongIndex ||
+          songQueueLength != prevSongQueueLength || updateDisplay) {
       
-      char currentSong[MAX_SONG_NAME_LEN];
-      for (int i = 0; i < MAX_SONG_NAME_LEN; i++)
-        currentSong[i] = packetBuffer[4 + songQueueLength * 2 + i];
+        prevSelectedSongIndex = selectedSongIndex;
+        prevPlayingSongIndex = playingSongIndex;
+        prevSongQueueLength = songQueueLength;
+        updateDisplay = false;
 
-      lcd1.clear();
-      lcd1.setCursor(0, 0);
-      lcd1.print("Playing: ");
-      lcd1.print(currentSong[0] == 0 ? "None" : currentSong);
+        char currentSong[MAX_SONG_NAME_LEN];
+        for (int i = 0; i < MAX_SONG_NAME_LEN; i++)
+          currentSong[i] = packetBuffer[6 + songQueueLength * 2 + i];
 
-      lcd1.setCursor(0, 1);
-      lcd1.print("Queue: ");
-   
-      for (uint8_t i = 0; i < songQueueLength; i++) {
-        uint16_t songIndex = ((uint16_t)packetBuffer[4 + i * 2] << 8) | (uint16_t)packetBuffer[4 + i * 2 + 1];
-        lcd1.print((char)((songIndex / 10) + 65));
-        lcd1.print((char)((songIndex % 10) + 48));
-        lcd1.print(" ");
-        if (i == 8 && songQueueLength > 9) {
-          lcd1.print("...");
-          break;
+        lcd1.clear();
+        lcd1.setCursor(0, 0);
+        lcd1.print("Playing: ");
+        lcd1.print(currentSong[0] == 0 ? "None" : currentSong);
+
+        lcd1.setCursor(0, 1);
+        lcd1.print("Queue: ");
+    
+        for (uint8_t i = 0; i < songQueueLength; i++) {
+          uint16_t songIndex = ((uint16_t)packetBuffer[6 + i * 2] << 8) | (uint16_t)packetBuffer[6 + i * 2 + 1];
+          lcd1.print((char)((songIndex / 10) + 65));
+          lcd1.print((char)((songIndex % 10) + 48));
+          lcd1.print(" ");
+          if (i == 8 && songQueueLength > 9) {
+            lcd1.print("...");
+            break;
+          }
         }
+
+        lcd2.clear();
+        lcd2.setCursor(0, 0);
+        lcd2.print("Mode: ");
+        lcd2.print(currentRobbieMode);
+        lcd2.print(" - ");
+        lcd2.print(MODE_NAMES[currentRobbieMode]);
+
+        lcd2.setCursor(0, 1);
+        lcd2.print("Song Selection: ");
+        lcd2.print((char)((selectedSongIndex / 10) + 65));
+        lcd2.print((char)((selectedSongIndex % 10) + 48));
       }
-
-      lcd2.clear();
-      lcd2.setCursor(0, 0);
-      lcd2.print("Mode: ");
-      lcd2.print(currentRobbieMode);
-      lcd2.print(" - ");
-      lcd2.print(MODE_NAMES[currentRobbieMode]);
-
-      lcd2.setCursor(0, 1);
-      lcd2.print("Song Selection: ");
-      lcd2.print((char)((selectedSongIndex / 10) + 65));
-      lcd2.print((char)((selectedSongIndex % 10) + 48));
     }
   }
 }
@@ -235,6 +251,7 @@ void checkButtons() {
       uint8_t state = 1 - io3.digitalRead(MODE_IN[i]);
       if (mode_states[i] == 0 && state == 1) {
         currentRobbieMode = MODE_VAL[i];
+        updateDisplay = true;
         sendMode = 1;        
       }
       mode_states[i] = state;

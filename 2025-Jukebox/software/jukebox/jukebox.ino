@@ -140,8 +140,8 @@ IPAddress laserControllerIP(10, 0, 0, 33);
 #define PACKET_BUF_SIZE 1472
 uint8_t packetBuffer[PACKET_BUF_SIZE];
 
-//Packet ID, song selection, num songs in queue, queued songs, current song
-uint8_t metaDataPacketBuffer[1 + 2 + 1 + SONG_QUEUE_LIMIT * 2 + MAX_SONG_NAME_LEN];
+//Packet ID, selected song ID, current song ID, num songs in queue, queued songs, current song name
+uint8_t metaDataPacketBuffer[1 + 2 + 2 + 1 + SONG_QUEUE_LIMIT * 2 + MAX_SONG_NAME_LEN];
 
 typedef struct {
     uint16_t yaw, pitch, rotation;
@@ -253,28 +253,30 @@ void sendUDPAudioData() {
 void sendUDPAudioMetadata() {
   static unsigned long lastAudioDataUpdate = 0;
   static unsigned long extraDelay = 0;
-  if (millis() - lastAudioDataUpdate > 100 + extraDelay) {
+  if (millis() - lastAudioDataUpdate > 200 + extraDelay) {
     uint16_t selectedIndex = getSelectedSongIndex();
     metaDataPacketBuffer[1] = ((uint16_t)selectedIndex >> 8) & 0xff;
     metaDataPacketBuffer[2] = selectedIndex & 0xff;
-    metaDataPacketBuffer[3] = songQueueLength;
+    metaDataPacketBuffer[3] = ((uint16_t)playingSongIndex >> 8) & 0xff;
+    metaDataPacketBuffer[4] = playingSongIndex & 0xff;
+    metaDataPacketBuffer[5] = songQueueLength;
     
     for (uint8_t i = 0; i < songQueueLength; i++) {
       uint16_t songIndex = songQueue[(songQueueIndex + i) % SONG_QUEUE_LIMIT];
-      metaDataPacketBuffer[4 + i * 2] = ((uint16_t)songIndex >> 8) & 0xff;
-      metaDataPacketBuffer[4 + i * 2 + 1] = songIndex & 0xff;
+      metaDataPacketBuffer[6 + i * 2] = ((uint16_t)songIndex >> 8) & 0xff;
+      metaDataPacketBuffer[6 + i * 2 + 1] = songIndex & 0xff;
     }
     
     if (!wav->isRunning() && jukeboxMode == JUKEBOX_MODE_MUSIC) {
       for (int i = 0; i < MAX_SONG_NAME_LEN; i++)
-        metaDataPacketBuffer[4 + songQueueLength * 2 + i] = 0;
+        metaDataPacketBuffer[6 + songQueueLength * 2 + i] = 0;
     } else {
       for (int i = 0; i < MAX_SONG_NAME_LEN; i++)
-        metaDataPacketBuffer[4 + songQueueLength * 2 + i] = songList[playingSongIndex][i];
+        metaDataPacketBuffer[6 + songQueueLength * 2 + i] = songList[playingSongIndex][i];
     }
   
     if (udp.beginPacket(ioIP, 8888) == 1) {
-      udp.write(metaDataPacketBuffer, 4 + songQueueLength * 2 + MAX_SONG_NAME_LEN);
+      udp.write(metaDataPacketBuffer, 6 + songQueueLength * 2 + MAX_SONG_NAME_LEN);
       extraDelay = udp.endPacket() == 1 ? 0 : 1000;
     } else {
       extraDelay = 1000;
@@ -455,7 +457,7 @@ void checkButtons() {
 
 void updateDisplay() {
   static unsigned long lastDisplayUpdate = 0;
-  if (millis() - lastDisplayUpdate > 100) {
+  if (millis() - lastDisplayUpdate > 200) {
     display.clearDisplay();
     display.setCursor(0, 0);
   
