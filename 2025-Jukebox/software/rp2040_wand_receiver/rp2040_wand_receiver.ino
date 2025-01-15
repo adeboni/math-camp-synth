@@ -44,11 +44,12 @@ IPAddress ioIP(10, 0, 0, 31);
 IPAddress jukeboxIP(10, 0, 0, 32);
 
 typedef struct {
-    uint16_t yaw, pitch, rotation;
+    uint16_t w, x, y, z;
+    uint8_t buttonPressed;
 } wand_data_t;
 
-//TODO: support multiple wands
-wand_data_t wandData = {0, 0, 0};
+uint8_t numWandsConnected = 0;
+wand_data_t wandData[4];
 
 uint8_t sendMode = 0;
 uint8_t currentRobbieMode = 0;
@@ -65,7 +66,6 @@ uint8_t MODE_MAPPING[10] = {
   JUKEBOX_MODE_EFFECTS
 };
 
-uint8_t numWandsConnected = 0;
 const uint8_t seg_lookup[10] = {
   //bafgedcp
   0b11101110, //0
@@ -206,20 +206,56 @@ void sendButtonData() {
   }
 }
 
-void checkWandData() {
+void checkWandData(uint8_t wandIndex) {
   if (digitalRead(ESP_BUSY_PIN) == HIGH) {
-    uint8_t buf[6];
     digitalWrite(ESP_CS_PIN, LOW);
-    for (int i = 0; i < 6; i++)
-      buf[i] = SPI.transfer(0x00);
+    SPI.transfer(0);
+    numWandsConnected = SPI.transfer(0);
     digitalWrite(ESP_CS_PIN, HIGH);
 
-    wandData.yaw = (uint16_t)buf[0] << 8 | buf[1];
-    wandData.pitch = (uint16_t)buf[2] << 8 | buf[3];
-    wandData.rotation = (uint16_t)buf[4] << 8 | buf[5];
+    if (numWandsConnected > 4) numWandsConnected = 4;
+    uint8_t buf[9];
+    for (uint8_t i = 0; i < numWandsConnected; i++) {
+      digitalWrite(ESP_CS_PIN, LOW);
+      SPI.transfer(i + 1);
+      for (int i = 0; i < 9; i++)
+        buf[i] = SPI.transfer(0);
+      digitalWrite(ESP_CS_PIN, HIGH);
+
+      wandData[i].w = (uint16_t)buf[0] << 8 | buf[1];
+      wandData[i].x = (uint16_t)buf[2] << 8 | buf[3];
+      wandData[i].y = (uint16_t)buf[4] << 8 | buf[5];
+      wandData[i].z = (uint16_t)buf[6] << 8 | buf[7];
+      wandData[i].buttonPressed = buf[8];
+    }
   }
 }
 
 void sendWandData() {
-  //TODO
+  static unsigned long lastUpdate = 0;
+  static unsigned long extraDelay = 0;
+
+  if (numWandsConnected == 0) return;
+
+  if (millis() - lastUpdate > 30 + extraDelay) {
+    if (udp.beginPacket(jukeboxIP, 8888) == 1) {
+      uint8_t buf[10];
+      buf[0] = PACKET_ID_WAND_DATA;
+      buf[1] = (uint8_t)(wandData[0].w >> 8)
+      buf[2] = (uint8_t)(wandData[0].w & 0xff);
+      buf[3] = (uint8_t)(wandData[0].x >> 8)
+      buf[4] = (uint8_t)(wandData[0].x & 0xff);
+      buf[5] = (uint8_t)(wandData[0].y >> 8)
+      buf[6] = (uint8_t)(wandData[0].y & 0xff);
+      buf[7] = (uint8_t)(wandData[0].z >> 8)
+      buf[8] = (uint8_t)(wandData[0].z & 0xff);
+      buf[9] = wandData[0].buttonPressed;
+      udp.write(buf, 10);
+      extraDelay = udp.endPacket() == 1 ? 0 : 1000;
+    } else {
+      extraDelay = 1000;
+    }
+
+    lastUpdate = millis();
+  }
 }

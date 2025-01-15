@@ -55,6 +55,7 @@
 #define MENU_MODE_CURRENT_SONG  1
 #define MENU_MODE_SONG_QUEUE    2
 #define MENU_MODE_JUKEBOX_MODE  3
+#define MENU_MODE_WAND_DATA     4
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 32
@@ -144,10 +145,11 @@ uint8_t packetBuffer[PACKET_BUF_SIZE];
 uint8_t metaDataPacketBuffer[1 + 2 + 2 + 1 + SONG_QUEUE_LIMIT * 2 + MAX_SONG_NAME_LEN];
 
 typedef struct {
-    uint16_t yaw, pitch, rotation;
+    uint16_t w, x, y, z;
+    uint8_t buttonPressed;
 } wand_data_t;
 
-wand_data_t wandData = {0, 0, 0};
+wand_data_t wandData = {16384, 16384, 16384, 16384, 0};
 
 /////////////////////////////////////////////////////////////////////
 
@@ -322,9 +324,11 @@ void checkForPacket() {
       }
       playEffect = true;
     } else if (packetBuffer[0] == PACKET_ID_WAND_DATA && packetSize == sizeof(wand_data_t) + 1) {
-      wandData.yaw      = ((uint16_t)packetBuffer[1] << 8) | (uint16_t)packetBuffer[2];
-      wandData.pitch    = ((uint16_t)packetBuffer[3] << 8) | (uint16_t)packetBuffer[4];
-      wandData.rotation = ((uint16_t)packetBuffer[5] << 8) | (uint16_t)packetBuffer[6];
+      wandData.w = ((uint16_t)packetBuffer[1] << 8) | (uint16_t)packetBuffer[2];
+      wandData.x = ((uint16_t)packetBuffer[3] << 8) | (uint16_t)packetBuffer[4];
+      wandData.y = ((uint16_t)packetBuffer[5] << 8) | (uint16_t)packetBuffer[6];
+      wandData.z = ((uint16_t)packetBuffer[7] << 8) | (uint16_t)packetBuffer[8];
+      wandData.buttonPressed = packetBuffer[9];
     }
   }
 }
@@ -430,7 +434,7 @@ void buttonAction(int index) {
       if (currentLetter > 0) currentLetter--;
       break;
     case 7:
-      menuMode = (menuMode + 1) % 4;
+      menuMode = (menuMode + 1) % 5;
       break;
     default:
       break;
@@ -483,6 +487,18 @@ void updateDisplay() {
         if (jukeboxMode == JUKEBOX_MODE_MUSIC) display.println("Jukebox Mode: Music");
         else if (jukeboxMode == JUKEBOX_MODE_SYNTH) display.println("Jukebox Mode: Synth");
         else if (jukeboxMode == JUKEBOX_MODE_EFFECTS) display.println("Jukebox Mode: Effects");
+      case MENU_MODE_WAND_DATA:
+        char buf[10];
+        display.println("Wand Data:");
+        dtostrf(((double)wandData.w - 16384) / 16384, -6, 2, buf);
+        display.print(buf);
+        dtostrf(((double)wandData.x - 16384) / 16384, -6, 2, buf);
+        display.print(buf);
+        dtostrf(((double)wandData.y - 16384) / 16384, -6, 2, buf);
+        display.print(buf);
+        dtostrf(((double)wandData.z - 16384) / 16384, -6, 2, buf);
+        display.print(buf);
+        display.print(wandData.buttonPressed);
       default:
         break;
     }
