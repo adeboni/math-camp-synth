@@ -30,7 +30,6 @@ DMA_ATTR uint8_t sendbuf[40];
 /////////////////////////////////////////////////////////////////////
 
 TaskHandle_t Core0Task;
-SemaphoreHandle_t _readySemaphore;
 
 void setup() {
   WiFi.softAPConfig(TARGET_IP, TARGET_GATEWAY, TARGET_SUBNET);
@@ -54,8 +53,6 @@ void core0(void * pvParameters) {
   spi_bus_config_t busCfg;
   spi_slave_interface_config_t slvCfg;
 
-  _readySemaphore = xSemaphoreCreateCounting(1, 0);
-
   memset(&busCfg, 0x00, sizeof(busCfg));
   busCfg.mosi_io_num = ESP_MOSI_PIN;
   busCfg.miso_io_num = ESP_MISO_PIN;
@@ -66,7 +63,7 @@ void core0(void * pvParameters) {
   slvCfg.spics_io_num = ESP_CS_PIN;
   slvCfg.queue_size = 1;
   slvCfg.flags = 0;
-  slvCfg.post_setup_cb = onSetupComplete;
+  slvCfg.post_setup_cb = NULL;
   slvCfg.post_trans_cb = NULL;
 
   gpio_set_pull_mode((gpio_num_t)ESP_MOSI_PIN, GPIO_FLOATING);
@@ -100,6 +97,24 @@ void receiveUDP() {
     auto result = packetMap.insert({remoteIP, data});
     if (!result.second) result.first->second = data;
 
+    //Prep data for SPI
+    int numKeys = packetMap.size();
+    if (numKeys > 255) numKeys = 255;
+    sendbuf[0] = (uint8_t)numKeys;
+
+    uint8_t index = 0;
+    int i = 1;
+    for (auto it = packetMap.begin(); it != packetMap.end(), index < 4; it++, index++) {
+      sendbuf[i++] = (uint8_t)(it->second.w >> 8);
+      sendbuf[i++] = (uint8_t)(it->second.w & 0xff);
+      sendbuf[i++] = (uint8_t)(it->second.x >> 8);
+      sendbuf[i++] = (uint8_t)(it->second.x & 0xff);
+      sendbuf[i++] = (uint8_t)(it->second.y >> 8);
+      sendbuf[i++] = (uint8_t)(it->second.y & 0xff);
+      sendbuf[i++] = (uint8_t)(it->second.z >> 8);
+      sendbuf[i++] = (uint8_t)(it->second.z & 0xff);  
+    }
+
     digitalWrite(ESP_BUSY_PIN, HIGH);
   }
 }
@@ -116,50 +131,21 @@ void cleanDictionary() {
   }
 }
 
-void onSetupComplete(spi_slave_transaction_t*) {
-  xSemaphoreGiveFromISR(_readySemaphore, NULL);
-}
-
-int transfer(uint8_t out[], uint8_t in[], size_t len) {
-  spi_slave_transaction_t slvTrans;
-  spi_slave_transaction_t* slvRetTrans;
-
-  memset(&slvTrans, 0x00, sizeof(slvTrans));
-
-  slvTrans.length = len * 8;
-  slvTrans.trans_len = 0;
-  slvTrans.tx_buffer = out;
-  slvTrans.rx_buffer = in;
-
-  spi_slave_queue_trans(VSPI_HOST, &slvTrans, portMAX_DELAY);
-  xSemaphoreTake(_readySemaphore, portMAX_DELAY);
-  spi_slave_get_trans_result(VSPI_HOST, &slvRetTrans, portMAX_DELAY);
-  return (slvTrans.trans_len / 8);
-}
-
 void sendData() {
   if (digitalRead(ESP_CS_PIN) == LOW) {
     digitalWrite(ESP_BUSY_PIN, LOW);
-    int numKeys = packetMap.size();
-    if (numKeys > 255) numKeys = 255;
-    sendbuf[0] = (uint8_t)numKeys;
+    
+    spi_slave_transaction_t slvTrans;
+    spi_slave_transaction_t* slvRetTrans;
 
-    uint8_t index = 0;
-    int i = 1;
-    for (auto it = packetMap.begin(); it != packetMap.end(); it++) {
-      if (index == 4) break;
-      sendbuf[i++] = (uint8_t)(it->second.w >> 8);
-      sendbuf[i++] = (uint8_t)(it->second.w & 0xff);
-      sendbuf[i++] = (uint8_t)(it->second.x >> 8);
-      sendbuf[i++] = (uint8_t)(it->second.x & 0xff);
-      sendbuf[i++] = (uint8_t)(it->second.y >> 8);
-      sendbuf[i++] = (uint8_t)(it->second.y & 0xff);
-      sendbuf[i++] = (uint8_t)(it->second.z >> 8);
-      sendbuf[i++] = (uint8_t)(it->second.z & 0xff);
-      index++;   
-    }
+    memset(&slvTrans, 0x00, sizeof(slvTrans));
 
-    while (i < 40) sendbuf[i++] = 0;
-    transfer(sendbuf, NULL, 40);
+    slvTrans.length = 40 * 8;
+    slvTrans.trans_len = 0;
+    slvTrans.tx_buffer = sendbuf;
+    slvTrans.rx_buffer = NULL;
+
+    spi_slave_queue_trans(VSPI_HOST, &slvTrans, portMAX_DELAY);
+    spi_slave_get_trans_result(VSPI_HOST, &slvRetTrans, portMAX_DELAY);
   }
 }

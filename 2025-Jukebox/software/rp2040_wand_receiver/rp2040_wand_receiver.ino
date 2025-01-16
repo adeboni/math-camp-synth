@@ -48,6 +48,7 @@ typedef struct {
     uint8_t buttonPressed;
 } wand_data_t;
 
+uint8_t spiBuffer[40];
 uint8_t numWandsConnected = 0;
 wand_data_t wandData[4];
 
@@ -98,6 +99,8 @@ void loop1() {
 }
 
 void setup() {
+  memset(spiBuffer, 0, 40);
+
   pinMode(BTN_1_PIN, INPUT_PULLUP);
   pinMode(BTN_2_PIN, INPUT_PULLUP);
   pinMode(SEG_DIG1_PIN, OUTPUT);
@@ -210,24 +213,21 @@ void sendButtonData() {
 
 void checkWandData() {
   if (digitalRead(ESP_BUSY_PIN) == HIGH) {
-    uint8_t buf[40];
-    memset(buf, 0, 40);
-    
     digitalWrite(ESP_CS_PIN, LOW);
-    delay(10);
+    delay(5);
     for (int i = 0; i < 40; i++)
-        buf[i] = SPI.transfer(0);
+        spiBuffer[i] = SPI.transfer(0);
     
-    numWandsConnected = buf[0];
+    numWandsConnected = spiBuffer[0];
     if (numWandsConnected > 4) numWandsConnected = 4;
-
     for (uint8_t i = 0; i < numWandsConnected; i++) {
-      wandData[i].w = (uint16_t)buf[1] << 8 | buf[2];
-      wandData[i].x = (uint16_t)buf[3] << 8 | buf[4];
-      wandData[i].y = (uint16_t)buf[5] << 8 | buf[6];
-      wandData[i].z = (uint16_t)buf[7] << 8 | buf[8];
-      wandData[i].buttonPressed = buf[9];
+      wandData[i].w = (uint16_t)spiBuffer[1 + i * 9] << 8 | spiBuffer[2 + i * 9];
+      wandData[i].x = (uint16_t)spiBuffer[3 + i * 9] << 8 | spiBuffer[4 + i * 9];
+      wandData[i].y = (uint16_t)spiBuffer[5 + i * 9] << 8 | spiBuffer[6 + i * 9];
+      wandData[i].z = (uint16_t)spiBuffer[7 + i * 9] << 8 | spiBuffer[8 + i * 9];
+      wandData[i].buttonPressed = spiBuffer[9 + i * 9];
     }
+    
     digitalWrite(ESP_CS_PIN, HIGH);
   }
 }
