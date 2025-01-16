@@ -52,7 +52,7 @@ void core0(void * pvParameters) {
 
   while (1) {
     sendData();
-    delay(20);
+    yield();
   }
 }
 
@@ -94,8 +94,8 @@ void cleanDictionary() {
 void sendData() {
   if (digitalRead(ESP_CS_PIN) == LOW) {
     uint8_t command = SPI.transfer(0);
-    if (command == 0) {
-      Serial.print("Command 0, sending ");
+    if (command == 255) {
+      Serial.print("Command 255, sending ");
       int numKeys = packetMap.size();
       if (numKeys > 255) numKeys = 255;
       Serial.println(numKeys);

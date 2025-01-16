@@ -107,6 +107,8 @@ void setup() {
   digitalWrite(SEG_DIG1_PIN, LOW);
   updateSegDisplay();
 
+  pinMode(ESP_CS_PIN, OUTPUT);
+  digitalWrite(ESP_CS_PIN, HIGH);
   pinMode(ESP_BUSY_PIN, INPUT);
   pinMode(ESP_RST_PIN, OUTPUT);
   digitalWrite(ESP_RST_PIN, LOW);
@@ -114,8 +116,6 @@ void setup() {
   digitalWrite(ESP_RST_PIN, HIGH);
   delay(50);
   pinMode(ESP_RST_PIN, INPUT);
-  pinMode(ESP_CS_PIN, OUTPUT);
-  digitalWrite(ESP_CS_PIN, HIGH);
 
   SPI1.setRX(ESP_MISO_PIN);
   SPI1.setTX(ESP_MOSI_PIN);
@@ -210,19 +210,17 @@ void sendButtonData() {
 
 void checkWandData() {
   if (digitalRead(ESP_BUSY_PIN) == HIGH) {
-    digitalWrite(ESP_CS_PIN, LOW);
-    SPI.transfer(0);
-    numWandsConnected = SPI.transfer(0);
-    digitalWrite(ESP_CS_PIN, HIGH);
-
-    if (numWandsConnected > 4) numWandsConnected = 4;
     uint8_t buf[9];
+    
+    digitalWrite(ESP_CS_PIN, LOW);
+    SPI.transfer(255);
+    numWandsConnected = SPI.transfer(0);
+    if (numWandsConnected > 4) numWandsConnected = 4;
+    
     for (uint8_t i = 0; i < numWandsConnected; i++) {
-      digitalWrite(ESP_CS_PIN, LOW);
       SPI.transfer(i + 1);
       for (int i = 0; i < 9; i++)
         buf[i] = SPI.transfer(0);
-      digitalWrite(ESP_CS_PIN, HIGH);
 
       wandData[i].w = (uint16_t)buf[0] << 8 | buf[1];
       wandData[i].x = (uint16_t)buf[2] << 8 | buf[3];
@@ -230,6 +228,7 @@ void checkWandData() {
       wandData[i].z = (uint16_t)buf[6] << 8 | buf[7];
       wandData[i].buttonPressed = buf[8];
     }
+    digitalWrite(ESP_CS_PIN, HIGH);
   }
 }
 
