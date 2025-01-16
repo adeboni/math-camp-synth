@@ -25,6 +25,8 @@ typedef struct {
 
 std::map<uint32_t, wand_data_t> packetMap;
 
+DMA_ATTR uint8_t sendbuf[40];
+
 /////////////////////////////////////////////////////////////////////
 
 TaskHandle_t Core0Task;
@@ -44,7 +46,7 @@ void loop() {
 }
 
 void core0(void * pvParameters) {
-  Serial.begin(115200);
+  memset(sendbuf, 0, 40);
   
   pinMode(ESP_BUSY_PIN, OUTPUT);
   digitalWrite(ESP_BUSY_PIN, LOW);
@@ -137,37 +139,27 @@ int transfer(uint8_t out[], uint8_t in[], size_t len) {
 
 void sendData() {
   if (digitalRead(ESP_CS_PIN) == LOW) {
-    uint8_t commandBuffer[1] = { 0 };
-    int commandLength = transfer(NULL, commandBuffer, 1);
-    if (commandLength == 0) return;
-    Serial.print("Command ");
-    Serial.println(commandBuffer[0]);
-    if (commandBuffer[0] == 255) {
-      int numKeys = packetMap.size();
-      if (numKeys > 255) numKeys = 255;
-      uint8_t responseBuffer[1] = { (uint8_t)numKeys };
-      transfer(responseBuffer, NULL, 1);
-    } else if (commandBuffer[0] <= packetMap.size()) {
-      digitalWrite(ESP_BUSY_PIN, LOW);
-      uint8_t index = 1;
-      for (auto it = packetMap.begin(); it != packetMap.end(); it++) {
-        if (index == commandBuffer[0]) {
-          uint8_t responseBuffer[9] = { 
-            (uint8_t)(it->second.w >> 8), 
-            (uint8_t)(it->second.w & 0xff),
-            (uint8_t)(it->second.x >> 8), 
-            (uint8_t)(it->second.x & 0xff),
-            (uint8_t)(it->second.y >> 8), 
-            (uint8_t)(it->second.y & 0xff),
-            (uint8_t)(it->second.z >> 8), 
-            (uint8_t)(it->second.z & 0xff),
-            it->second.buttonPressed
-          };
-          transfer(responseBuffer, NULL, 9);
-          break;
-        }
-        index++;
-      }
+    digitalWrite(ESP_BUSY_PIN, LOW);
+    int numKeys = packetMap.size();
+    if (numKeys > 255) numKeys = 255;
+    sendbuf[0] = (uint8_t)numKeys;
+
+    uint8_t index = 0;
+    int i = 1;
+    for (auto it = packetMap.begin(); it != packetMap.end(); it++) {
+      if (index == 4) break;
+      sendbuf[i++] = (uint8_t)(it->second.w >> 8);
+      sendbuf[i++] = (uint8_t)(it->second.w & 0xff);
+      sendbuf[i++] = (uint8_t)(it->second.x >> 8);
+      sendbuf[i++] = (uint8_t)(it->second.x & 0xff);
+      sendbuf[i++] = (uint8_t)(it->second.y >> 8);
+      sendbuf[i++] = (uint8_t)(it->second.y & 0xff);
+      sendbuf[i++] = (uint8_t)(it->second.z >> 8);
+      sendbuf[i++] = (uint8_t)(it->second.z & 0xff);
+      index++;   
     }
+
+    while (i < 40) sendbuf[i++] = 0;
+    transfer(sendbuf, NULL, 40);
   }
 }

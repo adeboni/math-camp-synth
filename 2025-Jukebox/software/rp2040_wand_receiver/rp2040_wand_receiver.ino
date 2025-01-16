@@ -210,23 +210,23 @@ void sendButtonData() {
 
 void checkWandData() {
   if (digitalRead(ESP_BUSY_PIN) == HIGH) {
-    uint8_t buf[9];
+    uint8_t buf[40];
+    memset(buf, 0, 40);
     
     digitalWrite(ESP_CS_PIN, LOW);
-    SPI.transfer(255);
-    numWandsConnected = SPI.transfer(0);
-    if (numWandsConnected > 4) numWandsConnected = 4;
-    
-    for (uint8_t i = 0; i < numWandsConnected; i++) {
-      SPI.transfer(i + 1);
-      for (int i = 0; i < 9; i++)
+    delay(10);
+    for (int i = 0; i < 40; i++)
         buf[i] = SPI.transfer(0);
+    
+    numWandsConnected = buf[0];
+    if (numWandsConnected > 4) numWandsConnected = 4;
 
-      wandData[i].w = (uint16_t)buf[0] << 8 | buf[1];
-      wandData[i].x = (uint16_t)buf[2] << 8 | buf[3];
-      wandData[i].y = (uint16_t)buf[4] << 8 | buf[5];
-      wandData[i].z = (uint16_t)buf[6] << 8 | buf[7];
-      wandData[i].buttonPressed = buf[8];
+    for (uint8_t i = 0; i < numWandsConnected; i++) {
+      wandData[i].w = (uint16_t)buf[1] << 8 | buf[2];
+      wandData[i].x = (uint16_t)buf[3] << 8 | buf[4];
+      wandData[i].y = (uint16_t)buf[5] << 8 | buf[6];
+      wandData[i].z = (uint16_t)buf[7] << 8 | buf[8];
+      wandData[i].buttonPressed = buf[9];
     }
     digitalWrite(ESP_CS_PIN, HIGH);
   }
