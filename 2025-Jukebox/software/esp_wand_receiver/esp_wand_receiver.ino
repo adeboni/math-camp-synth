@@ -32,7 +32,7 @@ void setup() {
   WiFi.softAP(WIFI_NAME, WIFI_PASSWORD);
   udp.begin(TARGET_PORT);
 
-  xTaskCreatePinnedToCore(core0, "Core 0 task", 10000, NULL, 1, &Core0Task, 0);
+  xTaskCreatePinnedToCore(core0, "Task0", 10000, NULL, 1, &Core0Task, 0);
 }
 
 void loop() {
@@ -40,7 +40,9 @@ void loop() {
   cleanDictionary();
 }
 
-void core0() {
+void core0(void * pvParameters) {
+  Serial.begin(115200);
+  
   pinMode(ESP_BUSY_PIN, OUTPUT);
   digitalWrite(ESP_BUSY_PIN, LOW);
   SPI.begin(ESP_SCK_PIN, ESP_MISO_PIN, ESP_MOSI_PIN, ESP_CS_PIN);
@@ -48,8 +50,10 @@ void core0() {
   SPI.setDataMode(SPI_MODE0);
   SPI.setBitOrder(MSBFIRST);
 
-  while (1) 
+  while (1) {
     sendData();
+    delay(20);
+  }
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -80,27 +84,29 @@ void cleanDictionary() {
   unsigned long currTime = millis();
 
   if (currTime - lastUpdate > 1000) {
-    for (auto it = packetMap.begin(); it != packetMap.end(); it++) {
+    for (auto it = packetMap.begin(); it != packetMap.end(); it++)
       if (currTime - it->second.timestamp > 10000)
         packetMap.erase(it->first);
-    }
-
     lastUpdate = millis();
   }
 }
 
 void sendData() {
-  if (digitalRead(CS_PIN) == LOW) {
+  if (digitalRead(ESP_CS_PIN) == LOW) {
     uint8_t command = SPI.transfer(0);
     if (command == 0) {
+      Serial.print("Command 0, sending ");
       int numKeys = packetMap.size();
       if (numKeys > 255) numKeys = 255;
+      Serial.println(numKeys);
       SPI.transfer((uint8_t)numKeys);
-    } else if (command <= 4 && command <= packetMap.size()) {
+    } else if (command <= packetMap.size()) {
+      Serial.print("Command ");
+      Serial.println(command);
       digitalWrite(ESP_BUSY_PIN, LOW);
-      int index = 0;
+      uint8_t index = 1;
       for (auto it = packetMap.begin(); it != packetMap.end(); it++) {
-        if (index == command - 1) {
+        if (index == command) {
           SPI.transfer((uint8_t)(it->second.w >> 8));
           SPI.transfer((uint8_t)(it->second.w & 0xff));
           SPI.transfer((uint8_t)(it->second.x >> 8));

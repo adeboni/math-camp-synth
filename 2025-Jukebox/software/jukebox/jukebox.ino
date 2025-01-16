@@ -487,17 +487,19 @@ void updateDisplay() {
         if (jukeboxMode == JUKEBOX_MODE_MUSIC) display.println("Jukebox Mode: Music");
         else if (jukeboxMode == JUKEBOX_MODE_SYNTH) display.println("Jukebox Mode: Synth");
         else if (jukeboxMode == JUKEBOX_MODE_EFFECTS) display.println("Jukebox Mode: Effects");
+        break;
       case MENU_MODE_WAND_DATA:
         char buf[10];
         display.println("Wand Data:");
-        dtostrf(((double)wandData.w - 16384) / 16384, -6, 2, buf);
+        dtostrf(((double)wandData.w - 16384) / 16384, 5, 2, buf);
         display.print(buf);
-        dtostrf(((double)wandData.x - 16384) / 16384, -6, 2, buf);
+        dtostrf(((double)wandData.x - 16384) / 16384, 5, 2, buf);
         display.print(buf);
-        dtostrf(((double)wandData.y - 16384) / 16384, -6, 2, buf);
+        dtostrf(((double)wandData.y - 16384) / 16384, 5, 2, buf);
         display.print(buf);
-        dtostrf(((double)wandData.z - 16384) / 16384, -6, 2, buf);
+        dtostrf(((double)wandData.z - 16384) / 16384, 5, 2, buf);
         display.print(buf);
+        display.print(" ");
         display.print(wandData.buttonPressed);
       default:
         break;

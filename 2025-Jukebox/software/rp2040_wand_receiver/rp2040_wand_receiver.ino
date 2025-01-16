@@ -109,9 +109,11 @@ void setup() {
 
   pinMode(ESP_BUSY_PIN, INPUT);
   pinMode(ESP_RST_PIN, OUTPUT);
+  digitalWrite(ESP_RST_PIN, LOW);
+  delay(50);
   digitalWrite(ESP_RST_PIN, HIGH);
   delay(50);
-  digitalWrite(ESP_RST_PIN, LOW);
+  pinMode(ESP_RST_PIN, INPUT);
   pinMode(ESP_CS_PIN, OUTPUT);
   digitalWrite(ESP_CS_PIN, HIGH);
 
@@ -206,7 +208,7 @@ void sendButtonData() {
   }
 }
 
-void checkWandData(uint8_t wandIndex) {
+void checkWandData() {
   if (digitalRead(ESP_BUSY_PIN) == HIGH) {
     digitalWrite(ESP_CS_PIN, LOW);
     SPI.transfer(0);
@@ -241,13 +243,13 @@ void sendWandData() {
     if (udp.beginPacket(jukeboxIP, 8888) == 1) {
       uint8_t buf[10];
       buf[0] = PACKET_ID_WAND_DATA;
-      buf[1] = (uint8_t)(wandData[0].w >> 8)
+      buf[1] = (uint8_t)(wandData[0].w >> 8);
       buf[2] = (uint8_t)(wandData[0].w & 0xff);
-      buf[3] = (uint8_t)(wandData[0].x >> 8)
+      buf[3] = (uint8_t)(wandData[0].x >> 8);
       buf[4] = (uint8_t)(wandData[0].x & 0xff);
-      buf[5] = (uint8_t)(wandData[0].y >> 8)
+      buf[5] = (uint8_t)(wandData[0].y >> 8);
       buf[6] = (uint8_t)(wandData[0].y & 0xff);
-      buf[7] = (uint8_t)(wandData[0].z >> 8)
+      buf[7] = (uint8_t)(wandData[0].z >> 8);
       buf[8] = (uint8_t)(wandData[0].z & 0xff);
       buf[9] = wandData[0].buttonPressed;
       udp.write(buf, 10);
