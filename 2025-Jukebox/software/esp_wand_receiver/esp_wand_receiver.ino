@@ -15,7 +15,7 @@
 #define SAMPLES_PER_PACKET 512
 #define PACKET_SIZE        (22 + SAMPLES_PER_PACKET * 2)
 WiFiUDP udp;
-uint8_t buffer[PACKET_SIZE];
+uint8_t udpBuffer[PACKET_SIZE];
 
 typedef struct {
     uint16_t x, y, z, w;
@@ -24,8 +24,9 @@ typedef struct {
 } wand_data_t;
 
 std::map<uint32_t, wand_data_t> packetMap;
-
-DMA_ATTR uint8_t sendbuf[40];
+uint8_t tempTxbuf[40];
+uint8_t* txbuf;
+uint8_t* rxbuf;
 
 /////////////////////////////////////////////////////////////////////
 
@@ -44,8 +45,14 @@ void loop() {
   cleanDictionary();
 }
 
-void core0(void * pvParameters) {
-  memset(sendbuf, 0, 40);
+void setup1() {
+  Serial.begin(115200);
+  
+  rxbuf = (uint8_t*)heap_caps_malloc(SPI_MAX_DMA_LEN, MALLOC_CAP_DMA);
+  txbuf = (uint8_t*)heap_caps_malloc(SPI_MAX_DMA_LEN, MALLOC_CAP_DMA);
+  memset(rxbuf, 0, SPI_MAX_DMA_LEN);
+  memset(txbuf, 0, SPI_MAX_DMA_LEN);
+  memset(tempTxbuf, 0, 40);
   
   pinMode(ESP_BUSY_PIN, OUTPUT);
   digitalWrite(ESP_BUSY_PIN, LOW);
@@ -71,11 +78,15 @@ void core0(void * pvParameters) {
   gpio_set_pull_mode((gpio_num_t)ESP_CS_PIN,   GPIO_PULLUP_ONLY);
 
   spi_slave_initialize(VSPI_HOST, &busCfg, &slvCfg, 1);
+}
 
-  while (1) {
-    sendData();
-    yield();
-  }
+void loop1() {
+  sendData();
+}
+
+void core0(void * pvParameters) {
+  setup1();
+  while (1) loop1();
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -84,38 +95,40 @@ void receiveUDP() {
   int packetSize = udp.parsePacket();
   if (packetSize >= 18) {
     uint32_t remoteIP = udp.remoteIP();
-    udp.read(buffer, PACKET_SIZE);
+    udp.read(udpBuffer, PACKET_SIZE);
 
     wand_data_t data;
-    data.w = (uint16_t)buffer[11] << 8 | buffer[10];
-    data.x = (uint16_t)buffer[13] << 8 | buffer[12];
-    data.y = (uint16_t)buffer[15] << 8 | buffer[14];
-    data.z = (uint16_t)buffer[17] << 8 | buffer[16];
-    data.buttonPressed = buffer[8];
+    //data.w = (uint16_t)udpBuffer[11] << 8 | udpBuffer[10];
+    //data.x = (uint16_t)udpBuffer[13] << 8 | udpBuffer[12];
+    //data.y = (uint16_t)udpBuffer[15] << 8 | udpBuffer[14];
+    //data.z = (uint16_t)udpBuffer[17] << 8 | udpBuffer[16];
+    //data.buttonPressed = udpBuffer[8];
+
+    data.w = 2;
+    data.x = 3;
+    data.y = 4;
+    data.z = 5;
+    data.buttonPressed = 1;
     data.timestamp = millis();
 
-    auto result = packetMap.insert({remoteIP, data});
-    if (!result.second) result.first->second = data;
-
-    //Prep data for SPI
+    packetMap.insert_or_assign(remoteIP, data);
     int numKeys = packetMap.size();
     if (numKeys > 255) numKeys = 255;
-    sendbuf[0] = (uint8_t)numKeys;
+    tempTxbuf[0] = (uint8_t)numKeys;
 
     uint8_t index = 0;
     int i = 1;
     for (auto it = packetMap.begin(); it != packetMap.end(), index < 4; it++, index++) {
-      sendbuf[i++] = (uint8_t)(it->second.w >> 8);
-      sendbuf[i++] = (uint8_t)(it->second.w & 0xff);
-      sendbuf[i++] = (uint8_t)(it->second.x >> 8);
-      sendbuf[i++] = (uint8_t)(it->second.x & 0xff);
-      sendbuf[i++] = (uint8_t)(it->second.y >> 8);
-      sendbuf[i++] = (uint8_t)(it->second.y & 0xff);
-      sendbuf[i++] = (uint8_t)(it->second.z >> 8);
-      sendbuf[i++] = (uint8_t)(it->second.z & 0xff);  
+      tempTxbuf[i++] = (uint8_t)(it->second.w >> 8);
+      tempTxbuf[i++] = (uint8_t)(it->second.w & 0xff);
+      tempTxbuf[i++] = (uint8_t)(it->second.x >> 8);
+      tempTxbuf[i++] = (uint8_t)(it->second.x & 0xff);
+      tempTxbuf[i++] = (uint8_t)(it->second.y >> 8);
+      tempTxbuf[i++] = (uint8_t)(it->second.y & 0xff);
+      tempTxbuf[i++] = (uint8_t)(it->second.z >> 8);
+      tempTxbuf[i++] = (uint8_t)(it->second.z & 0xff);  
+      tempTxbuf[i++] = it->second.buttonPressed;
     }
-
-    digitalWrite(ESP_BUSY_PIN, HIGH);
   }
 }
 
@@ -127,25 +140,40 @@ void cleanDictionary() {
     for (auto it = packetMap.begin(); it != packetMap.end(); it++)
       if (currTime - it->second.timestamp > 10000)
         packetMap.erase(it->first);
+    
+    int numKeys = packetMap.size();
+    if (numKeys > 255) numKeys = 255;
+    tempTxbuf[0] = (uint8_t)numKeys;
+   
     lastUpdate = millis();
   }
 }
 
+int transfer(uint8_t out[], uint8_t in[], size_t len) {
+  spi_slave_transaction_t slvTrans;
+  spi_slave_transaction_t* slvRetTrans;
+
+  memset(&slvTrans, 0x00, sizeof(slvTrans));
+
+  slvTrans.length = len * 8;
+  slvTrans.trans_len = 0;
+  slvTrans.tx_buffer = out;
+  slvTrans.rx_buffer = in;
+
+  spi_slave_queue_trans(VSPI_HOST, &slvTrans, portMAX_DELAY);
+  digitalWrite(ESP_BUSY_PIN, HIGH);
+  spi_slave_get_trans_result(VSPI_HOST, &slvRetTrans, portMAX_DELAY);
+  digitalWrite(ESP_BUSY_PIN, LOW);
+
+  return (slvTrans.trans_len / 8);
+}
+
 void sendData() {
-  if (digitalRead(ESP_CS_PIN) == LOW) {
-    digitalWrite(ESP_BUSY_PIN, LOW);
-    
-    spi_slave_transaction_t slvTrans;
-    spi_slave_transaction_t* slvRetTrans;
-
-    memset(&slvTrans, 0x00, sizeof(slvTrans));
-
-    slvTrans.length = 40 * 8;
-    slvTrans.trans_len = 0;
-    slvTrans.tx_buffer = sendbuf;
-    slvTrans.rx_buffer = NULL;
-
-    spi_slave_queue_trans(VSPI_HOST, &slvTrans, portMAX_DELAY);
-    spi_slave_get_trans_result(VSPI_HOST, &slvRetTrans, portMAX_DELAY);
-  }
+  int commandLength = transfer(NULL, rxbuf, SPI_MAX_DMA_LEN);
+  Serial.print("1: ");
+  Serial.println(commandLength);
+  if (commandLength == 0) return;
+  memcpy(txbuf, tempTxbuf, 40);
+  Serial.print("2: ");
+  Serial.println(transfer(txbuf, NULL, 40));
 }

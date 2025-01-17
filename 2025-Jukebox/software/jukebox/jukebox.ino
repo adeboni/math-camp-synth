@@ -323,7 +323,7 @@ void checkForPacket() {
         if (packetBuffer[i] == 0) break;
       }
       playEffect = true;
-    } else if (packetBuffer[0] == PACKET_ID_WAND_DATA && packetSize == sizeof(wand_data_t) + 1) {
+    } else if (packetBuffer[0] == PACKET_ID_WAND_DATA && packetSize == 10) {
       wandData.w = ((uint16_t)packetBuffer[1] << 8) | (uint16_t)packetBuffer[2];
       wandData.x = ((uint16_t)packetBuffer[3] << 8) | (uint16_t)packetBuffer[4];
       wandData.y = ((uint16_t)packetBuffer[5] << 8) | (uint16_t)packetBuffer[6];
@@ -484,20 +484,21 @@ void updateDisplay() {
         }
         break;
       case MENU_MODE_JUKEBOX_MODE:
-        if (jukeboxMode == JUKEBOX_MODE_MUSIC) display.println("Jukebox Mode: Music");
-        else if (jukeboxMode == JUKEBOX_MODE_SYNTH) display.println("Jukebox Mode: Synth");
+        if      (jukeboxMode == JUKEBOX_MODE_MUSIC)   display.println("Jukebox Mode: Music");
+        else if (jukeboxMode == JUKEBOX_MODE_SYNTH)   display.println("Jukebox Mode: Synth");
         else if (jukeboxMode == JUKEBOX_MODE_EFFECTS) display.println("Jukebox Mode: Effects");
+        else                                          display.println("Jukebox Mode: Unknown");
         break;
       case MENU_MODE_WAND_DATA:
         char buf[10];
         display.println("Wand Data:");
-        dtostrf(((double)wandData.w - 16384) / 16384, 5, 2, buf);
+        dtostrf(((double)wandData.w - 16384.0) / 16384.0, 5, 2, buf);
         display.print(buf);
-        dtostrf(((double)wandData.x - 16384) / 16384, 5, 2, buf);
+        dtostrf(((double)wandData.x - 16384.0) / 16384.0, 5, 2, buf);
         display.print(buf);
-        dtostrf(((double)wandData.y - 16384) / 16384, 5, 2, buf);
+        dtostrf(((double)wandData.y - 16384.0) / 16384.0, 5, 2, buf);
         display.print(buf);
-        dtostrf(((double)wandData.z - 16384) / 16384, 5, 2, buf);
+        dtostrf(((double)wandData.z - 16384.0) / 16384.0, 5, 2, buf);
         display.print(buf);
         display.print(" ");
         display.print(wandData.buttonPressed);
