@@ -82,22 +82,19 @@ void receiveUDP() {
     data.timestamp = millis();
 
     packetMap.insert_or_assign(remoteIP, data);
-    int numKeys = packetMap.size();
-    if (numKeys > 255) numKeys = 255;
-    tempTxbuf[0] = (uint8_t)numKeys;
+    tempTxbuf[0] = packetMap.size();
 
-    uint8_t index = 0;
-    int i = 1;
-    for (auto it = packetMap.begin(); it != packetMap.end(), index < 4; it++, index++) {
-      tempTxbuf[i++] = (uint8_t)(it->second.w >> 8);
-      tempTxbuf[i++] = (uint8_t)(it->second.w & 0xff);
-      tempTxbuf[i++] = (uint8_t)(it->second.x >> 8);
-      tempTxbuf[i++] = (uint8_t)(it->second.x & 0xff);
-      tempTxbuf[i++] = (uint8_t)(it->second.y >> 8);
-      tempTxbuf[i++] = (uint8_t)(it->second.y & 0xff);
-      tempTxbuf[i++] = (uint8_t)(it->second.z >> 8);
-      tempTxbuf[i++] = (uint8_t)(it->second.z & 0xff);  
-      tempTxbuf[i++] = it->second.buttonPressed;
+    uint8_t i = 0;
+    for (auto it = packetMap.begin(); it != packetMap.end(), i < 4; it++, i++) {
+      tempTxbuf[1 + i * 9] = (uint8_t)(it->second.w >> 8);
+      tempTxbuf[2 + i * 9] = (uint8_t)(it->second.w & 0xff);
+      tempTxbuf[3 + i * 9] = (uint8_t)(it->second.x >> 8);
+      tempTxbuf[4 + i * 9] = (uint8_t)(it->second.x & 0xff);
+      tempTxbuf[5 + i * 9] = (uint8_t)(it->second.y >> 8);
+      tempTxbuf[6 + i * 9] = (uint8_t)(it->second.y & 0xff);
+      tempTxbuf[7 + i * 9] = (uint8_t)(it->second.z >> 8);
+      tempTxbuf[8 + i * 9] = (uint8_t)(it->second.z & 0xff);  
+      tempTxbuf[9 + i * 9] = it->second.buttonPressed;
     }
   }
 }
@@ -114,10 +111,7 @@ void cleanDictionary() {
         ++it;
     }
     
-    int numKeys = packetMap.size();
-    if (numKeys > 255) numKeys = 255;
-    tempTxbuf[0] = (uint8_t)numKeys;
-   
+    tempTxbuf[0] = packetMap.size();
     lastUpdate = millis();
   }
 }
