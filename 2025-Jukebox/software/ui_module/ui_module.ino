@@ -93,7 +93,7 @@ MAX7313 io3(MAX7313_ADDR2, &Wire1);
 
 // MAX7313 pin numbers
 uint8_t DOTS_OUT[6]    = {7, 6, 4, 2, 0, 15};        //ADDR1
-uint8_t BUTTONS_OUT[7] = {14, 13, 8, 11, 10, 9, 12}; //ADDR1
+uint8_t BUTTONS_OUT[7] = {8, 9, 10, 11, 12, 13, 14}; //ADDR1
 uint8_t MOTORS_OUT[3]  = {5, 3, 1};                  //ADDR1
 uint8_t LAMP_OUT[1]    = {8};                        //ADDR0
 uint8_t MOUTH_OUT[15]  = {13, 12, 11, 10, 9, //RED     ADDR0
@@ -101,7 +101,7 @@ uint8_t MOUTH_OUT[15]  = {13, 12, 11, 10, 9, //RED     ADDR0
                           6, 4, 2, 0, 14};   //BLUE
 uint8_t MODE_IN[8]     = {7, 5, 3, 1, 0, 6, 4, 2};   //ADDR2
 uint8_t MODE_VAL[8]    = {8, 7, 6, 5, 4, 3, 2, 1};
-uint8_t BUTTONS_IN[7]  = {14, 13, 8, 11, 10, 9, 12}; //ADDR2
+uint8_t BUTTONS_IN[7]  = {14, 13, 12, 11, 10, 9, 8}; //ADDR2
 uint8_t BUTTON_VAL[7]  = {0, 1, 2, 3, 4, 5, 6};
 
 /////////////////////////////////////////////////////////////////////
@@ -259,6 +259,7 @@ void checkButtons() {
     
     for (int i = 0; i < 7; i++) {
       uint8_t state = 1 - io3.digitalRead(BUTTONS_IN[i]);
+      io2.analogWrite(BUTTONS_OUT[i], state == 0 ? 0 : 15);
       if (button_states[i] == 0 && state == 1)
         buttonsToSend[i] = 1;
       button_states[i] = state;

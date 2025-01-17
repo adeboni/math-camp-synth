@@ -9,7 +9,7 @@
 #define ESP_MISO_PIN  12
 #define ESP_CS_PIN    13
 #define ESP_RST_PIN   14
-#define ESP_BUSY_PIN  15
+#define ESP_RDY_PIN   15
 #define WIZ_MISO_PIN  16
 #define WIZ_CS_PIN    17
 #define WIZ_SCK_PIN   18
@@ -118,7 +118,7 @@ void setup() {
 
   pinMode(ESP_CS_PIN, OUTPUT);
   digitalWrite(ESP_CS_PIN, HIGH);
-  pinMode(ESP_BUSY_PIN, INPUT);
+  pinMode(ESP_RDY_PIN, INPUT);
   pinMode(ESP_RST_PIN, OUTPUT);
   digitalWrite(ESP_RST_PIN, LOW);
   delay(10);
@@ -217,48 +217,52 @@ void sendButtonData() {
   }
 }
 
+void slaveSelect() {
+  SPI1.beginTransaction(spiSettings);
+  digitalWrite(ESP_CS_PIN, LOW);
+  for (unsigned long start = millis(); (digitalRead(ESP_RDY_PIN) != HIGH) && (millis() - start) < 5;);
+}
+
+void slaveDeselect() {
+  digitalWrite(ESP_CS_PIN, HIGH);
+  SPI1.endTransaction();
+}
+
 void checkWandData() {
-  if (digitalRead(ESP_BUSY_PIN) == HIGH) {
-    SPI1.beginTransaction(spiSettings);
-    digitalWrite(ESP_CS_PIN, LOW);
+  slaveSelect();
+  for (int i = 0; i < 4; i++)
     SPI1.transfer(0);
-    digitalWrite(ESP_CS_PIN, HIGH);
-    SPI1.endTransaction();
+  slaveDeselect();
 
-    while (digitalRead(ESP_BUSY_PIN) == LOW) ;
-    
-    SPI1.beginTransaction(spiSettings);
-    digitalWrite(ESP_CS_PIN, LOW);
-    for (int i = 0; i < 40; i++)
-        spiBuffer[i] = SPI1.transfer(0);
-    digitalWrite(ESP_CS_PIN, HIGH);
-    SPI1.endTransaction();
-    
-    for (uint8_t i = 0; i < 4; i++) {
-      wandData[i].w = (uint16_t)spiBuffer[1 + i * 9] << 8 | spiBuffer[2 + i * 9];
-      wandData[i].x = (uint16_t)spiBuffer[3 + i * 9] << 8 | spiBuffer[4 + i * 9];
-      wandData[i].y = (uint16_t)spiBuffer[5 + i * 9] << 8 | spiBuffer[6 + i * 9];
-      wandData[i].z = (uint16_t)spiBuffer[7 + i * 9] << 8 | spiBuffer[8 + i * 9];
-      wandData[i].buttonPressed = spiBuffer[9 + i * 9];
-    }
+  slaveSelect();
+  for (int i = 0; i < 40; i++)
+    spiBuffer[i] = SPI1.transfer(0);
+  slaveDeselect();
 
-    uint8_t _numWandsConnected = spiBuffer[0];
-    if (_numWandsConnected != numWandsConnected) {
-      updateSegDisplay();
-      numWandsConnected = _numWandsConnected;
-    }
-
-    Serial.println(numWandsConnected);
-    Serial.print(wandData[0].w);
-    Serial.print(" ");
-    Serial.print(wandData[0].x);
-    Serial.print(" ");
-    Serial.print(wandData[0].y);
-    Serial.print(" ");
-    Serial.print(wandData[0].z);
-    Serial.print(" ");
-    Serial.println(wandData[0].buttonPressed);
+  for (uint8_t i = 0; i < 4; i++) {
+    wandData[i].w = (uint16_t)spiBuffer[1 + i * 9] << 8 | spiBuffer[2 + i * 9];
+    wandData[i].x = (uint16_t)spiBuffer[3 + i * 9] << 8 | spiBuffer[4 + i * 9];
+    wandData[i].y = (uint16_t)spiBuffer[5 + i * 9] << 8 | spiBuffer[6 + i * 9];
+    wandData[i].z = (uint16_t)spiBuffer[7 + i * 9] << 8 | spiBuffer[8 + i * 9];
+    wandData[i].buttonPressed = spiBuffer[9 + i * 9];
   }
+
+  uint8_t _numWandsConnected = spiBuffer[0];
+  if (_numWandsConnected != numWandsConnected) {
+    updateSegDisplay();
+    numWandsConnected = _numWandsConnected;
+  }
+
+  Serial.println(numWandsConnected);
+  Serial.print(wandData[0].w);
+  Serial.print(" ");
+  Serial.print(wandData[0].x);
+  Serial.print(" ");
+  Serial.print(wandData[0].y);
+  Serial.print(" ");
+  Serial.print(wandData[0].z);
+  Serial.print(" ");
+  Serial.println(wandData[0].buttonPressed);
 }
 
 void sendWandData() {
