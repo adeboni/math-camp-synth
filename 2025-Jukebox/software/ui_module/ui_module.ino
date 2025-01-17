@@ -259,7 +259,7 @@ void checkButtons() {
     
     for (int i = 0; i < 7; i++) {
       uint8_t state = 1 - io3.digitalRead(BUTTONS_IN[i]);
-      io2.analogWrite(BUTTONS_OUT[i], state == 0 ? 0 : 15);
+      io2.analogWrite(BUTTONS_OUT[i], state == 0 ? 15 : 0);
       if (button_states[i] == 0 && state == 1)
         buttonsToSend[i] = 1;
       button_states[i] = state;
