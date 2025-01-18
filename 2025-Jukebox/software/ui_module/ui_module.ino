@@ -116,6 +116,12 @@ void setup1() {
   lcd1.clear();
   lcd2.clear();
 
+  pinMode(WIZ_RST_PIN, OUTPUT);
+  digitalWrite(WIZ_RST_PIN, LOW);
+  delay(50);
+  digitalWrite(WIZ_RST_PIN, HIGH);
+  delay(750);
+
   Ethernet.init(WIZ_CS_PIN);
   Ethernet.begin(mac, ip);
   Ethernet.setRetransmissionCount(0);

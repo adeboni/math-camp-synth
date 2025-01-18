@@ -68,17 +68,11 @@ void receiveUDP() {
     udp.read(udpBuffer, PACKET_SIZE);
 
     wand_data_t data;
-    //data.w = (uint16_t)udpBuffer[11] << 8 | udpBuffer[10];
-    //data.x = (uint16_t)udpBuffer[13] << 8 | udpBuffer[12];
-    //data.y = (uint16_t)udpBuffer[15] << 8 | udpBuffer[14];
-    //data.z = (uint16_t)udpBuffer[17] << 8 | udpBuffer[16];
-    //data.buttonPressed = udpBuffer[8];
-
-    data.w = 2;
-    data.x = 3;
-    data.y = 4;
-    data.z = 5;
-    data.buttonPressed = 1;
+    data.w = (uint16_t)udpBuffer[11] << 8 | udpBuffer[10];
+    data.x = (uint16_t)udpBuffer[13] << 8 | udpBuffer[12];
+    data.y = (uint16_t)udpBuffer[15] << 8 | udpBuffer[14];
+    data.z = (uint16_t)udpBuffer[17] << 8 | udpBuffer[16];
+    data.buttonPressed = udpBuffer[8];
     data.timestamp = millis();
 
     packetMap.insert_or_assign(remoteIP, data);
@@ -118,11 +112,8 @@ void cleanDictionary() {
 
 void sendData() {
   int commandLength = SPIS.transfer(NULL, rxbuf, SPI_BUFFER_LEN);
-  Serial.print("1: ");
-  Serial.println(commandLength);
   if (commandLength == 4) {
     memcpy(txbuf, tempTxbuf, 40);
-    Serial.print("2: ");
-    Serial.println(SPIS.transfer(txbuf, NULL, 40));
+    SPIS.transfer(txbuf, NULL, 40);
   }
 }

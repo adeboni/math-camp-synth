@@ -162,6 +162,12 @@ void setup1() {
   pinMode(BTN_Q7_PIN, INPUT);
   pinMode(BTN_CP_PIN, OUTPUT);
 
+  pinMode(WIZ_RST_PIN, OUTPUT);
+  digitalWrite(WIZ_RST_PIN, LOW);
+  delay(50);
+  digitalWrite(WIZ_RST_PIN, HIGH);
+  delay(750);
+
   Ethernet.init(WIZ_CS_PIN);
   Ethernet.begin(mac, ip);
   Ethernet.setRetransmissionCount(0);

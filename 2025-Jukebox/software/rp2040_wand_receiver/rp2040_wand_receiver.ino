@@ -85,6 +85,12 @@ const uint8_t seg_lookup[10] = {
 /////////////////////////////////////////////////////////////////////
 
 void setup1() {
+  pinMode(WIZ_RST_PIN, OUTPUT);
+  digitalWrite(WIZ_RST_PIN, LOW);
+  delay(50);
+  digitalWrite(WIZ_RST_PIN, HIGH);
+  delay(750);
+  
   Ethernet.init(WIZ_CS_PIN);
   Ethernet.begin(mac, ip);
   Ethernet.setRetransmissionCount(0);
@@ -218,6 +224,7 @@ void sendButtonData() {
 }
 
 void slaveSelect() {
+  while (digitalRead(ESP_RDY_PIN) == HIGH);
   SPI1.beginTransaction(spiSettings);
   digitalWrite(ESP_CS_PIN, LOW);
   for (unsigned long start = millis(); (digitalRead(ESP_RDY_PIN) != HIGH) && (millis() - start) < 5;);
@@ -233,7 +240,7 @@ void checkWandData() {
   for (int i = 0; i < 4; i++)
     SPI1.transfer(0);
   slaveDeselect();
-
+  
   slaveSelect();
   for (int i = 0; i < 40; i++)
     spiBuffer[i] = SPI1.transfer(0);
@@ -249,8 +256,8 @@ void checkWandData() {
 
   uint8_t _numWandsConnected = spiBuffer[0];
   if (_numWandsConnected != numWandsConnected) {
-    updateSegDisplay();
     numWandsConnected = _numWandsConnected;
+    updateSegDisplay();
   }
 
   Serial.println(numWandsConnected);
