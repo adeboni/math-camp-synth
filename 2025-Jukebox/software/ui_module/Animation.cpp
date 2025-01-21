@@ -32,9 +32,13 @@ void Animation::setLength(unsigned long t) {
 }
 
 void Animation::update() {
+  static unsigned long lastUpdate = 0;
   if (!running) return;
 
   unsigned long currTime = millis();
+  if (currTime - lastUpdate < 20) return;
+  lastUpdate = currTime;
+
   bool animationInProgress = startTime + length < currTime;
   bool readyToStartAnimation = nextUpdateTime < currTime;
 
