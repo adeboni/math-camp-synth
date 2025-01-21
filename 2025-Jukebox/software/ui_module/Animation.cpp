@@ -31,29 +31,45 @@ void Animation::setLength(unsigned long t) {
   length = t;
 }
 
+void Animation::reset() {
+  for (int i = 0; i < 1; i++)  _io1->analogWrite(_lamp[i], 0);
+  for (int i = 0; i < 15; i++) _io1->analogWrite(_mouth[i], 0);
+  for (int i = 0; i < 3; i++)  _io2->analogWrite(_motors[i], 0);
+  for (int i = 0; i < 6; i++)  _io2->analogWrite(_dots[i], 15);
+}
+
 void Animation::update() {
   static unsigned long lastUpdate = 0;
+  static bool resetComplete = false;
   if (!running) return;
 
   unsigned long currTime = millis();
   if (currTime - lastUpdate < 20) return;
   lastUpdate = currTime;
 
-  bool animationInProgress = startTime + length < currTime;
+  bool animationInProgress = startTime < currTime && startTime + length > currTime;
+  bool animationDone = startTime + length < currTime;
   bool readyToStartAnimation = nextUpdateTime < currTime;
 
   if (readyToStartAnimation) {
     nextUpdateTime = currTime + length + interval;
     startTime = currTime;
+    resetComplete = false;
     if (nextMode != -1) {
       currentMode = nextMode;
       nextMode = -1;
     } else {
       currentMode = (currentMode + 1) % NUM_MODES;
     }
+  } else if (animationDone) {
+    if (!resetComplete) {
+      reset();
+      resetComplete = true;
+    }
+    return;
   } else if (!animationInProgress) {
     return;
-  } 
+  }
 
   switch (currentMode) {
     case 0:
@@ -76,6 +92,7 @@ void Animation::update() {
 void Animation::forceAnimation(int mode) {
   nextMode = mode;
   nextUpdateTime = millis();
+  reset();
 }
 
 uint8_t Animation::cube(double x) {
@@ -88,7 +105,7 @@ uint8_t Animation::cube(double x) {
 void Animation::dots_nightrider() {
   for (int i = 0; i < 6; i++) {
     double dotIndex = (sin((double)millis() / 1000.0 * 4.0) + 1.0) * 2.5;
-    _io2->analogWrite(_dots[i], cube(15 - 3 * abs(i - dotIndex)));
+    _io2->analogWrite(_dots[i], 15 - cube(15 - 3 * abs(i - dotIndex)));
   }
 }
 

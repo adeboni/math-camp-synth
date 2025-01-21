@@ -23,6 +23,7 @@ class Animation {
     void setLength(unsigned long t);
     void update();
     void forceAnimation(int mode);
+    void reset();
 
   private:
     MAX7313 *_io1;
@@ -40,7 +41,7 @@ class Animation {
     int currentMode = -1;
     int nextMode = -1;
 
-    char *morse_lut[] = {
+    char morse_lut[26][5] = {
       ".-",   //A
       "-...", //B
       "-.-.", //C
@@ -69,7 +70,7 @@ class Animation {
       "--.."  //Z
     };
 
-    char *morse_phrases[] = { "MATH CAMP", "BURNING MAN", "SIERPINSKI" };
+    char morse_phrases[NUM_MORSE_PHRASES][20] = { "MATH CAMP", "BURNING MAN", "SIERPINSKI" };
 
     uint8_t cube(double x);
     int expandMorseCode(int phraseIndex, uint8_t *phrase);
