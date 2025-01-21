@@ -75,28 +75,29 @@ void Animation::forceAnimation(int mode) {
 }
 
 uint8_t Animation::cube(double x) {
-  int y = (int)(x * x * x / 255.0 / 255.0);
-  if      (y > 255) return 255;
-  else if (y < 0)   return 0;
-  else              return y;
+  int y = (int)(x * x * x / 15.0 / 15.0);
+  if      (y > 15) return 15;
+  else if (y < 0)  return 0;
+  else             return y;
 }
 
 void Animation::dots_nightrider() {
   for (int i = 0; i < 6; i++) {
-    double dotIndex = sin((double)millis() / 1000.0 * 4.0) * 5.0 + 2.5;
-    _io2->analogWrite(_dots[i], cube(255 - 51 * abs(i - dotIndex)) >> 4);
+    double dotIndex = (sin((double)millis() / 1000.0 * 4.0) + 1.0) * 2.5;
+    _io2->analogWrite(_dots[i], cube(15 - 3 * abs(i - dotIndex)));
   }
 }
 
 void Animation::mouth_pulse() {
-  double mouthColorIndex = sin((double)millis() / 1000.0 * 50.0 * 3.14 / 180.0) + 1.0;
-  double mouthRedLevel = cube(255 - 85 * abs(0 - mouthColorIndex)) / 255.0 * 8.0;
-  double mouthWhiteLevel = cube(255 - 85 * abs(1 - mouthColorIndex)) / 255.0 * 8.0;
-  double mouthBlueLevel = cube(255 - 85 * abs(2 - mouthColorIndex)) / 255.0 * 8.0;
+  double mouthColorIndex = sin((double)millis() / 1000.0) + 1;
+  double mouthRedLevel = cube(15 - 7.5 * abs(0 - mouthColorIndex));
+  double mouthWhiteLevel = cube(15 - 7.5 * abs(1 - mouthColorIndex));
+  double mouthBlueLevel = cube(15 - 7.5 * abs(2 - mouthColorIndex));
+  double scale = sin((double)millis() / 1000.0 * 4.0) / 2 + 1;
   for (int i = 0; i < 5; i++) {
-    _io1->analogWrite(_mouth[i], (uint8_t)((sin((double)millis() / 1000.0 * 4.0) + 1) * mouthRedLevel));
-    _io1->analogWrite(_mouth[i + 5], (uint8_t)((sin((double)millis() / 1000.0 * 4.0) + 1) * mouthWhiteLevel));
-    _io1->analogWrite(_mouth[i + 10], (uint8_t)((sin((double)millis() / 1000.0 * 4.0) + 1) * mouthBlueLevel));
+    _io1->analogWrite(_mouth[i], (uint8_t)(scale * mouthRedLevel));
+    _io1->analogWrite(_mouth[i + 5], (uint8_t)(scale * mouthWhiteLevel));
+    _io1->analogWrite(_mouth[i + 10], (uint8_t)(scale * mouthBlueLevel));
   }
 }
 
@@ -114,6 +115,40 @@ void Animation::motors_spin() {
     _io2->analogWrite(_motors[i], motorPattern[i]);
 }
 
+int Animation::expandMorseCode(int phraseIndex, uint8_t *phrase) {
+  int len = 0;
+  for (int i = 0; i < strlen(morse_phrases[phraseIndex]); i++) {
+    int c = morse_phrases[phraseIndex][i] - 65;
+    if (c == -33) {
+      phrase[len++] = 0; phrase[len++] = 0; phrase[len++] = 0; phrase[len++] = 0;
+    } else if (c >= 0 && c < 26) {
+      for (int j = 0; j < strlen(morse_lut[c]); j++) {
+        if (morse_lut[c][j] == '.') {
+          phrase[len++] = 15;
+        } else {
+          phrase[len++] = 15; phrase[len++] = 15; phrase[len++] = 15;
+        }
+        phrase[len++] = 0; phrase[len++] = 0; phrase[len++] = 0;
+      }
+    }
+  }
+  phrase[len++] = 0; phrase[len++] = 0; phrase[len++] = 0; phrase[len++] = 0;
+  phrase[len++] = 0; phrase[len++] = 0; phrase[len++] = 0;
+  return len;
+}
+
 void Animation::lamp_morse_code() {
-  //TODO
+  static int currentPhraseIndex = 0;
+  static unsigned long lastStartTime = 0;
+  static int phraseLen = 0;
+  static uint8_t phrase[1024];
+
+  unsigned long phraseTimeIndex = (millis() - lastStartTime) / MORSE_TIME_UNIT_MS;
+  if (phraseTimeIndex < phraseLen) {
+    _io1->analogWrite(_lamp[0], phrase[phraseTimeIndex]);
+  } else {
+    lastStartTime = millis();
+    currentPhraseIndex = (currentPhraseIndex + 1) % NUM_MORSE_PHRASES;
+    phraseLen = expandMorseCode(currentPhraseIndex, phrase);
+  }
 }

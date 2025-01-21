@@ -10,6 +10,9 @@
 #define AM_MOTORS_SPIN     2
 #define AM_LAMP_MORSE_CODE 3
 
+#define NUM_MORSE_PHRASES  3
+#define MORSE_TIME_UNIT_MS 200
+
 class Animation {
   public:
     Animation(MAX7313 *io1, MAX7313 *io2, uint8_t *dots, uint8_t *motors, uint8_t *lamp, uint8_t *mouth);
@@ -37,11 +40,43 @@ class Animation {
     int currentMode = -1;
     int nextMode = -1;
 
+    char *morse_lut[] = {
+      ".-",   //A
+      "-...", //B
+      "-.-.", //C
+      "-..",  //D
+      ".",    //E
+      "..-.", //F
+      "--.",  //G
+      "....", //H
+      "..",   //I
+      ".---", //J
+      "-.-",  //K
+      ".-..", //L
+      "--",   //M
+      "-.",   //N
+      "---",  //O
+      ".--.", //P
+      "--.-", //Q
+      ".-.",  //R
+      "...",  //S
+      "-",    //T
+      "..-",  //U
+      "...-", //V
+      ".--",  //W
+      "-..-", //X
+      "-.--", //Y
+      "--.."  //Z
+    };
+
+    char *morse_phrases[] = { "MATH CAMP", "BURNING MAN", "SIERPINSKI" };
+
     uint8_t cube(double x);
+    int expandMorseCode(int phraseIndex, uint8_t *phrase);
     void dots_nightrider();
     void mouth_pulse();
     void motors_spin();
-    void lamp_morse_code();  
+    void lamp_morse_code();
 };
 
 #endif
