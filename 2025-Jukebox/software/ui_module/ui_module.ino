@@ -4,6 +4,7 @@
 #include <EthernetUdp.h>
 #include <LiquidCrystal.h>
 #include "MAX7313.h"
+#include "Animation.h"
 
 #define SDA_PIN       2
 #define SCL_PIN       3
@@ -81,7 +82,7 @@ String MODE_NAMES[10] = {
   "Equations", 
   "Spirograph",
   "Pong",
-  "Drums",
+  "Robbie",
   "Wand Drawing",
   "Wand Synth",
   "Calibration"
@@ -103,6 +104,8 @@ uint8_t MODE_IN[8]     = {7, 5, 3, 1, 0, 6, 4, 2};   //ADDR2
 uint8_t MODE_VAL[8]    = {8, 7, 6, 5, 4, 3, 2, 1};
 uint8_t BUTTONS_IN[7]  = {14, 13, 12, 11, 10, 9, 8}; //ADDR2
 uint8_t BUTTON_VAL[7]  = {0, 1, 2, 3, 4, 5, 6};
+
+Animation ani(&io1, &io2, DOTS_OUT, MOTORS_OUT, LAMP_OUT, MOUTH_OUT);
 
 /////////////////////////////////////////////////////////////////////
 
@@ -178,11 +181,13 @@ void setup() {
     delay(100);
     io1.analogWrite(MOUTH_OUT[i], 0);
   }
+
+  ani.start();
 }
 
 void loop() {
   checkButtons();
-  animate();
+  ani.update();
 }
 
 
@@ -266,8 +271,28 @@ void checkButtons() {
     for (int i = 0; i < 7; i++) {
       uint8_t state = 1 - io3.digitalRead(BUTTONS_IN[i]);
       io2.analogWrite(BUTTONS_OUT[i], state == 0 ? 15 : 0);
-      if (button_states[i] == 0 && state == 1)
+      if (button_states[i] == 0 && state == 1) {
         buttonsToSend[i] = 1;
+
+        if (currentRobbieMode == 6) {
+          switch (i) {
+            case 0:
+              ani.forceAnimation(AM_DOTS_NIGHTRIDER);
+              break;
+            case 1:
+              ani.forceAnimation(AM_MOUTH_PULSE);
+              break;
+            case 2:
+              ani.forceAnimation(AM_MOTORS_SPIN);
+              break;
+            case 3:
+              ani.forceAnimation(AM_LAMP_MORSE_CODE);
+              break;
+            default:
+              break;
+          }
+        }
+      }
       button_states[i] = state;
     }
     
@@ -302,8 +327,4 @@ void sendUDPButtons() {
       }
     }
   }
-}
-
-void animate() {
-
 }
