@@ -23,6 +23,7 @@
 #define WIZ_MOSI_PIN  19
 #define WIZ_RST_PIN   20
 #define WIZ_INT_PIN   21
+#define AIN_PIN       26
 
 #define MAX7313_ADDR0 0x20
 #define MAX7313_ADDR1 0x21
@@ -88,6 +89,22 @@ String MODE_NAMES[10] = {
   "Calibration"
 };
 
+#define NUM_SOUND_EFFECTS 11
+char soundEffects[NUM_SOUND_EFFECTS][15] = {
+  "/robbie/1.wav",
+  "/robbie/2.wav",
+  "/robbie/3.wav",
+  "/robbie/4.wav",
+  "/robbie/5.wav",
+  "/robbie/6.wav",
+  "/robbie/7.wav",
+  "/robbie/8.wav",
+  "/robbie/9.wav",
+  "/robbie/10.wav",
+  "/robbie/11.wav"
+};
+unsigned long nextSoundEffectTime = 0;
+
 MAX7313 io1(MAX7313_ADDR0, &Wire1);
 MAX7313 io2(MAX7313_ADDR1, &Wire1);
 MAX7313 io3(MAX7313_ADDR2, &Wire1);
@@ -138,6 +155,9 @@ void loop1() {
 }
 
 void setup() {
+  pinMode(AIN_PIN, INPUT);
+  randomSeed(analogRead(AIN_PIN));
+
   Wire1.setSDA(SDA_PIN);
   Wire1.setSCL(SCL_PIN);
   Wire1.begin();
@@ -188,6 +208,7 @@ void setup() {
 void loop() {
   checkButtons();
   ani.update();
+  sendSoundEffect();
 }
 
 
@@ -263,7 +284,9 @@ void checkButtons() {
       if (mode_states[i] == 0 && state == 1) {
         currentRobbieMode = MODE_VAL[i];
         updateDisplay = true;
-        sendMode = 1;        
+        sendMode = 1;
+        if (currentRobbieMode == 6)
+          nextSoundEffectTime = millis() + 5000;
       }
       mode_states[i] = state;
     }
@@ -325,6 +348,23 @@ void sendUDPButtons() {
         udp.write(buf, 2);
         udp.endPacket();
       }
+    }
+  }
+}
+
+void sendSoundEffect() {
+  if (millis() > nextSoundEffectTime) {
+    nextSoundEffectTime = millis() + 60000;
+    int index = random(NUM_SOUND_EFFECTS);
+    
+    if (udp.beginPacket(jukeboxIP, 8888) == 1) {
+      uint8_t buf[16];
+      memset(buf, 0, 16);
+      buf[0] = PACKET_ID_PLAY_EFFECT;
+      for (int i = 0; i < strlen(soundEffects[index]); i++)
+        buf[1 + i] = soundEffects[index][i];
+      udp.write(buf, 16);
+      udp.endPacket();
     }
   }
 }

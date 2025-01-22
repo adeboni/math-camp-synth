@@ -105,9 +105,7 @@ void loop1() {
   sendWandData();
 }
 
-void setup() {
-  Serial.begin(115200);
-  
+void setup() { 
   memset(spiBuffer, 0, 40);
 
   for (int i = 0; i < 4; i++)
@@ -259,17 +257,6 @@ void checkWandData() {
     numWandsConnected = _numWandsConnected;
     updateSegDisplay();
   }
-
-  Serial.println(numWandsConnected);
-  Serial.print(wandData[0].w);
-  Serial.print(" ");
-  Serial.print(wandData[0].x);
-  Serial.print(" ");
-  Serial.print(wandData[0].y);
-  Serial.print(" ");
-  Serial.print(wandData[0].z);
-  Serial.print(" ");
-  Serial.println(wandData[0].buttonPressed);
 }
 
 void sendWandData() {

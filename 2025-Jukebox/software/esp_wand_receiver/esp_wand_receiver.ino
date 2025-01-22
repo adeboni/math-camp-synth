@@ -40,8 +40,6 @@ void loop() {
 }
 
 void setup1() {
-  Serial.begin(115200);
-
   SPIS.begin();
   rxbuf = (uint8_t*)heap_caps_malloc(SPI_BUFFER_LEN, MALLOC_CAP_DMA);
   txbuf = (uint8_t*)heap_caps_malloc(SPI_BUFFER_LEN, MALLOC_CAP_DMA);
