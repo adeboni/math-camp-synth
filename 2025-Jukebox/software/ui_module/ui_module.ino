@@ -152,6 +152,7 @@ void setup1() {
 void loop1() {
   checkForPacket();
   sendUDPButtons();
+  sendSoundEffect();
 }
 
 void setup() {
@@ -208,7 +209,6 @@ void setup() {
 void loop() {
   checkButtons();
   ani.update();
-  sendSoundEffect();
 }
 
 
@@ -285,8 +285,7 @@ void checkButtons() {
         currentRobbieMode = MODE_VAL[i];
         updateDisplay = true;
         sendMode = 1;
-        if (currentRobbieMode == 6)
-          nextSoundEffectTime = millis() + 5000;
+        nextSoundEffectTime = millis() + 5000;
       }
       mode_states[i] = state;
     }
@@ -353,17 +352,19 @@ void sendUDPButtons() {
 }
 
 void sendSoundEffect() {
+  if (currentRobbieMode != 6) return;
   if (millis() > nextSoundEffectTime) {
     nextSoundEffectTime = millis() + 60000;
     int index = random(NUM_SOUND_EFFECTS);
     
     if (udp.beginPacket(jukeboxIP, 8888) == 1) {
-      uint8_t buf[16];
-      memset(buf, 0, 16);
+      uint8_t buf[20];
       buf[0] = PACKET_ID_PLAY_EFFECT;
       for (int i = 0; i < strlen(soundEffects[index]); i++)
-        buf[1 + i] = soundEffects[index][i];
-      udp.write(buf, 16);
+        buf[1 + i] = (uint8_t)(soundEffects[index][i]);
+      buf[1 + strlen(soundEffects[index])] = 0;
+      
+      udp.write(buf, 2 + strlen(soundEffects[index]));
       udp.endPacket();
     }
   }
