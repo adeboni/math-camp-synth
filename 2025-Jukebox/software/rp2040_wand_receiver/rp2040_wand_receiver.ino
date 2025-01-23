@@ -1,6 +1,8 @@
 #include <SPI.h>
 #include <Ethernet.h>
 #include <EthernetUdp.h>
+#include "pico/util/queue.h"
+#include "laser_generator.h"
 
 #define BTN_2_PIN     8
 #define BTN_1_PIN     9
@@ -42,6 +44,9 @@ EthernetUDP udp;
 uint8_t packetBuffer[PACKET_BUF_SIZE];
 IPAddress ioIP(10, 0, 0, 31);
 IPAddress jukeboxIP(10, 0, 0, 32);
+IPAddress laser1IP(10, 0, 0, 17); //TODO: change to 10
+IPAddress laser2IP(10, 0, 0, 11); //TODO: change to 10
+IPAddress laser3IP(10, 0, 0, 12); //TODO: change to 10
 
 typedef struct {
     uint16_t w, x, y, z;
@@ -82,9 +87,17 @@ const uint8_t seg_lookup[10] = {
   0b11110110, //9
 };
 
+#define POINT_BUFFER_SIZE 1000
+queue_t data_buf;
+bool queueReady = false;
+unsigned long laserPausedTime = 0;
+LaserGenerator laserGen;
+
 /////////////////////////////////////////////////////////////////////
 
 void setup1() {
+  laserGen.init();
+
   pinMode(WIZ_RST_PIN, OUTPUT);
   digitalWrite(WIZ_RST_PIN, LOW);
   delay(50);
@@ -106,6 +119,8 @@ void loop1() {
 }
 
 void setup() { 
+  queue_init(&data_buf, sizeof(laser_point_t), POINT_BUFFER_SIZE);
+  queueReady = true;
   memset(spiBuffer, 0, 40);
 
   for (int i = 0; i < 4; i++)
@@ -140,6 +155,7 @@ void setup() {
 void loop() {
   checkButtons();
   checkWandData();
+  queueLaserData();
 }
 
 
@@ -197,10 +213,6 @@ void checkButtons() {
 
     lastButtonCheck = millis();
   }
-}
-
-void sendLaserData() {
-  //TODO
 }
 
 void sendButtonData() {
@@ -285,5 +297,43 @@ void sendWandData() {
     }
 
     lastUpdate = millis();
+  }
+}
+
+void queueLaserData() {
+  static unsigned long nextTime = micros();
+
+  if (millis() < laserPausedTime) return;
+
+  unsigned long currTime = micros();
+  if (currTime > nextTime) {
+    laser_point_t p = laserGen.get_point(currentRobbieMode);
+    queue_try_add(&data_buf, &p);
+    nextTime = currTime + 150;
+    //nextTime += 150; ?
+  }
+}
+
+void sendLaserData() {
+  static uint8_t seqNum = 0;
+  static uint16_t currIndex = 1;
+  static uint8_t packetBuf[1 + 170 * 6] = { 0, };
+
+  if (!queueReady) return;
+  if (millis() < laserPausedTime) return;
+
+  laser_point_t newPoint;
+  if (queue_try_remove(&data_buf, &newPoint)) {
+    laserGen.point_to_bytes(&newPoint, packetBuf, currIndex);
+    currIndex += 6;
+    if (currIndex >= sizeof(packetBuf)) {
+      if (udp.beginPacket(laser1IP, 8090) == 1) {
+        udp.write(packetBuf, sizeof(packetBuf));
+        if (udp.endPacket() != 1)
+          laserPausedTime = millis() + 1000;
+      }
+      currIndex = 1;
+      packetBuf[0] = ++seqNum;
+    }
   }
 }
