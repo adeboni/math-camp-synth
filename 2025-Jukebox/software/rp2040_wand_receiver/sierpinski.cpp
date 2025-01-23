@@ -125,7 +125,7 @@ void Sierpinski::calibrate_wand_position(double q[4]) {
 }
 
 void Sierpinski::laser_to_sierpinski_coords(int laser_index, int x, int y, double result[3]) {
-  double v[4] = {x, y, 0, 1};
+  double v[4] = {(double)x, (double)y, 0, 1};
   double dot_result[4];
   dot_mv(trans_matrix[laser_index], v, dot_result);
   result[0] = dot_result[0];
@@ -167,7 +167,7 @@ void Sierpinski::get_wand_projection(double q[4], int *laser_index, double resul
   end[2] += WAND_HEIGHT;
   double v[3];
   sub_vv(3, end, start, v);
-  if (v[3] < 0) {
+  if (v[2] < 0) {
     *laser_index = -1;
     return;
   }
