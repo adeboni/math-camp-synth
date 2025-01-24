@@ -127,7 +127,7 @@ void Sierpinski::calibrate_wand_position(double q[4]) {
 void Sierpinski::laser_to_sierpinski_coords(int laser_index, int x, int y, double result[3]) {
   double v[4] = {(double)x, (double)y, 0, 1};
   double dot_result[4];
-  dot_mv(trans_matrix[laser_index], v, dot_result);
+  dot_mv(4, &trans_matrix[laser_index][0][0], v, dot_result);
   result[0] = dot_result[0];
   result[1] = dot_result[1];
   result[2] = dot_result[2];
@@ -136,7 +136,7 @@ void Sierpinski::laser_to_sierpinski_coords(int laser_index, int x, int y, doubl
 xy_t Sierpinski::sierpinski_to_laser_coords(int laser_index, double v[3]) {
   double v2[4] = {v[0], v[1], v[2], 1};
   double dot_result[4];
-  dot_mv(inv_trans_matrix[laser_index], v2, dot_result);
+  dot_mv(4, &inv_trans_matrix[laser_index][0][0], v2, dot_result);
   return (xy_t){(uint16_t)dot_result[0], (uint16_t)dot_result[1], 1};
 }
 
@@ -150,10 +150,10 @@ void Sierpinski::apply_quaternion(double q[4], double result[3]) {
   rotate(q, wand_vector, qv);
   double v1[3] = {qv[0], qv[1], 0};
   double dot_result1[3];
-  dot_mv33(yaw_matrix, v1, dot_result1);
+  dot_mv(3, &yaw_matrix[0][0], v1, dot_result1);
   double v2[3] = {sqrt(1 - qv[2] * qv[2]), 0, qv[2]};
   double dot_result2[3];
-  dot_mv33(pitch_matrix, v2, dot_result2);
+  dot_mv(3, &pitch_matrix[0][0], v2, dot_result2);
   double v3[3] = {v1[0], v1[1], v2[2]};
   norm(3, v3, result);
 }

@@ -44,9 +44,8 @@ EthernetUDP udp;
 uint8_t packetBuffer[PACKET_BUF_SIZE];
 IPAddress ioIP(10, 0, 0, 31);
 IPAddress jukeboxIP(10, 0, 0, 32);
-IPAddress laser1IP(10, 0, 0, 17); //TODO: change to 10
-IPAddress laser2IP(10, 0, 0, 11); //TODO: change to 10
-IPAddress laser3IP(10, 0, 0, 12); //TODO: change to 10
+//                            TODO: change to 10
+IPAddress laserIPs[3] = { IPAddress(10, 0, 0, 17), IPAddress(10, 0, 0, 11), IPAddress(10, 0, 0, 12) };
 
 typedef struct {
     uint16_t w, x, y, z;
@@ -88,9 +87,9 @@ const uint8_t seg_lookup[10] = {
 };
 
 #define POINT_BUFFER_SIZE 1000
+#define LASER_PACKET_LEN  (1 + 170 * 6)
 queue_t data_buf;
 bool queueReady = false;
-unsigned long laserPausedTime = 0;
 LaserGenerator laserGen;
 
 /////////////////////////////////////////////////////////////////////
@@ -119,7 +118,7 @@ void loop1() {
 }
 
 void setup() { 
-  queue_init(&data_buf, sizeof(laser_point_t), POINT_BUFFER_SIZE);
+  queue_init(&data_buf, sizeof(laser_point_x3_t), POINT_BUFFER_SIZE);
   queueReady = true;
   memset(spiBuffer, 0, 40);
 
@@ -303,11 +302,9 @@ void sendWandData() {
 void queueLaserData() {
   static unsigned long nextTime = micros();
 
-  if (millis() < laserPausedTime) return;
-
   unsigned long currTime = micros();
   if (currTime > nextTime) {
-    laser_point_t p = laserGen.get_point(currentRobbieMode);
+    laser_point_x3_t p = laserGen.get_point(currentRobbieMode);
     queue_try_add(&data_buf, &p);
     nextTime = currTime + 150;
     //nextTime += 150; ?
@@ -317,23 +314,31 @@ void queueLaserData() {
 void sendLaserData() {
   static uint8_t seqNum = 0;
   static uint16_t currIndex = 1;
-  static uint8_t packetBuf[1 + 170 * 6] = { 0, };
+  static uint8_t packetBuf[3][LASER_PACKET_LEN];
+  static unsigned long pausedTime[3] = {0, 0, 0};
 
   if (!queueReady) return;
-  if (millis() < laserPausedTime) return;
 
-  laser_point_t newPoint;
+  laser_point_x3_t newPoint;
   if (queue_try_remove(&data_buf, &newPoint)) {
-    laserGen.point_to_bytes(&newPoint, packetBuf, currIndex);
+    for (int i = 0; i < 3; i++) {
+      packetBuf[i][0] = seqNum;
+      laserGen.point_to_bytes(&(newPoint.p[i]), packetBuf[i], currIndex);
+    }
     currIndex += 6;
-    if (currIndex >= sizeof(packetBuf)) {
-      if (udp.beginPacket(laser1IP, 8090) == 1) {
-        udp.write(packetBuf, sizeof(packetBuf));
-        if (udp.endPacket() != 1)
-          laserPausedTime = millis() + 1000;
+    
+    if (currIndex >= LASER_PACKET_LEN) {
+      for (int i = 0; i < 3; i++) {
+        if (pausedTime[i] > millis()) continue;
+        if (udp.beginPacket(laserIPs[i], 8090) == 1) {
+          udp.write(packetBuf[i], LASER_PACKET_LEN);
+          if (udp.endPacket() != 1)
+            pausedTime[i] = millis() + 1000;
+        }
       }
+      
       currIndex = 1;
-      packetBuf[0] = ++seqNum;
+      seqNum++;
     }
   }
 }

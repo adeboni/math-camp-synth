@@ -10,16 +10,6 @@ void sub_vv(int n, double *a, double *b, double *result) {
     result[i] = a[i] - b[i];
 }
 
-void add_vf(int n, double *a, double b, double *result) {
-  for (int i = 0; i < n; i++)
-    result[i] = a[i] + b;
-}
-
-void sub_vf(int n, double *a, double b, double *result) {
-  for (int i = 0; i < n; i++)
-    result[i] = a[i] - b;
-}
-
 void mul_vf(int n, double *a, double b, double *result) {
   for (int i = 0; i < n; i++)
     result[i] = a[i] * b;
@@ -106,34 +96,13 @@ void rotate(double q[4], double v[3], double result[3]) {
   result[2] = qv[3] * conj[2] + qv[2] * conj[3] + qv[0] * conj[1] - qv[1] * conj[0];
 }
 
-void dot_mv(double mat[4][4], double v[4], double result[4]) {
-  for (int i = 0; i < 4; i++) {
+void dot_mv(int n, double *mat, double *v, double *result) {
+  for (int i = 0; i < n; i++) {
     result[i] = 0;
-    for (int j = 0; j < 4; j++)
-      result[i] += mat[i][j] * v[j];
+    for (int j = 0; j < n; j++)
+      result[i] += mat[i * n + j] * v[j];
   }
 }
-
-void dot_mv33(double mat[3][3], double v[3], double result[3]) {
-  for (int i = 0; i < 3; i++) {
-    result[i] = 0;
-    for (int j = 0; j < 3; j++)
-      result[i] += mat[i][j] * v[j];
-  }
-}
-
-/*
-void mul_mm(int n1, int m1, int n2, int m2, double **mat1, double **mat2, double **result) {
-  for (int i = 0; i < n1; i++) 
-    for (int j = 0; j < m2; j++) 
-      result[i][j] = 0;
-
-  for (int i = 0; i < n1; i++) 
-    for (int j = 0; j < m2; j++) 
-      for (int k = 0; k < m1; k++)
-        result[i][j] += mat1[i][k] * mat2[k][j];
-}
-*/
 
 void mul_mm(int n1, int m1, int n2, int m2, double *mat1, double *mat2, double *result) {
   for (int i = 0; i < n1; i++) 
@@ -161,14 +130,14 @@ void eigen(double a[4][4], double eigenvalues[4], double eigenvectors[4][4]) {
       eigenvector[i] = (double)random(1000) / 1000.0; //TODO: hardcode values?
 
     for (int iter = 0; iter < 1000; iter++) {
-      dot_mv(aa, eigenvector, temp_vector);
+      dot_mv(4, &aa[0][0], eigenvector, temp_vector);
       norm(4, temp_vector, eigenvector);
     }
 
     for (int i = 0; i < 4; i++)
       temp_eigenvectors[k][i] = eigenvector[i];
 
-    dot_mv(aa, eigenvector, temp_vector);
+    dot_mv(4, &aa[0][0], eigenvector, temp_vector);
     double eigenvalue = fmax(dot_vv(4, eigenvector, temp_vector), 0.001);
     eigenvalues[k] = eigenvalue;
 
@@ -206,7 +175,7 @@ void lstsq(double a[3][4], double b[3][4], double x[4][4]) {
     for (int j = 0; j < 4; j++) 
       U[i][j] /= eigenvalues[j];
 
-  //crop matrix
+  //TODO: try combining these
   for (int i = 0; i < 3; i++)
     for (int j = 0; j < 3; j++) 
       temp_U[i][j] = U[i][j];
@@ -214,6 +183,7 @@ void lstsq(double a[3][4], double b[3][4], double x[4][4]) {
   for (int i = 0; i < 3; i++)
     for (int j = 0; j < 3; j++) 
       Ut[j][i] = temp_U[i][j];
+  //////////////////////////////
   
   double Si[4][3] = {
     {1 / eigenvalues[0], 0, 0},

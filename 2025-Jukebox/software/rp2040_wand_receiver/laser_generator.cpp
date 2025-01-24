@@ -15,7 +15,7 @@ void LaserGenerator::point_to_bytes(laser_point_t *p, uint8_t *buf, uint16_t i) 
   buf[i + 5] = p->b;
 }
 
-laser_point_t LaserGenerator::get_point(uint8_t mode) {
+laser_point_x3_t LaserGenerator::get_point(uint8_t mode) { 
   switch (mode) 
   {
     case 1:
@@ -34,13 +34,15 @@ laser_point_t LaserGenerator::get_point(uint8_t mode) {
     case 8:
       return get_wand_drawing_point();
     case 9:
-      return get_calibration_point();      
+      return get_calibration_point();
   }
 
-  return (laser_point_t){0, 0, 0, 0, 0};
+  laser_point_x3_t empty;
+  memset(&empty, 0, sizeof(laser_point_x3_t));
+  return empty;
 }
 
-laser_point_t LaserGenerator::get_circle_point() {
+laser_point_x3_t LaserGenerator::get_circle_point() {
   static int angle = 0;
 
   angle = (angle + 1) % 360;
@@ -58,34 +60,47 @@ laser_point_t LaserGenerator::get_circle_point() {
   else
     b = 255;
 
-  return (laser_point_t){x, y, r, g, b};
+  laser_point_t lp = (laser_point_t){x, y, r, g, b};
+  return (laser_point_x3_t){lp, lp, lp};
 }
 
-laser_point_t LaserGenerator::get_equation_point() {
-  return (laser_point_t){0, 0, 0, 0, 0};
+laser_point_x3_t LaserGenerator::get_equation_point() {
+  laser_point_x3_t empty;
+  memset(&empty, 0, sizeof(laser_point_x3_t));
+  return empty;
 }
 
-laser_point_t LaserGenerator::get_spirograph_point() {
-  return (laser_point_t){0, 0, 0, 0, 0};
+laser_point_x3_t LaserGenerator::get_spirograph_point() {
+  laser_point_x3_t empty;
+  memset(&empty, 0, sizeof(laser_point_x3_t));
+  return empty;
 }
 
-laser_point_t LaserGenerator::get_audio_visualizer_point() {
-  return (laser_point_t){0, 0, 0, 0, 0};
+laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
+  laser_point_x3_t empty;
+  memset(&empty, 0, sizeof(laser_point_x3_t));
+  return empty;
 }
 
-laser_point_t LaserGenerator::get_pong_point() {
-  return (laser_point_t){0, 0, 0, 0, 0};
+laser_point_x3_t LaserGenerator::get_pong_point() {
+  laser_point_x3_t empty;
+  memset(&empty, 0, sizeof(laser_point_x3_t));
+  return empty;
 }
 
-laser_point_t LaserGenerator::get_drums_graphics_point() {
-  return (laser_point_t){0, 0, 0, 0, 0};
+laser_point_x3_t LaserGenerator::get_drums_graphics_point() {
+  laser_point_x3_t empty;
+  memset(&empty, 0, sizeof(laser_point_x3_t));
+  return empty;
 }
 
-laser_point_t LaserGenerator::get_wand_drawing_point() {
-  return (laser_point_t){0, 0, 0, 0, 0};
+laser_point_x3_t LaserGenerator::get_wand_drawing_point() {
+  laser_point_x3_t empty;
+  memset(&empty, 0, sizeof(laser_point_x3_t));
+  return empty;
 }
 
-laser_point_t LaserGenerator::get_calibration_point() {
+laser_point_x3_t LaserGenerator::get_calibration_point() {
   static int setup_complete = 0;
   static xy_t raw_bounds[5];
   static xy_t *interp_bounds;
@@ -101,5 +116,6 @@ laser_point_t LaserGenerator::get_calibration_point() {
   }
 
   curr_index = (curr_index + 1) % interp_bounds_size;
-  return (laser_point_t){interp_bounds[curr_index].x, interp_bounds[curr_index].y, 0, 255, 0};
+  laser_point_t lp = (laser_point_t){interp_bounds[curr_index].x, interp_bounds[curr_index].y, 0, 255, 0};
+  return (laser_point_x3_t){lp, lp, lp};
 }

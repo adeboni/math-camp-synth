@@ -9,6 +9,10 @@ typedef struct {
 } laser_point_t;
 
 typedef struct {
+  laser_point_t p[3];
+} laser_point_x3_t;
+
+typedef struct {
   uint8_t r, g, b;
 } rgb_t;
 
@@ -19,8 +23,6 @@ typedef struct {
 
 void add_vv(int n, double *a, double *b, double *result);
 void sub_vv(int n, double *a, double *b, double *result);
-void add_vf(int n, double *a, double b, double *result);
-void sub_vf(int n, double *a, double b, double *result);
 void mul_vf(int n, double *a, double b, double *result);
 void div_vf(int n, double *a, double b, double *result);
 void cross(double a[3], double b[3], double result[3]);
@@ -33,8 +35,7 @@ int same_side(double p1[3], double p2[3], double a[3], double b[3]);
 int point_in_triangle(double a[3], double b[3], double c[3], double p[3]);
 int point_in_surface(double p1[3], double p2[3], double p3[3], double p4[3], double p[3]);
 void rotate(double q[4], double v[3], double result[3]);
-void dot_mv(double mat[4][4], double v[4], double result[4]);
-void dot_mv33(double mat[3][3], double v[3], double result[3]);
+void dot_mv(int n, double *mat, double *v, double *result);
 void mul_mm(int n1, int m1, int n2, int m2, double *mat1, double *mat2, double *result);
 void eigen(double a[4][4], double eigenvalues[4], double eigenvectors[4][4]);
 void lstsq(double a[3][4], double b[3][4], double x[4][4]);
