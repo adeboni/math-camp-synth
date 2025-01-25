@@ -16,8 +16,7 @@ void LaserGenerator::point_to_bytes(laser_point_t *p, uint8_t *buf, uint16_t i) 
 }
 
 laser_point_x3_t LaserGenerator::get_point(uint8_t mode) { 
-  switch (mode) 
-  {
+  switch (mode) {
     case 1:
       return get_circle_point(); // remove later
     case 2:
@@ -28,8 +27,6 @@ laser_point_x3_t LaserGenerator::get_point(uint8_t mode) {
       return get_spirograph_point();
     case 5:
       return get_pong_point();
-    case 6:
-      return get_drums_graphics_point();
     case 7:
     case 8:
       return get_wand_drawing_point();
