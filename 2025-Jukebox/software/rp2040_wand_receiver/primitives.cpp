@@ -127,7 +127,7 @@ void eigen(double a[4][4], double eigenvalues[4], double eigenvectors[4][4]) {
 
   for (int k = 0; k < 4; k++) {
     for (int i = 0; i < 4; i++)
-      eigenvector[i] = (double)random(1000) / 1000.0; //TODO: hardcode values?
+      eigenvector[i] = ((double)i + 1) / 10.0;
 
     for (int iter = 0; iter < 1000; iter++) {
       dot_mv(4, &aa[0][0], eigenvector, temp_vector);
@@ -175,15 +175,9 @@ void lstsq(double a[3][4], double b[3][4], double x[4][4]) {
     for (int j = 0; j < 4; j++) 
       U[i][j] /= eigenvalues[j];
 
-  //TODO: try combining these
   for (int i = 0; i < 3; i++)
     for (int j = 0; j < 3; j++) 
-      temp_U[i][j] = U[i][j];
-
-  for (int i = 0; i < 3; i++)
-    for (int j = 0; j < 3; j++) 
-      Ut[j][i] = temp_U[i][j];
-  //////////////////////////////
+      Ut[j][i] = U[i][j];
   
   double Si[4][3] = {
     {1 / eigenvalues[0], 0, 0},

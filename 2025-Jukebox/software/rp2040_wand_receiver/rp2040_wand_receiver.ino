@@ -306,8 +306,7 @@ void queueLaserData() {
   if (currTime > nextTime) {
     laser_point_x3_t p = laserGen.get_point(currentRobbieMode);
     queue_try_add(&data_buf, &p);
-    nextTime = currTime + 150;
-    //nextTime += 150; ?
+    nextTime += 150;
   }
 }
 
@@ -316,6 +315,7 @@ void sendLaserData() {
   static uint16_t currIndex = 1;
   static uint8_t packetBuf[3][LASER_PACKET_LEN];
   static unsigned long pausedTime[3] = {0, 0, 0};
+  static uint8_t failedAttempts[3] = {0, 0, 0};
 
   if (!queueReady) return;
 
@@ -329,11 +329,13 @@ void sendLaserData() {
     
     if (currIndex >= LASER_PACKET_LEN) {
       for (int i = 0; i < 3; i++) {
-        if (pausedTime[i] > millis()) continue;
+        if (pausedTime[i] > millis() || failedAttempts[i] > 12) continue;
         if (udp.beginPacket(laserIPs[i], 8090) == 1) {
           udp.write(packetBuf[i], LASER_PACKET_LEN);
-          if (udp.endPacket() != 1)
-            pausedTime[i] = millis() + 1000;
+          if (udp.endPacket() != 1) {
+            pausedTime[i] = millis() + 5000;
+            failedAttempts[i]++;
+          }
         }
       }
       
