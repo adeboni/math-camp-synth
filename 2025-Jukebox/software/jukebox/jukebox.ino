@@ -339,6 +339,11 @@ void checkForPacket() {
   }
 }
 
+void stopAudio() {
+  wav->stop();
+  memset(&(out->udpBuffer[1]), 0, UDP_AUDIO_BUFF_SIZE - 1);
+}
+
 void updateAudio() {
   out->SetGain(analogRead(VOL_PIN) / 1023.0);
 
@@ -347,18 +352,18 @@ void updateAudio() {
       songPausedPosition = sdSource->getPos();
       songPaused = songPausedPosition > 0;
     }
-    wav->stop();
+    stopAudio();
     jukeboxMode = nextJukeboxMode;
     nextJukeboxMode = JUKEBOX_MODE_INVALID;
   }
 
   if (skipSong) {
-    wav->stop();
+    stopAudio();
     skipSong = false;
   }
 
   if (wav->isRunning()) {
-    if (!wav->loop()) wav->stop();
+    if (!wav->loop()) stopAudio();
     return;
   }
 
