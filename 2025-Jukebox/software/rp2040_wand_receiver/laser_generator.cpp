@@ -1,9 +1,11 @@
 #include "laser_generator.h"
 #include "laser_objects.h"
 #include "sierpinski.h"
+#include "spirograph.h"
 
 void LaserGenerator::init() {
   sier.init();
+  memset(audioBuffer, 0, UDP_AUDIO_BUFF_SIZE);
 }
 
 void LaserGenerator::point_to_bytes(laser_point_t *p, uint8_t *buf, uint16_t i) {
@@ -41,10 +43,13 @@ laser_point_x3_t LaserGenerator::get_point(uint8_t mode) {
 
 laser_point_x3_t LaserGenerator::get_circle_point() {
   static int angle = 0;
+  static int audioBufIndex = 0;
 
   angle = (angle + 1) % 360;
-  uint16_t x = (uint16_t)(sin(angle * (3.14159 / 180.0)) * 200 + 2048);
-  uint16_t y = (uint16_t)(cos(angle * (3.14159 / 180.0)) * 200 + 2048);
+  audioBufIndex = (audioBufIndex + 1) % UDP_AUDIO_BUFF_SIZE;
+  double radius = 200 + (double)audioBuffer[audioBufIndex] / 2.5;
+  uint16_t x = (uint16_t)(sin(angle * (3.14159 / 180.0)) * radius + 2048);
+  uint16_t y = (uint16_t)(cos(angle * (3.14159 / 180.0)) * radius + 2048);
 
   uint8_t r = 0;
   uint8_t g = 0;
@@ -61,22 +66,97 @@ laser_point_x3_t LaserGenerator::get_circle_point() {
   return (laser_point_x3_t){lp, lp, lp};
 }
 
+laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
+  static int setup_complete = 0;
+  static uint16_t bounds[4];
+
+  if (setup_complete == 0) {
+    sier.get_laser_rect_interior(bounds);
+    setup_complete = 1;
+  }
+
+  laser_point_x3_t empty;
+  memset(&empty, 0, sizeof(laser_point_x3_t));
+  return empty;
+}
+
 laser_point_x3_t LaserGenerator::get_equation_point() {
+  static int setup_complete = 0;
+  static uint16_t bounds[4];
+
+  if (setup_complete == 0) {
+    sier.get_laser_rect_interior(bounds);
+    setup_complete = 1;
+  }
+
   laser_point_x3_t empty;
   memset(&empty, 0, sizeof(laser_point_x3_t));
   return empty;
 }
 
 laser_point_x3_t LaserGenerator::get_spirograph_point() {
-  laser_point_x3_t empty;
-  memset(&empty, 0, sizeof(laser_point_x3_t));
-  return empty;
-}
+  static int setup_complete = 0;
+  static uint16_t bounds[4];
+  static Spirograph spiro[3] = { Spirograph(), Spirograph(), Spirograph() };
+  static uint16_t offsets[3][2];
+  static int dirs[3][2];
+  static double colors[3];
+  static int iteration = 0;
+  static bool pointMode = true;
+  static unsigned long nextUpdate = 0;
 
-laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
-  laser_point_x3_t empty;
-  memset(&empty, 0, sizeof(laser_point_x3_t));
-  return empty;
+  if (setup_complete == 0) {
+    sier.get_laser_rect_interior(bounds);
+
+    for (int i = 0; i < 3; i++) {
+      spiro[i].init(random(100, 111), random(40, 81), random(3, 10) / 10.0, random(15, 26) / 100.0);
+      spiro[i].add_delta((spiro_delta_t){DELTA_TYPE_R2, 0.00000002, 40.0, 80.0});
+      spiro[i].add_delta((spiro_delta_t){DELTA_TYPE_A, 0.000000002, 0.3, 0.9});
+
+      offsets[i][0] = (bounds[0] + bounds[1]) / 2;
+      offsets[i][1] = (bounds[2] + bounds[3]) / 2;
+      dirs[i][0] = random(2) ? 0.01 : -0.01;
+      dirs[i][1] = random(2) ? 0.01 : -0.01;
+      colors[i] = random(10) / 10.0;
+    }
+    
+    setup_complete = 1;
+  }
+
+  if (millis() > nextUpdate) {
+    pointMode = !pointMode;
+    nextUpdate = millis() + 30000;
+  }
+
+  iteration++;
+  laser_point_x3_t points;
+
+  for (int i = 0; i < 3; i++) {
+    rgb_t c = hsv_to_rgb(colors[i], 1.0, 1.0);
+    colors[i] += 0.00001;
+    if (colors[i] > 1) colors[i] = 0;
+
+    if (!pointMode) {
+      spiro[i].update(1.5, 1.5, offsets[i][0], offsets[i][1]);
+      points.p[i] = (laser_point_t){(uint16_t)spiro[i].x, (uint16_t)spiro[i].y, c.r, c.g, c.b};
+    } else if (iteration % 3 == 0) {
+      points.p[i] = (laser_point_t){(uint16_t)spiro[i].x, (uint16_t)spiro[i].y, 0, 0, 0};
+    } else if (iteration % 3 == 1) {
+      points.p[i] = (laser_point_t){(uint16_t)spiro[i].x, (uint16_t)spiro[i].y, c.r, c.g, c.b};
+    } else {
+      spiro[i].update(1.5, 1.5, offsets[i][0], offsets[i][1]);
+      points.p[i] = (laser_point_t){(uint16_t)spiro[i].x, (uint16_t)spiro[i].y, 0, 0, 0};
+    }
+
+    offsets[i][0] += dirs[i][0];
+    offsets[i][1] += dirs[i][1];
+    if      (spiro[i].x < bounds[0] && dirs[i][0] < 0) dirs[i][0] *= -1;
+    else if (spiro[i].x > bounds[1] && dirs[i][0] > 0) dirs[i][0] *= -1;
+    if      (spiro[i].y < bounds[2] && dirs[i][1] < 0) dirs[i][1] *= -1;
+    else if (spiro[i].y > bounds[3] && dirs[i][1] > 0) dirs[i][1] *= -1;
+  }
+
+  return points;
 }
 
 laser_point_x3_t LaserGenerator::get_pong_point() {
@@ -85,13 +165,15 @@ laser_point_x3_t LaserGenerator::get_pong_point() {
   return empty;
 }
 
-laser_point_x3_t LaserGenerator::get_drums_graphics_point() {
-  laser_point_x3_t empty;
-  memset(&empty, 0, sizeof(laser_point_x3_t));
-  return empty;
-}
-
 laser_point_x3_t LaserGenerator::get_wand_drawing_point() {
+  static int setup_complete = 0;
+  static uint16_t bounds[4];
+
+  if (setup_complete == 0) {
+    sier.get_laser_rect_interior(bounds);
+    setup_complete = 1;
+  }
+
   laser_point_x3_t empty;
   memset(&empty, 0, sizeof(laser_point_x3_t));
   return empty;

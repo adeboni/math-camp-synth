@@ -14,7 +14,8 @@ class Sierpinski {
     void calibrate_wand_position(double q[4]);
     void laser_to_sierpinski_coords(int laser_index, int x, int y, double result[3]);
     xy_t sierpinski_to_laser_coords(int laser_index, double v[3]);
-    void get_laser_coordinate_bounds(xy_t result[4]) ;
+    void get_laser_coordinate_bounds(xy_t result[4]);
+    void get_laser_rect_interior(uint16_t result[4]);
     void apply_quaternion(double q[4], double result[3]);
     void get_wand_projection(double q[4], int *laser_index, double result[3]);
 

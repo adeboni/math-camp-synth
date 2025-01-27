@@ -145,6 +145,17 @@ void Sierpinski::get_laser_coordinate_bounds(xy_t result[4]) {
     result[i] = sierpinski_to_laser_coords(0, surfaces[0][i]);
 }
 
+void Sierpinski::get_laser_rect_interior(uint16_t result[4]) {
+  xy_t bottom1 = sierpinski_to_laser_coords(0, surfaces[0][0]);
+  xy_t top1 = sierpinski_to_laser_coords(0, surfaces[0][1]);
+  xy_t top2 = sierpinski_to_laser_coords(0, surfaces[0][2]);
+  xy_t bottom2 = sierpinski_to_laser_coords(0, surfaces[0][3]);
+  result[0] = min(top1.x, top2.x);
+  result[1] = max(top1.x, top2.x);
+  result[2] = bottom1.y;
+  result[3] = top1.y;
+}
+
 void Sierpinski::apply_quaternion(double q[4], double result[3]) {
   double qv[3];
   rotate(q, wand_vector, qv);

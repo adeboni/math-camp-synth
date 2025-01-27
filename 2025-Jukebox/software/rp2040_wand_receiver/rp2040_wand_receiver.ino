@@ -22,6 +22,7 @@
 #define SEG_SER_PIN   23
 #define SEG_SCK_PIN   24
 #define SEG_EN_PIN    25
+#define AIN_PIN       26
 
 #define JUKEBOX_MODE_MUSIC   0
 #define JUKEBOX_MODE_SYNTH   1
@@ -44,8 +45,7 @@ EthernetUDP udp;
 uint8_t packetBuffer[PACKET_BUF_SIZE];
 IPAddress ioIP(10, 0, 0, 31);
 IPAddress jukeboxIP(10, 0, 0, 32);
-//                            TODO: change to 10
-IPAddress laserIPs[3] = { IPAddress(10, 0, 0, 17), IPAddress(10, 0, 0, 11), IPAddress(10, 0, 0, 12) };
+IPAddress laserIPs[3] = { IPAddress(10, 0, 0, 10), IPAddress(10, 0, 0, 11), IPAddress(10, 0, 0, 12) };
 
 typedef struct {
     uint16_t w, x, y, z;
@@ -125,6 +125,9 @@ void setup() {
   for (int i = 0; i < 4; i++)
     wandData[i] = (wand_data_t){16384, 16384, 16384, 16384, 0};
 
+  pinMode(AIN_PIN, INPUT);
+  randomSeed(analogRead(AIN_PIN));
+
   pinMode(BTN_1_PIN, INPUT_PULLUP);
   pinMode(BTN_2_PIN, INPUT_PULLUP);
   pinMode(SEG_DIG1_PIN, OUTPUT);
@@ -167,7 +170,9 @@ void checkForPacket() {
     if (packetBuffer[0] == PACKET_ID_ROBBIE_MODE && packetSize == 2) {
       currentRobbieMode = packetBuffer[1];
       updateSegDisplay();
-    } 
+    } else if (packetBuffer[0] == PACKET_ID_AUDIO_DATA && packetSize == (UDP_AUDIO_BUFF_SIZE + 1)) {
+      memcpy(laserGen.audioBuffer, &packetBuffer[1], UDP_AUDIO_BUFF_SIZE);
+    }
   }
 }
 

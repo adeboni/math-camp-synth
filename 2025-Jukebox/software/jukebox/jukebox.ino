@@ -204,7 +204,7 @@ void setup() {
   wav->SetBufferSize(1024);
   out = new AudioOutputI2SExtra();
   out->SetPinout(PCM_BCK_PIN, PCM_LRCLK_PIN, PCM_DAT_PIN);
-  out->udpBuffer[0] = 3;
+  out->udpBuffer[0] = PACKET_ID_AUDIO_DATA;
 
   SPI1.setRX(SD_DAT0_PIN);
   SPI1.setTX(SD_CMD_PIN);
