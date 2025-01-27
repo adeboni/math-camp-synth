@@ -174,9 +174,27 @@ laser_point_x3_t LaserGenerator::get_wand_drawing_point() {
     setup_complete = 1;
   }
 
-  laser_point_x3_t empty;
-  memset(&empty, 0, sizeof(laser_point_x3_t));
-  return empty;
+  laser_point_x3_t points;
+  memset(&points, 0, sizeof(laser_point_x3_t));
+  if (numWandsConnected == 0) return points;
+
+  double q[4] = {
+    ((double)wandData[0] - 16384) / 16384,
+    ((double)wandData[1] - 16384) / 16384,
+    ((double)wandData[2] - 16384) / 16384,
+    ((double)wandData[3] - 16384) / 16384
+  };
+
+  int laserIndex = -1;
+  double v[3];
+  sier.get_wand_projection(q, &laserIndex, v);
+  if (laserIndex < 0) return points;
+
+  xy_t lp = sier.sierpinski_to_laser_coords(laserIndex, v);
+  points.p[laserIndex].x = lp.x;
+  points.p[laserIndex].y = lp.y;
+  points.p[laserIndex].r = 255;
+  return points;
 }
 
 laser_point_x3_t LaserGenerator::get_calibration_point() {
@@ -197,4 +215,14 @@ laser_point_x3_t LaserGenerator::get_calibration_point() {
   curr_index = (curr_index + 1) % interp_bounds_size;
   laser_point_t lp = (laser_point_t){interp_bounds[curr_index].x, interp_bounds[curr_index].y, 0, 255, 0};
   return (laser_point_x3_t){lp, lp, lp};
+}
+
+void LaserGenerator::calibrate_wand(uint16_t x, uint16_t y, uint16_t z, uint16_t w) {
+  double q[4] = {
+    ((double)x - 16384) / 16384,
+    ((double)y - 16384) / 16384,
+    ((double)z - 16384) / 16384,
+    ((double)w - 16384) / 16384
+  };
+  sier.calibrate_wand_position(q);
 }

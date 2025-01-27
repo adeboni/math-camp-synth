@@ -48,8 +48,8 @@ IPAddress jukeboxIP(10, 0, 0, 32);
 IPAddress laserIPs[3] = { IPAddress(10, 0, 0, 10), IPAddress(10, 0, 0, 11), IPAddress(10, 0, 0, 12) };
 
 typedef struct {
-    uint16_t w, x, y, z;
-    uint8_t buttonPressed;
+  uint16_t w, x, y, z;
+  uint8_t buttonPressed;
 } wand_data_t;
 
 SPISettings spiSettings(8000000, MSBFIRST, SPI_MODE0);
@@ -268,10 +268,31 @@ void checkWandData() {
     wandData[i].buttonPressed = spiBuffer[9 + i * 9];
   }
 
+  laserGen.wandData[0] = wandData[0].x;
+  laserGen.wandData[1] = wandData[0].y;
+  laserGen.wandData[2] = wandData[0].z;
+  laserGen.wandData[3] = wandData[0].w;
+
   uint8_t _numWandsConnected = spiBuffer[0];
   if (_numWandsConnected != numWandsConnected) {
     numWandsConnected = _numWandsConnected;
+    laserGen.numWandsConnected = numWandsConnected;
     updateSegDisplay();
+  }
+
+  checkWandButton();
+}
+
+void checkWandButton() {
+  static unsigned long buttonPressedTime[4] = {0, 0, 0, 0};
+
+  for (int i = 0; i < 4 && i < numWandsConnected; i++) {
+    if (buttonPressedTime[i] > 0 && millis() - buttonPressedTime[i] > 2000)
+      laserGen.calibrate_wand(wandData[i].x, wandData[i].y, wandData[i].z, wandData[i].w);
+    if (!wandData[i].buttonPressed)
+      buttonPressedTime[i] = 0;
+    else if (buttonPressedTime[i] == 0)
+      buttonPressedTime[i] = millis();
   }
 }
 

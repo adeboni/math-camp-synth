@@ -12,7 +12,10 @@ class LaserGenerator {
     void init();
     void point_to_bytes(laser_point_t *p, uint8_t *buf, uint16_t i);
     laser_point_x3_t get_point(uint8_t mode);
+    void calibrate_wand(uint16_t x, uint16_t y, uint16_t z, uint16_t w);
     uint8_t audioBuffer[UDP_AUDIO_BUFF_SIZE];
+    uint8_t numWandsConnected = 0;
+    uint16_t wandData[4] = {0, 0, 0, 1};
 
   private:
     Sierpinski sier;
