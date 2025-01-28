@@ -90,7 +90,7 @@ laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
   }
 
   audioBufIndex = (audioBufIndex + 1) % UDP_AUDIO_BUFF_SIZE;
-  angle = (angle + 1) % 360;
+  angle = (angle + 5) % 360;
   if (angle == 0) {
     circleIndex = (circleIndex + 1) % NUM_CIRCLES;
     if (circleIndex == 0) {
