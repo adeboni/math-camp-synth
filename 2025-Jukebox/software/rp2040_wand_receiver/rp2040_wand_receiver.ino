@@ -171,7 +171,7 @@ void checkForPacket() {
       currentRobbieMode = packetBuffer[1];
       updateSegDisplay();
     } else if (packetBuffer[0] == PACKET_ID_AUDIO_DATA && packetSize == (UDP_AUDIO_BUFF_SIZE + 1)) {
-      memcpy(laserGen.audioBuffer, &packetBuffer[1], UDP_AUDIO_BUFF_SIZE);
+      memcpy(laserGen.audioBuffer, packetBuffer + 1, UDP_AUDIO_BUFF_SIZE);
     }
   }
 }

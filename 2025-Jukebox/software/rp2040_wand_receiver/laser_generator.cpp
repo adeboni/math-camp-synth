@@ -47,9 +47,9 @@ laser_point_x3_t LaserGenerator::get_circle_point() {
 
   angle = (angle + 1) % 360;
   audioBufIndex = (audioBufIndex + 1) % UDP_AUDIO_BUFF_SIZE;
-  double radius = 200 + (double)audioBuffer[audioBufIndex] / 2.5;
-  uint16_t x = (uint16_t)(sin(angle * (3.14159 / 180.0)) * radius + 2048);
-  uint16_t y = (uint16_t)(cos(angle * (3.14159 / 180.0)) * radius + 2048);
+  double radius = 200.0 + (double)audioBuffer[audioBufIndex];
+  uint16_t x = (uint16_t)(cos(angle * 3.14159 / 180.0) * radius + 2048);
+  uint16_t y = (uint16_t)(sin(angle * 3.14159 / 180.0) * radius + 2048);
 
   uint8_t r = 0;
   uint8_t g = 0;
@@ -69,15 +69,65 @@ laser_point_x3_t LaserGenerator::get_circle_point() {
 laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
   static int setup_complete = 0;
   static uint16_t bounds[4];
+  static circle_t circles[NUM_CIRCLES];
+  static int circleIndex = 0;
+  static int angle = 0;
+  static int audioBufIndex = 0;
 
   if (setup_complete == 0) {
     sier.get_laser_rect_interior(bounds);
+
+    for (int i = 0; i < NUM_CIRCLES; i++) {
+      circles[i] = (circle_t){ 
+        random(15, 40) / 10.0,
+        0.0, 
+        (double)random(bounds[0] + MAX_CIRCLE_RADIUS, bounds[1] - MAX_CIRCLE_RADIUS),
+        (double)random(bounds[2] + MAX_CIRCLE_RADIUS, bounds[3] - MAX_CIRCLE_RADIUS)
+      };
+    }
+
     setup_complete = 1;
   }
 
-  laser_point_x3_t empty;
-  memset(&empty, 0, sizeof(laser_point_x3_t));
-  return empty;
+  audioBufIndex = (audioBufIndex + 1) % UDP_AUDIO_BUFF_SIZE;
+  angle = (angle + 1) % 360;
+  if (angle == 0) {
+    circleIndex = (circleIndex + 1) % NUM_CIRCLES;
+    if (circleIndex == 0) {
+      for (int i = 0; i < NUM_CIRCLES; i++) {
+        if (circles[i].r >= MAX_CIRCLE_RADIUS && circles[i].d_r > 0) {
+          circles[i].d_r *= -1;
+        } else if (circles[i].r <= 0 && circles[i].d_r < 0) {
+          circles[i].d_r = random(15, 40) / 10.0;
+          circles[i].r = 0.0;
+          circles[i].x = (double)random(bounds[0] + MAX_CIRCLE_RADIUS, bounds[1] - MAX_CIRCLE_RADIUS);
+          circles[i].y = (double)random(bounds[2] + MAX_CIRCLE_RADIUS, bounds[3] - MAX_CIRCLE_RADIUS);
+        }
+        circles[i].r += circles[i].d_r;
+      }
+    }
+  }
+
+  laser_point_x3_t points;
+  memset(&points, 0, sizeof(laser_point_x3_t));
+
+  double x = cos(angle * 3.14159 / 180.0) * circles[circleIndex].r + circles[circleIndex].x;
+  double y = sin(angle * 3.14159 / 180.0) * circles[circleIndex].r + circles[circleIndex].y;
+  bool skip = false;
+  for (int i = 0; i < NUM_CIRCLES; i++) {
+    if (i == circleIndex) continue;
+    if (sqrt((circles[i].x - x) * (circles[i].x - x) + (circles[i].y - y) * (circles[i].y - y)) <= circles[i].r) {
+      skip = true;
+      break;
+    }
+  }
+
+  if (skip)
+    points.p[0] = (laser_point_t){(uint16_t)x, (uint16_t)y, 0, 0, 0};
+  else
+    points.p[0] = (laser_point_t){(uint16_t)x, (uint16_t)y, 0, 0, 255};
+
+  return points;
 }
 
 laser_point_x3_t LaserGenerator::get_equation_point() {

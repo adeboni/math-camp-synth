@@ -7,6 +7,14 @@
 
 #define UDP_AUDIO_BUFF_SIZE 1024
 
+#define NUM_CIRCLES 6
+#define MAX_CIRCLE_RADIUS 400
+
+typedef struct {
+  double d_r, r;
+  uint16_t x, y;
+} circle_t;
+
 class LaserGenerator {
   public:
     void init();

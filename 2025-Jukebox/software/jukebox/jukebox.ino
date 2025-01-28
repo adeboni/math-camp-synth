@@ -341,7 +341,7 @@ void checkForPacket() {
 
 void stopAudio() {
   wav->stop();
-  memset(&(out->udpBuffer[1]), 0, UDP_AUDIO_BUFF_SIZE - 1);
+  memset(out->udpBuffer + 1, 0, UDP_AUDIO_BUFF_SIZE - 1);
 }
 
 void updateAudio() {
