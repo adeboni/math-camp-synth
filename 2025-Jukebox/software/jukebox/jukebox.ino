@@ -173,7 +173,7 @@ void setup1() {
   Ethernet.setRetransmissionCount(0);
   Ethernet.setRetransmissionTimeout(0);
   udp.begin(8888);
-  metaDataPacketBuffer[0] = 5;
+  metaDataPacketBuffer[0] = PACKET_ID_AUDIO_METADATA;
 
   display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS);
   display.setTextSize(1);

@@ -95,6 +95,7 @@ LaserGenerator laserGen;
 /////////////////////////////////////////////////////////////////////
 
 void setup1() {
+  Serial.begin(115200);
   laserGen.init();
 
   pinMode(WIZ_RST_PIN, OUTPUT);
@@ -115,6 +116,7 @@ void loop1() {
   sendLaserData();
   sendButtonData();
   sendWandData();
+  sendSoundEffect();
 }
 
 void setup() { 
@@ -167,11 +169,16 @@ void checkForPacket() {
   int packetSize = udp.parsePacket();
   if (packetSize) {
     udp.read(packetBuffer, PACKET_BUF_SIZE);
+    Serial.print("Got packet with ID ");
+    Serial.print(packetBuffer[0]);
+    Serial.print(" and size ");
+    Serial.println(packetSize);
     if (packetBuffer[0] == PACKET_ID_ROBBIE_MODE && packetSize == 2) {
       currentRobbieMode = packetBuffer[1];
       updateSegDisplay();
     } else if (packetBuffer[0] == PACKET_ID_AUDIO_DATA && packetSize == (UDP_AUDIO_BUFF_SIZE + 1)) {
       memcpy(laserGen.audioBuffer, packetBuffer + 1, UDP_AUDIO_BUFF_SIZE);
+      Serial.println("Got audio packet");
     }
   }
 }
@@ -268,10 +275,15 @@ void checkWandData() {
     wandData[i].buttonPressed = spiBuffer[9 + i * 9];
   }
 
-  laserGen.wandData[0] = wandData[0].x;
-  laserGen.wandData[1] = wandData[0].y;
-  laserGen.wandData[2] = wandData[0].z;
-  laserGen.wandData[3] = wandData[0].w;
+  laserGen.wandData1[0] = ((double)wandData[0].x - 16384) / 16384;
+  laserGen.wandData1[1] = ((double)wandData[0].y - 16384) / 16384;
+  laserGen.wandData1[2] = ((double)wandData[0].z - 16384) / 16384;
+  laserGen.wandData1[3] = ((double)wandData[0].w - 16384) / 16384;
+
+  laserGen.wandData2[0] = ((double)wandData[1].x - 16384) / 16384;
+  laserGen.wandData2[1] = ((double)wandData[1].y - 16384) / 16384;
+  laserGen.wandData2[2] = ((double)wandData[1].z - 16384) / 16384;
+  laserGen.wandData2[3] = ((double)wandData[1].w - 16384) / 16384;
 
   uint8_t _numWandsConnected = spiBuffer[0];
   if (_numWandsConnected != numWandsConnected) {
@@ -369,4 +381,10 @@ void sendLaserData() {
       seqNum++;
     }
   }
+}
+
+void sendSoundEffect() {
+  if (laserGen.playSoundEffect == -1) return;
+
+  //TODO: implement this
 }

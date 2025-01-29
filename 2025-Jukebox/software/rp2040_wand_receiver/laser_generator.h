@@ -7,6 +7,16 @@
 
 #define UDP_AUDIO_BUFF_SIZE 1024
 
+#define PONG_START_SPEED 6
+#define PONG_BALL_RADIUS 20
+#define PONG_AI_SPEED    5
+#define PONG_PADDLE_GAP  60
+#define PONG_PADDLE_HALF_HEIGHT 100
+
+#define SOUND_EFFECT_PONG_WALL     0
+#define SOUND_EFFECT_PONG_PADDLE   1
+#define SOUND_EFFECT_PONG_GAMEOVER 2
+
 #define NUM_CIRCLES 6
 #define MAX_CIRCLE_RADIUS 200
 
@@ -23,7 +33,9 @@ class LaserGenerator {
     void calibrate_wand(uint16_t x, uint16_t y, uint16_t z, uint16_t w);
     uint8_t audioBuffer[UDP_AUDIO_BUFF_SIZE];
     uint8_t numWandsConnected = 0;
-    uint16_t wandData[4] = {0, 0, 0, 1};
+    double wandData1[4] = {0.0, 0.0, 0.0, 1.0};
+    double wandData2[4] = {0.0, 0.0, 0.0, 1.0};
+    int playSoundEffect = -1;
 
   private:
     Sierpinski sier;
@@ -33,6 +45,9 @@ class LaserGenerator {
     laser_point_x3_t get_spirograph_point();
     laser_point_x3_t get_audio_visualizer_point();
     laser_point_x3_t get_pong_point();
+    laser_point_x3_t get_pong_ball(uint8_t ballLaser, double ballX, double ballY, bool *done);
+    laser_point_x3_t get_pong_paddles(uint8_t ballLaser, double ballX, double ballY, 
+          double centerX, double centerY, double leftPaddle, double rightPaddle, bool *done);
     laser_point_x3_t get_wand_drawing_point();
     laser_point_x3_t get_calibration_point();
 };
