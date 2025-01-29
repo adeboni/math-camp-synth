@@ -95,7 +95,6 @@ LaserGenerator laserGen;
 /////////////////////////////////////////////////////////////////////
 
 void setup1() {
-  Serial.begin(115200);
   laserGen.init();
 
   pinMode(WIZ_RST_PIN, OUTPUT);
@@ -169,16 +168,11 @@ void checkForPacket() {
   int packetSize = udp.parsePacket();
   if (packetSize) {
     udp.read(packetBuffer, PACKET_BUF_SIZE);
-    Serial.print("Got packet with ID ");
-    Serial.print(packetBuffer[0]);
-    Serial.print(" and size ");
-    Serial.println(packetSize);
     if (packetBuffer[0] == PACKET_ID_ROBBIE_MODE && packetSize == 2) {
       currentRobbieMode = packetBuffer[1];
       updateSegDisplay();
     } else if (packetBuffer[0] == PACKET_ID_AUDIO_DATA && packetSize == (UDP_AUDIO_BUFF_SIZE + 1)) {
       memcpy(laserGen.audioBuffer, packetBuffer + 1, UDP_AUDIO_BUFF_SIZE);
-      Serial.println("Got audio packet");
     }
   }
 }
