@@ -143,6 +143,7 @@ uint8_t packetBuffer[PACKET_BUF_SIZE];
 
 //Packet ID, selected song ID, current song ID, num songs in queue, queued songs, current song name
 uint8_t metaDataPacketBuffer[1 + 2 + 2 + 1 + SONG_QUEUE_LIMIT * 2 + MAX_SONG_NAME_LEN];
+bool forceAudioData = false;
 
 typedef struct {
     uint16_t w, x, y, z;
@@ -205,6 +206,7 @@ void setup() {
   out = new AudioOutputI2SExtra();
   out->SetPinout(PCM_BCK_PIN, PCM_LRCLK_PIN, PCM_DAT_PIN);
   out->udpBuffer[0] = PACKET_ID_AUDIO_DATA;
+  memset(out->udpBuffer + 1, 128, UDP_AUDIO_BUFF_SIZE - 1);
 
   SPI1.setRX(SD_DAT0_PIN);
   SPI1.setTX(SD_CMD_PIN);
@@ -247,7 +249,8 @@ float sine_wave(const float time) {
 void sendUDPAudioData() {
   static unsigned long lastAudioDataUpdate = 0;
   static unsigned long extraDelay = 0;
-  if (millis() - lastAudioDataUpdate > 50 + extraDelay && wav->isRunning()) {
+  if (millis() - lastAudioDataUpdate > 50 + extraDelay && (wav->isRunning() || forceAudioData)) {
+    forceAudioData = false;
     if (udp.beginPacket(laserControllerIP, 8888) == 1) {
       udp.write(out->udpBuffer, UDP_AUDIO_BUFF_SIZE);
       extraDelay = udp.endPacket() == 1 ? 0 : 1000;
@@ -341,7 +344,8 @@ void checkForPacket() {
 
 void stopAudio() {
   wav->stop();
-  memset(out->udpBuffer + 1, 0, UDP_AUDIO_BUFF_SIZE - 1);
+  memset(out->udpBuffer + 1, 128, UDP_AUDIO_BUFF_SIZE - 1);
+  forceAudioData = true;
 }
 
 void updateAudio() {

@@ -5,7 +5,7 @@
 
 void LaserGenerator::init() {
   sier.init();
-  memset(audioBuffer, 0, UDP_AUDIO_BUFF_SIZE);
+  memset(audioBuffer, 128, UDP_AUDIO_BUFF_SIZE);
 }
 
 void LaserGenerator::point_to_bytes(laser_point_t *p, uint8_t *buf, uint16_t i) {
@@ -47,7 +47,7 @@ laser_point_x3_t LaserGenerator::get_circle_point() {
 
   angle = (angle + 1) % 360;
   audioBufIndex = (audioBufIndex + 1) % UDP_AUDIO_BUFF_SIZE;
-  double radius = 200.0 + ((double)audioBuffer[audioBufIndex] - 128) * 40.0;
+  double radius = 200.0 + ((double)audioBuffer[audioBufIndex] - 128) * 5.0;
   uint16_t x = (uint16_t)(cos(angle * 3.14159 / 180.0) * radius + 2048);
   uint16_t y = (uint16_t)(sin(angle * 3.14159 / 180.0) * radius + 2048);
 
