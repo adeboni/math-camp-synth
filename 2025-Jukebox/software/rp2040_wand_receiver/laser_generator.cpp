@@ -136,10 +136,33 @@ laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
 laser_point_x3_t LaserGenerator::get_equation_point() {
   static int setup_complete = 0;
   static uint16_t bounds[4];
+  static unsigned long nextUpdate = 0;
+  static int equationIndex[3] = {0, 1, 2};
+  static int colorIndex[3] = {0, 1, 2};
+  static int pointIndex[3] = {0, 0, 0};
+  static uint16_t offsets[3][2];
+  static int dirs[3][2];
 
   if (setup_complete == 0) {
     sier.get_laser_rect_interior(bounds);
+
+    for (int i = 0; i < 3; i++) {
+      offsets[i][0] = (bounds[0] + bounds[1]) / 2;
+      offsets[i][1] = (bounds[2] + bounds[3]) / 2;
+      dirs[i][0] = random(2) ? 2 : -2;
+      dirs[i][1] = random(2) ? 2 : -2;
+    }
+
     setup_complete = 1;
+  }
+
+  if (millis() > nextUpdate) {
+    for (int i = 0; i < 3; i++) {
+      equationIndex[i] = (equationIndex[i] + 3) % NUM_EQUATIONS;
+      colorIndex[i] = (colorIndex[i] + 3) % 7;
+      pointIndex[i] = 0;
+    }
+    nextUpdate = millis() + 30000;
   }
 
   laser_point_x3_t points;

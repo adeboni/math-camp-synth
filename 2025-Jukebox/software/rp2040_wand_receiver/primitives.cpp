@@ -264,10 +264,8 @@ void interpolate_objects(xy_t *obj, int obj_len, uint16_t seg_dist, xy_t *result
 
     double x_inc = (double)(obj[i].x - obj[i-1].x) / num_segs;
     double y_inc = (double)(obj[i].y - obj[i-1].y) / num_segs;
-    for (int j = 1; j < num_segs; j++) {
-      xy_t p = {(uint16_t)(obj[i-1].x + j * x_inc), (uint16_t)(obj[i-1].y + j * y_inc), obj[i].on};
-      result[k++] = p;
-    }
+    for (int j = 1; j < num_segs; j++)
+      result[k++] = (xy_t){(uint16_t)(obj[i-1].x + j * x_inc), (uint16_t)(obj[i-1].y + j * y_inc), obj[i].on};
   }
 }
 
@@ -298,10 +296,8 @@ void get_laser_obj_midpoint(xy_t *obj, int obj_len, uint16_t *mid_x, uint16_t *m
 
 void convert_to_xy(uint16_t *obj, int obj_len, double x_scale, double y_scale, xy_t *result) {
   int j = 0;
-  for (int i = 0; i < obj_len; i+=2) {
-    xy_t p = {(uint16_t)((obj[i] & 0x7fff) * x_scale), (uint16_t)((obj[i+1]) * y_scale), (uint8_t)((obj[i] & 0x8000) > 0)};
-    result[j++] = p;
-  }
+  for (int i = 0; i < obj_len; i+=2)
+    result[j++] = (xy_t){(uint16_t)((obj[i] & 0x7fff) * x_scale), (uint16_t)((obj[i+1]) * y_scale), (uint8_t)((obj[i] & 0x8000) > 0)};
   result[j] = result[0];
   uint16_t mid_x, mid_y;
   get_laser_obj_midpoint(result, j, &mid_x, &mid_y);

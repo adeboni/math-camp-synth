@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include "primitives.h"
 #include "sierpinski.h"
+#include "laser_objects.h"
 
 #define UDP_AUDIO_BUFF_SIZE 1024
 
@@ -19,6 +20,8 @@
 
 #define NUM_CIRCLES 6
 #define MAX_CIRCLE_RADIUS 200
+
+#define NUM_EQUATIONS 36
 
 typedef struct {
   double d_r, r;
@@ -36,6 +39,7 @@ class LaserGenerator {
     double wandData1[4] = {0.0, 0.0, 0.0, 1.0};
     double wandData2[4] = {0.0, 0.0, 0.0, 1.0};
     int playSoundEffect = -1;
+    
 
   private:
     Sierpinski sier;
@@ -50,6 +54,15 @@ class LaserGenerator {
           double centerX, double centerY, double leftPaddle, double rightPaddle, bool *done);
     laser_point_x3_t get_wand_drawing_point();
     laser_point_x3_t get_calibration_point();
+
+    const uint8_t COLOR_LIST[7][3] = {{0, 0, 255}, {0, 255, 0}, {255, 0, 0}, {0, 255, 255}, {255, 255, 0}, {255, 0, 255}, {255, 255, 255}};
+    const uint16_t *EQUATION_LIST[NUM_EQUATIONS] = {
+      EQN_01, EQN_02, EQN_03, EQN_04, EQN_05, EQN_06, EQN_07, EQN_08, 
+      EQN_09, EQN_10, EQN_11, EQN_12, EQN_13, EQN_14, EQN_15, EQN_16, 
+      EQN_17, EQN_18, EQN_19, EQN_20, EQN_21, EQN_22, EQN_23, EQN_24, 
+      EQN_25, EQN_26, EQN_27, EQN_28, EQN_29, EQN_30, EQN_31, EQN_32, 
+      EQN_33, EQN_34, EQN_35, EQN_36
+    };
 };
 
 #endif
