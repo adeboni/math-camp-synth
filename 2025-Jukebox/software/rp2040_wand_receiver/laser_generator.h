@@ -50,6 +50,7 @@ class LaserGenerator {
     Sierpinski sier;
     
     laser_point_x3_t get_circle_point();
+    int setup_equation(int index, xy_t *result, uint16_t *size);
     laser_point_x3_t get_equation_point();
     laser_point_x3_t get_spirograph_point();
     laser_point_x3_t get_audio_visualizer_point();
@@ -60,13 +61,25 @@ class LaserGenerator {
     laser_point_x3_t get_wand_drawing_point();
     laser_point_x3_t get_calibration_point();
 
-    const uint8_t COLOR_LIST[7][3] = {{0, 0, 255}, {0, 255, 0}, {255, 0, 0}, {0, 255, 255}, {255, 255, 0}, {255, 0, 255}, {255, 255, 255}};
-    const uint16_t *EQUATION_LIST[NUM_EQUATIONS] = {
+    uint8_t COLOR_LIST[7][3] = {
+      {0, 0, 255}, {0, 255, 0}, {255, 0, 0}, {0, 255, 255}, 
+      {255, 255, 0}, {255, 0, 255}, {255, 255, 255}
+    };
+
+    uint16_t *EQUATION_LIST[NUM_EQUATIONS] = {
       EQN_01, EQN_02, EQN_03, EQN_04, EQN_05, EQN_06, EQN_07, EQN_08, 
       EQN_09, EQN_10, EQN_11, EQN_12, EQN_13, EQN_14, EQN_15, EQN_16, 
       EQN_17, EQN_18, EQN_19, EQN_20, EQN_21, EQN_22, EQN_23, EQN_24, 
       EQN_25, EQN_26, EQN_27, EQN_28, EQN_29, EQN_30, EQN_31, EQN_32, 
       EQN_33, EQN_34, EQN_35, EQN_36
+    };
+
+    int EQUATION_LENS[NUM_EQUATIONS] = {
+      210, 224, 324, 322, 156, 106, 412, 318, 
+      260, 308, 104, 164, 192, 198, 308, 332, 
+      264, 152, 266, 488, 128, 82, 150, 278, 
+      214, 500, 564, 572, 318, 156, 86, 128, 
+      190, 282, 268, 380
     };
 };
 

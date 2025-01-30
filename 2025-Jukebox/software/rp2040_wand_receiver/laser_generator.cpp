@@ -1,5 +1,4 @@
 #include "laser_generator.h"
-#include "laser_objects.h"
 #include "sierpinski.h"
 #include "spirograph.h"
 
@@ -133,6 +132,29 @@ laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
   return points;
 }
 
+/*
+int LaserGenerator::setup_equation(int index, xy_t *result, uint16_t *size) {
+  int raw_len = EQUATION_LENS[index];
+  result = new xy_t[raw_len / 2];
+  convert_to_xy(EQUATION_LIST[index], raw_len, 0.5, 0.5, result);
+  get_laser_obj_size(result, raw_len / 2, &size[0], &size[1]);
+  return raw_len / 2;
+}
+*/
+
+int LaserGenerator::setup_equation(int index, xy_t *result, uint16_t *size) {
+  int raw_len = EQUATION_LENS[index];
+  xy_t *temp = new xy_t[raw_len / 2];
+  convert_to_xy(EQUATION_LIST[index], raw_len, 0.5, 0.5, temp);
+  get_laser_obj_size(result, raw_len / 2, &size[0], &size[1]);
+
+  int interpSize = get_interpolated_size(temp, raw_len / 2, 8);
+  result = new xy_t[interpSize];
+  interpolate_objects(temp, raw_len / 2, 8, result);
+  delete[] temp;
+  return interpSize;
+}
+
 laser_point_x3_t LaserGenerator::get_equation_point() {
   static int setup_complete = 0;
   static uint16_t bounds[4];
@@ -140,8 +162,11 @@ laser_point_x3_t LaserGenerator::get_equation_point() {
   static int equationIndex[3] = {0, 1, 2};
   static int colorIndex[3] = {0, 1, 2};
   static int pointIndex[3] = {0, 0, 0};
-  static uint16_t offsets[3][2];
+  static int offsets[3][2];
   static int dirs[3][2];
+  static uint16_t eqSize[3][2];
+  static xy_t *equations[3];
+  static int eqLen[3];
 
   if (setup_complete == 0) {
     sier.get_laser_rect_interior(bounds);
@@ -151,22 +176,46 @@ laser_point_x3_t LaserGenerator::get_equation_point() {
       offsets[i][1] = (bounds[2] + bounds[3]) / 2;
       dirs[i][0] = random(2) ? 2 : -2;
       dirs[i][1] = random(2) ? 2 : -2;
+      equations[i] = nullptr;
     }
 
     setup_complete = 1;
   }
 
-  if (millis() > nextUpdate) {
+  if (millis() >= nextUpdate) {
     for (int i = 0; i < 3; i++) {
       equationIndex[i] = (equationIndex[i] + 3) % NUM_EQUATIONS;
       colorIndex[i] = (colorIndex[i] + 3) % 7;
       pointIndex[i] = 0;
+      delete[] equations[i];
+      eqLen[i] = setup_equation(equationIndex[i], equations[i], eqSize[i]);
     }
     nextUpdate = millis() + 30000;
   }
 
   laser_point_x3_t points;
   memset(&points, 0, sizeof(laser_point_x3_t));
+
+  for (int i = 0; i < 3; i++) {
+    points.p[i] = (laser_point_t){
+      (uint16_t)(equations[i][pointIndex[i]].x + offsets[i][0]),
+      (uint16_t)(equations[i][pointIndex[i]].y + offsets[i][1]),
+      equations[i][pointIndex[i]].on ? COLOR_LIST[colorIndex[i]][0] : 0,
+      equations[i][pointIndex[i]].on ? COLOR_LIST[colorIndex[i]][1] : 0,
+      equations[i][pointIndex[i]].on ? COLOR_LIST[colorIndex[i]][2] : 0
+    };
+
+    pointIndex[i] = (pointIndex[i] + 1) % eqLen[i];
+    if (pointIndex[i] == 0) {
+      offsets[i][0] += dirs[i][0];
+      offsets[i][1] += dirs[i][1];
+      if      (offsets[i][0] + eqSize[i][0] / 2 > bounds[1] && dirs[i][0] > 0) dirs[i][0] *= -1;
+      else if (offsets[i][0] - eqSize[i][0] / 2 < bounds[0] && dirs[i][0] < 0) dirs[i][0] *= -1;
+      if      (offsets[i][1] + eqSize[i][1] / 2 > bounds[2] && dirs[i][1] > 0) dirs[i][1] *= -1;
+      else if (offsets[i][1] - eqSize[i][1] / 2 < bounds[3] && dirs[i][1] < 0) dirs[i][1] *= -1;
+    }
+  }
+
   return points;
 }
 
