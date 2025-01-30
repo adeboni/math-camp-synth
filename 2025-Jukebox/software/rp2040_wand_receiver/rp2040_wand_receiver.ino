@@ -380,5 +380,15 @@ void sendLaserData() {
 void sendSoundEffect() {
   if (laserGen.playSoundEffect == -1) return;
 
-  //TODO: implement this
+  if (udp.beginPacket(jukeboxIP, 8888) == 1) {
+    uint8_t buf[30];
+    buf[0] = PACKET_ID_PLAY_EFFECT;
+    for (int i = 0; i < strlen(laserGen.soundEffects[laserGen.playSoundEffect]); i++)
+      buf[1 + i] = (uint8_t)(laserGen.soundEffects[laserGen.playSoundEffect][i]);
+    buf[1 + strlen(laserGen.soundEffects[laserGen.playSoundEffect])] = 0;
+    udp.write(buf, 2 + strlen(laserGen.soundEffects[laserGen.playSoundEffect]));
+    udp.endPacket();
+  }
+
+  laserGen.playSoundEffect = -1;
 }

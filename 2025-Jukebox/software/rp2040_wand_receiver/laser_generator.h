@@ -18,7 +18,7 @@
 #define SOUND_EFFECT_PONG_PADDLE   1
 #define SOUND_EFFECT_PONG_GAMEOVER 2
 
-#define NUM_CIRCLES 6
+#define NUM_CIRCLES 3
 #define MAX_CIRCLE_RADIUS 200
 
 #define NUM_EQUATIONS 36
@@ -39,6 +39,11 @@ class LaserGenerator {
     double wandData1[4] = {0.0, 0.0, 0.0, 1.0};
     double wandData2[4] = {0.0, 0.0, 0.0, 1.0};
     int playSoundEffect = -1;
+    char soundEffects[3][20] = {
+      "/pong/wall.wav",
+      "/pong/paddle.wav",
+      "/pong/gameover.wav"
+    };
     
 
   private:
@@ -51,7 +56,7 @@ class LaserGenerator {
     laser_point_x3_t get_pong_point();
     laser_point_x3_t get_pong_ball(uint8_t ballLaser, double ballX, double ballY, bool *done);
     laser_point_x3_t get_pong_paddles(uint8_t ballLaser, double ballX, double ballY, 
-          double centerX, double centerY, double leftPaddle, double rightPaddle, bool *done);
+                                 double centerX, double leftPaddle, double rightPaddle, bool *done);
     laser_point_x3_t get_wand_drawing_point();
     laser_point_x3_t get_calibration_point();
 

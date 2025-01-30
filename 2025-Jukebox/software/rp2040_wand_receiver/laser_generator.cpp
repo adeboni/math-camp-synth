@@ -110,11 +110,11 @@ laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
   }
 
   laser_point_x3_t points;
-  memset(&points, 0, sizeof(laser_point_x3_t));
 
+  double rd = ((double)audioBuffer[audioBufIndex] - 128) * 5.0;
   for (int i = 0; i < 3; i++) {
-    double x = cos(angle * 3.14159 / 180.0) * circles[i][circleIndex].r + circles[i][circleIndex].x;
-    double y = sin(angle * 3.14159 / 180.0) * circles[i][circleIndex].r + circles[i][circleIndex].y;
+    double x = cos(angle * 3.14159 / 180.0) * (circles[i][circleIndex].r + rd) + circles[i][circleIndex].x;
+    double y = sin(angle * 3.14159 / 180.0) * (circles[i][circleIndex].r + rd) + circles[i][circleIndex].y;
     bool skip = false;
     for (int j = 0; j < NUM_CIRCLES; j++) {
       if (j == circleIndex) continue;
@@ -124,7 +124,7 @@ laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
       }
     }
 
-    if (skip || angle == 0 || angle == 355)
+    if (skip || abs(angle - 360) <= 10)
       points.p[i] = (laser_point_t){(uint16_t)x, (uint16_t)y, 0, 0, 0};
     else
       points.p[i] = (laser_point_t){(uint16_t)x, (uint16_t)y, 0, 0, 255};
@@ -174,8 +174,8 @@ laser_point_x3_t LaserGenerator::get_spirograph_point() {
   static int setup_complete = 0;
   static uint16_t bounds[4];
   static Spirograph spiro[3] = { Spirograph(), Spirograph(), Spirograph() };
-  static uint16_t offsets[3][2];
-  static int dirs[3][2];
+  static double offsets[3][2];
+  static double dirs[3][2];
   static double colors[3];
   static int iteration = 0;
   static bool pointMode = true;
@@ -189,8 +189,8 @@ laser_point_x3_t LaserGenerator::get_spirograph_point() {
       spiro[i].add_delta((spiro_delta_t){DELTA_TYPE_R2, 0.00000002, 40.0, 80.0});
       spiro[i].add_delta((spiro_delta_t){DELTA_TYPE_A, 0.000000002, 0.3, 0.9});
 
-      offsets[i][0] = (bounds[0] + bounds[1]) / 2;
-      offsets[i][1] = (bounds[2] + bounds[3]) / 2;
+      offsets[i][0] = (bounds[0] + bounds[1]) / 2.0;
+      offsets[i][1] = (bounds[2] + bounds[3]) / 2.0;
       dirs[i][0] = random(2) ? 0.01 : -0.01;
       dirs[i][1] = random(2) ? 0.01 : -0.01;
       colors[i] = random(10) / 10.0;
@@ -243,16 +243,16 @@ laser_point_x3_t LaserGenerator::get_pong_ball(uint8_t ballLaser, double ballX, 
 
   uint16_t x = (uint16_t)(cos(angle * 3.14159 / 180.0) * PONG_BALL_RADIUS + ballX);
   uint16_t y = (uint16_t)(sin(angle * 3.14159 / 180.0) * PONG_BALL_RADIUS + ballY);
-  uint8_t color = angle == 0 ? 0 : 255;
+  uint8_t color = angle > 0 ? 255 : 0;
   points.p[ballLaser] = (laser_point_t){x, y, color, color, color};
   angle = (angle + 30) % 420;
-  *done = (angle == 0);
+  if (angle == 0) *done = true;
   
   return points;
 }
 
 laser_point_x3_t LaserGenerator::get_pong_paddles(uint8_t ballLaser, double ballX, double ballY, 
-                 double centerX, double centerY, double leftPaddle, double rightPaddle, bool *done) {
+                                  double centerX, double leftPaddle, double rightPaddle, bool *done) {
   static int setup_complete = 0;
   static xy_t paddlePoints[6];
   static int interpSize = 0;
@@ -284,15 +284,13 @@ laser_point_x3_t LaserGenerator::get_pong_paddles(uint8_t ballLaser, double ball
 
   laser_point_x3_t points;
   memset(&points, 0, sizeof(laser_point_x3_t));
-  uint8_t color = interpPoints[index].on == 0 ? 0 : 255;
+  uint8_t color = interpPoints[index].on ? 255 : 0;
   points.p[0] = (laser_point_t){interpPoints[index].x, interpPoints[index].y, color, color, color};
   index = (index + 1) % interpSize;
   if (index == 0) {
-    setup_complete = 0;
     delete[] interpPoints;
+    setup_complete = 0;
     *done = true;
-  } else {
-    *done = false;
   }
 
   return points;
@@ -323,15 +321,15 @@ laser_point_x3_t LaserGenerator::get_pong_point() {
   }
 
   if (drawMode == 0) {
-    bool done;
+    bool done = false;
     laser_point_x3_t lp = get_pong_ball(ballLaser, ballX, ballY, &done);
     if (done) drawMode = 1;
     return lp;
   }
 
   if (drawMode == 1) {
-    bool done;
-    laser_point_x3_t lp = get_pong_paddles(ballLaser, ballX, ballY, centerX, centerX, leftPaddle, rightPaddle, &done);
+    bool done = false;
+    laser_point_x3_t lp = get_pong_paddles(ballLaser, ballX, ballY, centerX, leftPaddle, rightPaddle, &done);
     if (done) drawMode = 2;
     return lp;
   }
