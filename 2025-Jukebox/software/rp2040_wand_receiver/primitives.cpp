@@ -256,7 +256,7 @@ void interpolate_objects(xy_t *obj, int obj_len, uint16_t seg_dist, xy_t *result
   int k = 0;
   result[k++] = obj[0];
   for (int i = 1; i < obj_len; i++) {
-    double num_segs = 2;
+    int num_segs = 2;
     int x_seg = abs(obj[i-1].x - obj[i].x) / seg_dist;
     int y_seg = abs(obj[i-1].y - obj[i].y) / seg_dist;
     if (x_seg > y_seg) num_segs += x_seg;
@@ -299,7 +299,7 @@ void get_laser_obj_midpoint(xy_t *obj, int obj_len, uint16_t *mid_x, uint16_t *m
 int convert_to_xy(uint16_t *obj, int obj_len, double x_scale, double y_scale, xy_t *result) {
   int j = 0;
   for (int i = 0; i < obj_len; i+=2)
-    result[j++] = (xy_t){(uint16_t)((obj[i] & 0x7fff) * x_scale), (uint16_t)((obj[i+1]) * y_scale), (uint8_t)((obj[i] & 0x8000) > 0)};
+    result[j++] = (xy_t){(uint16_t)((obj[i] & 0x7fff) * x_scale), (uint16_t)((obj[i+1]) * y_scale), (obj[i] & 0x8000) > 0 ? 1 : 0};
   result[j++] = result[0];
   uint16_t mid_x, mid_y;
   get_laser_obj_midpoint(result, j, &mid_x, &mid_y);
