@@ -132,27 +132,16 @@ laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
   return points;
 }
 
-/*
 int LaserGenerator::setup_equation(int index, xy_t *result, uint16_t *size) {
-  int raw_len = EQUATION_LENS[index];
-  result = new xy_t[raw_len / 2];
-  convert_to_xy(EQUATION_LIST[index], raw_len, 0.5, 0.5, result);
-  get_laser_obj_size(result, raw_len / 2, &size[0], &size[1]);
-  return raw_len / 2;
-}
-*/
+  static xy_t temp[2048];
+  int len = convert_to_xy(EQUATION_LIST[index], EQUATION_LENS[index], 0.5, 0.5, temp);
+  get_laser_obj_size(temp, len, &size[0], &size[1]);
+  memcpy(result, temp, len * sizeof(xy_t));
+  return len;
 
-int LaserGenerator::setup_equation(int index, xy_t *result, uint16_t *size) {
-  int raw_len = EQUATION_LENS[index];
-  xy_t *temp = new xy_t[raw_len / 2];
-  convert_to_xy(EQUATION_LIST[index], raw_len, 0.5, 0.5, temp);
-  get_laser_obj_size(result, raw_len / 2, &size[0], &size[1]);
-
-  int interpSize = get_interpolated_size(temp, raw_len / 2, 8);
-  result = new xy_t[interpSize];
-  interpolate_objects(temp, raw_len / 2, 8, result);
-  delete[] temp;
-  return interpSize;
+  int interpLen = get_interpolated_size(temp, len, 8);
+  interpolate_objects(temp, len, 8, result);
+  return interpLen;
 }
 
 laser_point_x3_t LaserGenerator::get_equation_point() {
@@ -165,7 +154,7 @@ laser_point_x3_t LaserGenerator::get_equation_point() {
   static int offsets[3][2];
   static int dirs[3][2];
   static uint16_t eqSize[3][2];
-  static xy_t *equations[3];
+  static xy_t equations[3][8192];
   static int eqLen[3];
 
   if (setup_complete == 0) {
@@ -176,7 +165,6 @@ laser_point_x3_t LaserGenerator::get_equation_point() {
       offsets[i][1] = (bounds[2] + bounds[3]) / 2;
       dirs[i][0] = random(2) ? 2 : -2;
       dirs[i][1] = random(2) ? 2 : -2;
-      equations[i] = nullptr;
     }
 
     setup_complete = 1;
@@ -187,8 +175,8 @@ laser_point_x3_t LaserGenerator::get_equation_point() {
       equationIndex[i] = (equationIndex[i] + 3) % NUM_EQUATIONS;
       colorIndex[i] = (colorIndex[i] + 3) % 7;
       pointIndex[i] = 0;
-      delete[] equations[i];
       eqLen[i] = setup_equation(equationIndex[i], equations[i], eqSize[i]);
+      if (eqLen[i] > 8192) i--;
     }
     nextUpdate = millis() + 30000;
   }
@@ -304,7 +292,7 @@ laser_point_x3_t LaserGenerator::get_pong_paddles(uint8_t ballLaser, double ball
                                   double centerX, double leftPaddle, double rightPaddle, bool *done) {
   static int setup_complete = 0;
   static xy_t paddlePoints[6];
-  static int interpSize = 0;
+  static int interpLen = 0;
   static xy_t *interpPoints;
   static int index = 0;
   
@@ -325,8 +313,8 @@ laser_point_x3_t LaserGenerator::get_pong_paddles(uint8_t ballLaser, double ball
       paddlePoints[5] = (xy_t){(uint16_t)(centerX + PONG_PADDLE_GAP), (uint16_t)(rightPaddle - PONG_PADDLE_HALF_HEIGHT), 0};
     }
 
-    int interpSize = get_interpolated_size(paddlePoints, 6, 8);
-    interpPoints = new xy_t[interpSize];
+    interpLen = get_interpolated_size(paddlePoints, 6, 8);
+    interpPoints = new xy_t[interpLen];
     interpolate_objects(paddlePoints, 6, 8, interpPoints);
     setup_complete = 1;
   }
@@ -335,7 +323,7 @@ laser_point_x3_t LaserGenerator::get_pong_paddles(uint8_t ballLaser, double ball
   memset(&points, 0, sizeof(laser_point_x3_t));
   uint8_t color = interpPoints[index].on ? 255 : 0;
   points.p[0] = (laser_point_t){interpPoints[index].x, interpPoints[index].y, color, color, color};
-  index = (index + 1) % interpSize;
+  index = (index + 1) % interpLen;
   if (index == 0) {
     delete[] interpPoints;
     setup_complete = 0;

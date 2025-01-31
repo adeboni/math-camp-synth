@@ -270,8 +270,10 @@ void interpolate_objects(xy_t *obj, int obj_len, uint16_t seg_dist, xy_t *result
 }
 
 void get_laser_obj_bounds(xy_t *obj, int obj_len, uint16_t *min_x, uint16_t *max_x, uint16_t *min_y, uint16_t *max_y) {
-  *min_x = *max_y = 4095;
-  *max_x = *min_y = 0;
+  *min_x = 65535;
+  *min_y = 65535;
+  *max_x = 0;
+  *max_y = 0;
   for (int i = 0; i < obj_len; i++) {
     if (obj[i].x < *min_x) *min_x = obj[i].x;
     if (obj[i].x > *max_x) *max_x = obj[i].x;
@@ -294,15 +296,16 @@ void get_laser_obj_midpoint(xy_t *obj, int obj_len, uint16_t *mid_x, uint16_t *m
   *mid_y = (min_y + max_y) / 2;
 }
 
-void convert_to_xy(uint16_t *obj, int obj_len, double x_scale, double y_scale, xy_t *result) {
+int convert_to_xy(uint16_t *obj, int obj_len, double x_scale, double y_scale, xy_t *result) {
   int j = 0;
   for (int i = 0; i < obj_len; i+=2)
     result[j++] = (xy_t){(uint16_t)((obj[i] & 0x7fff) * x_scale), (uint16_t)((obj[i+1]) * y_scale), (uint8_t)((obj[i] & 0x8000) > 0)};
-  result[j] = result[0];
+  result[j++] = result[0];
   uint16_t mid_x, mid_y;
   get_laser_obj_midpoint(result, j, &mid_x, &mid_y);
   for (int i = 0; i < j; i++) {
     result[i].x -= mid_x;
     result[i].y -= mid_y;
   }
+  return j;
 }

@@ -46,6 +46,6 @@ void interpolate_objects(xy_t *obj, int obj_len, uint16_t seg_dist, xy_t *result
 void get_laser_obj_bounds(xy_t *obj, int obj_len, uint16_t *min_x, uint16_t *max_x, uint16_t *min_y, uint16_t *max_y);
 void get_laser_obj_size(xy_t *obj, int obj_len, uint16_t *width, uint16_t *height);
 void get_laser_obj_midpoint(xy_t *obj, int obj_len, uint16_t *mid_x, uint16_t *mid_y);
-void convert_to_xy(uint16_t *obj, int obj_len, double x_scale, double y_scale, xy_t *result);
+int convert_to_xy(uint16_t *obj, int obj_len, double x_scale, double y_scale, xy_t *result);
 
 #endif
