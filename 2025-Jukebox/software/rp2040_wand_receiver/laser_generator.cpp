@@ -132,12 +132,12 @@ laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
   return points;
 }
 
-int LaserGenerator::setup_equation(int index, xy_t *result, uint16_t *size) {
-  static xy_t temp[2048];
+int LaserGenerator::setup_equation(int index, xy_t *result, int *size) {
+  static xy_t temp[500];
   int len = convert_to_xy(EQUATION_LIST[index], EQUATION_LENS[index], 0.5, 0.5, temp);
   get_laser_obj_size(temp, len, &size[0], &size[1]);
-  memcpy(result, temp, len * sizeof(xy_t));
-  return len;
+  //memcpy(result, temp, len * sizeof(xy_t));
+  //return len;
 
   int interpLen = get_interpolated_size(temp, len, 8);
   interpolate_objects(temp, len, 8, result);
@@ -153,8 +153,8 @@ laser_point_x3_t LaserGenerator::get_equation_point() {
   static int pointIndex[3] = {0, 0, 0};
   static int offsets[3][2];
   static int dirs[3][2];
-  static uint16_t eqSize[3][2];
-  static xy_t equations[3][8192];
+  static int eqSize[3][2];
+  static xy_t equations[3][2500];
   static int eqLen[3];
 
   if (setup_complete == 0) {
@@ -298,19 +298,19 @@ laser_point_x3_t LaserGenerator::get_pong_paddles(uint8_t ballLaser, double ball
   
   if (setup_complete == 0) {
     if (ballLaser == 0) {
-      paddlePoints[0] = (xy_t){(uint16_t)ballX, (uint16_t)ballY, 0};
-      paddlePoints[1] = (xy_t){(uint16_t)(centerX - PONG_PADDLE_GAP), (uint16_t)(leftPaddle - PONG_PADDLE_HALF_HEIGHT), 0};
-      paddlePoints[2] = (xy_t){(uint16_t)(centerX - PONG_PADDLE_GAP), (uint16_t)(leftPaddle + PONG_PADDLE_HALF_HEIGHT), 1};
-      paddlePoints[3] = (xy_t){(uint16_t)(centerX + PONG_PADDLE_GAP), (uint16_t)(rightPaddle + PONG_PADDLE_HALF_HEIGHT), 0};
-      paddlePoints[4] = (xy_t){(uint16_t)(centerX + PONG_PADDLE_GAP), (uint16_t)(rightPaddle - PONG_PADDLE_HALF_HEIGHT), 1};
-      paddlePoints[5] = (xy_t){(uint16_t)ballX, (uint16_t)ballY, 0};
+      paddlePoints[0] = (xy_t){(int)ballX, (int)ballY, false};
+      paddlePoints[1] = (xy_t){(int)(centerX - PONG_PADDLE_GAP), (int)(leftPaddle - PONG_PADDLE_HALF_HEIGHT), false};
+      paddlePoints[2] = (xy_t){(int)(centerX - PONG_PADDLE_GAP), (int)(leftPaddle + PONG_PADDLE_HALF_HEIGHT), true};
+      paddlePoints[3] = (xy_t){(int)(centerX + PONG_PADDLE_GAP), (int)(rightPaddle + PONG_PADDLE_HALF_HEIGHT), false};
+      paddlePoints[4] = (xy_t){(int)(centerX + PONG_PADDLE_GAP), (int)(rightPaddle - PONG_PADDLE_HALF_HEIGHT), true};
+      paddlePoints[5] = (xy_t){(int)ballX, (uint16_t)ballY, false};
     } else {
-      paddlePoints[0] = (xy_t){(uint16_t)(centerX + PONG_PADDLE_GAP), (uint16_t)(rightPaddle - PONG_PADDLE_HALF_HEIGHT), 0};
-      paddlePoints[1] = (xy_t){(uint16_t)(centerX - PONG_PADDLE_GAP), (uint16_t)(leftPaddle - PONG_PADDLE_HALF_HEIGHT), 0};
-      paddlePoints[2] = (xy_t){(uint16_t)(centerX - PONG_PADDLE_GAP), (uint16_t)(leftPaddle + PONG_PADDLE_HALF_HEIGHT), 1};
-      paddlePoints[3] = (xy_t){(uint16_t)(centerX + PONG_PADDLE_GAP), (uint16_t)(rightPaddle + PONG_PADDLE_HALF_HEIGHT), 0};
-      paddlePoints[4] = (xy_t){(uint16_t)(centerX + PONG_PADDLE_GAP), (uint16_t)(rightPaddle - PONG_PADDLE_HALF_HEIGHT), 1};
-      paddlePoints[5] = (xy_t){(uint16_t)(centerX + PONG_PADDLE_GAP), (uint16_t)(rightPaddle - PONG_PADDLE_HALF_HEIGHT), 0};
+      paddlePoints[0] = (xy_t){(int)(centerX + PONG_PADDLE_GAP), (int)(rightPaddle - PONG_PADDLE_HALF_HEIGHT), false};
+      paddlePoints[1] = (xy_t){(int)(centerX - PONG_PADDLE_GAP), (int)(leftPaddle - PONG_PADDLE_HALF_HEIGHT), false};
+      paddlePoints[2] = (xy_t){(int)(centerX - PONG_PADDLE_GAP), (int)(leftPaddle + PONG_PADDLE_HALF_HEIGHT), true};
+      paddlePoints[3] = (xy_t){(int)(centerX + PONG_PADDLE_GAP), (int)(rightPaddle + PONG_PADDLE_HALF_HEIGHT), false};
+      paddlePoints[4] = (xy_t){(int)(centerX + PONG_PADDLE_GAP), (int)(rightPaddle - PONG_PADDLE_HALF_HEIGHT), true};
+      paddlePoints[5] = (xy_t){(int)(centerX + PONG_PADDLE_GAP), (int)(rightPaddle - PONG_PADDLE_HALF_HEIGHT), false};
     }
 
     interpLen = get_interpolated_size(paddlePoints, 6, 8);
@@ -322,7 +322,12 @@ laser_point_x3_t LaserGenerator::get_pong_paddles(uint8_t ballLaser, double ball
   laser_point_x3_t points;
   memset(&points, 0, sizeof(laser_point_x3_t));
   uint8_t color = interpPoints[index].on ? 255 : 0;
-  points.p[0] = (laser_point_t){interpPoints[index].x, interpPoints[index].y, color, color, color};
+  points.p[0] = (laser_point_t){
+    (uint16_t)interpPoints[index].x,
+    (uint16_t)interpPoints[index].y,
+    color, color, color
+  };
+
   index = (index + 1) % interpLen;
   if (index == 0) {
     delete[] interpPoints;
@@ -423,7 +428,7 @@ laser_point_x3_t LaserGenerator::get_pong_point() {
       sier.get_wand_projection(wandData1, &laserIndex, v);
       if (laserIndex >= 0) {
         xy_t lp = sier.sierpinski_to_laser_coords(laserIndex, v);
-        leftPaddle += max(min(lp.y, bounds[3] - PONG_PADDLE_HALF_HEIGHT), bounds[2] + PONG_PADDLE_HALF_HEIGHT) - leftPaddle;
+        leftPaddle += max(min(lp.y, (int)bounds[3] - PONG_PADDLE_HALF_HEIGHT), (int)bounds[2] + PONG_PADDLE_HALF_HEIGHT) - leftPaddle;
       }
     } else {
       if (leftPaddle < ballY && leftPaddle + PONG_PADDLE_HALF_HEIGHT < bounds[3])
@@ -438,7 +443,7 @@ laser_point_x3_t LaserGenerator::get_pong_point() {
       sier.get_wand_projection(wandData2, &laserIndex, v);
       if (laserIndex >= 0) {
         xy_t lp = sier.sierpinski_to_laser_coords(laserIndex, v);
-        rightPaddle += max(min(lp.y, bounds[3] - PONG_PADDLE_HALF_HEIGHT), bounds[2] + PONG_PADDLE_HALF_HEIGHT) - rightPaddle;
+        rightPaddle += max(min(lp.y, (int)bounds[3] - PONG_PADDLE_HALF_HEIGHT), (int)bounds[2] + PONG_PADDLE_HALF_HEIGHT) - rightPaddle;
       }
     } else {
       if (rightPaddle < ballY && rightPaddle + PONG_PADDLE_HALF_HEIGHT < bounds[3])
@@ -471,8 +476,8 @@ laser_point_x3_t LaserGenerator::get_wand_drawing_point() {
   if (laserIndex < 0) return points;
 
   xy_t lp = sier.sierpinski_to_laser_coords(laserIndex, v);
-  points.p[laserIndex].x = lp.x;
-  points.p[laserIndex].y = lp.y;
+  points.p[laserIndex].x = (uint16_t)lp.x;
+  points.p[laserIndex].y = (uint16_t)lp.y;
   points.p[laserIndex].r = 255;
   return points;
 }
@@ -493,7 +498,11 @@ laser_point_x3_t LaserGenerator::get_calibration_point() {
   }
 
   curr_index = (curr_index + 1) % interp_bounds_size;
-  laser_point_t lp = (laser_point_t){interp_bounds[curr_index].x, interp_bounds[curr_index].y, 0, 255, 0};
+  laser_point_t lp = (laser_point_t){
+    (uint16_t)interp_bounds[curr_index].x,
+    (uint16_t)interp_bounds[curr_index].y,
+    0, 255, 0
+  };
   return (laser_point_x3_t){lp, lp, lp};
 }
 

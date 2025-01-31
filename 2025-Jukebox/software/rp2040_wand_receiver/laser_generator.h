@@ -50,7 +50,7 @@ class LaserGenerator {
     Sierpinski sier;
     
     laser_point_x3_t get_circle_point();
-    int setup_equation(int index, xy_t *result, uint16_t *size);
+    int setup_equation(int index, xy_t *result, int *size);
     laser_point_x3_t get_equation_point();
     laser_point_x3_t get_spirograph_point();
     laser_point_x3_t get_audio_visualizer_point();

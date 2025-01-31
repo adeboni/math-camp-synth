@@ -17,8 +17,8 @@ typedef struct {
 } rgb_t;
 
 typedef struct {
-  uint16_t x, y;
-  uint8_t on;
+  int x, y;
+  bool on;
 } xy_t;
 
 void add_vv(int n, double *a, double *b, double *result);
@@ -41,11 +41,11 @@ void eigen(double a[4][4], double eigenvalues[4], double eigenvectors[4][4]);
 void lstsq(double a[3][4], double b[3][4], double x[4][4]);
 
 rgb_t hsv_to_rgb(double h, double s, double v);
-int get_interpolated_size(xy_t *obj, int obj_len, uint16_t seg_dist);
-void interpolate_objects(xy_t *obj, int obj_len, uint16_t seg_dist, xy_t *result);
-void get_laser_obj_bounds(xy_t *obj, int obj_len, uint16_t *min_x, uint16_t *max_x, uint16_t *min_y, uint16_t *max_y);
-void get_laser_obj_size(xy_t *obj, int obj_len, uint16_t *width, uint16_t *height);
-void get_laser_obj_midpoint(xy_t *obj, int obj_len, uint16_t *mid_x, uint16_t *mid_y);
+int get_interpolated_size(xy_t *obj, int obj_len, int seg_dist);
+void interpolate_objects(xy_t *obj, int obj_len, int seg_dist, xy_t *result);
+void get_laser_obj_bounds(xy_t *obj, int obj_len, int *min_x, int *max_x, int *min_y, int *max_y);
+void get_laser_obj_size(xy_t *obj, int obj_len, int *width, int *height);
+void get_laser_obj_midpoint(xy_t *obj, int obj_len, int *mid_x, int *mid_y);
 int convert_to_xy(uint16_t *obj, int obj_len, double x_scale, double y_scale, xy_t *result);
 
 #endif

@@ -137,7 +137,7 @@ xy_t Sierpinski::sierpinski_to_laser_coords(int laser_index, double v[3]) {
   double v2[4] = {v[0], v[1], v[2], 1};
   double dot_result[4];
   dot_mv(4, &inv_trans_matrix[laser_index][0][0], v2, dot_result);
-  return (xy_t){(uint16_t)dot_result[0], (uint16_t)dot_result[1], 1};
+  return (xy_t){(int)dot_result[0], (int)dot_result[1], true};
 }
 
 void Sierpinski::get_laser_coordinate_bounds(xy_t result[4]) {
@@ -150,10 +150,10 @@ void Sierpinski::get_laser_rect_interior(uint16_t result[4]) {
   xy_t top1 = sierpinski_to_laser_coords(0, surfaces[0][1]);
   xy_t top2 = sierpinski_to_laser_coords(0, surfaces[0][2]);
   xy_t bottom2 = sierpinski_to_laser_coords(0, surfaces[0][3]);
-  result[0] = min(top1.x, top2.x);
-  result[1] = max(top1.x, top2.x);
-  result[2] = bottom1.y;
-  result[3] = top1.y;
+  result[0] = (uint16_t)min(top1.x, top2.x);
+  result[1] = (uint16_t)max(top1.x, top2.x);
+  result[2] = (uint16_t)bottom1.y;
+  result[3] = (uint16_t)top1.y;
 }
 
 void Sierpinski::apply_quaternion(double q[4], double result[3]) {

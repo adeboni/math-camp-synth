@@ -167,7 +167,6 @@ void lstsq(double a[3][4], double b[3][4], double x[4][4]) {
     eigenvalues[i] = sqrt(eigenvalues[i]);
 
   double U[3][4];
-  double temp_U[3][3];
   double Ut[3][3];
   mul_mm(3, 4, 4, 4, &a[0][0], &eigenvectors[0][0], &U[0][0]);
 
@@ -241,40 +240,37 @@ rgb_t hsv_to_rgb(double h, double s, double v) {
   return result;
 }
 
-int get_interpolated_size(xy_t *obj, int obj_len, uint16_t seg_dist) {
+int get_interpolated_size(xy_t *obj, int obj_len, int seg_dist) {
   int result = obj_len;
   for (int i = 1; i < obj_len; i++) {
     int x_seg = abs(obj[i-1].x - obj[i].x) / seg_dist;
     int y_seg = abs(obj[i-1].y - obj[i].y) / seg_dist;
-    if (x_seg > y_seg) result += x_seg;
-    else result += y_seg;
+    result += max(x_seg, y_seg);
   }
   return result;
 }
 
-void interpolate_objects(xy_t *obj, int obj_len, uint16_t seg_dist, xy_t *result) {
+void interpolate_objects(xy_t *obj, int obj_len, int seg_dist, xy_t *result) {
   int k = 0;
   result[k++] = obj[0];
   for (int i = 1; i < obj_len; i++) {
-    int num_segs = 2;
-    int x_seg = abs(obj[i-1].x - obj[i].x) / seg_dist;
-    int y_seg = abs(obj[i-1].y - obj[i].y) / seg_dist;
-    if (x_seg > y_seg) num_segs += x_seg;
-    else num_segs += y_seg;
+    int x_seg = abs(obj[i].x - obj[i-1].x) / seg_dist;
+    int y_seg = abs(obj[i].y - obj[i-1].y) / seg_dist;
+    int num_segs = max(x_seg, y_seg) + 1;
 
     double x_inc = (double)(obj[i].x - obj[i-1].x) / num_segs;
     double y_inc = (double)(obj[i].y - obj[i-1].y) / num_segs;
     for (int j = 1; j < num_segs; j++)
-      result[k++] = (xy_t){(uint16_t)(obj[i-1].x + j * x_inc), (uint16_t)(obj[i-1].y + j * y_inc), obj[i].on};
+      result[k++] = (xy_t){(int)(obj[i-1].x + j * x_inc), (int)(obj[i-1].y + j * y_inc), obj[i].on};
   }
 }
 
-void get_laser_obj_bounds(xy_t *obj, int obj_len, uint16_t *min_x, uint16_t *max_x, uint16_t *min_y, uint16_t *max_y) {
-  *min_x = 65535;
-  *min_y = 65535;
-  *max_x = 0;
-  *max_y = 0;
-  for (int i = 0; i < obj_len; i++) {
+void get_laser_obj_bounds(xy_t *obj, int obj_len, int *min_x, int *max_x, int *min_y, int *max_y) {
+  *min_x = obj[0].x;
+  *min_y = obj[0].y;
+  *max_x = obj[0].x;
+  *max_y = obj[0].y;
+  for (int i = 1; i < obj_len; i++) {
     if (obj[i].x < *min_x) *min_x = obj[i].x;
     if (obj[i].x > *max_x) *max_x = obj[i].x;
     if (obj[i].y < *min_y) *min_y = obj[i].y;
@@ -282,15 +278,15 @@ void get_laser_obj_bounds(xy_t *obj, int obj_len, uint16_t *min_x, uint16_t *max
   }
 }
 
-void get_laser_obj_size(xy_t *obj, int obj_len, uint16_t *width, uint16_t *height) {
-  uint16_t min_x, max_x, min_y, max_y;
+void get_laser_obj_size(xy_t *obj, int obj_len, int *width, int *height) {
+  int min_x, max_x, min_y, max_y;
   get_laser_obj_bounds(obj, obj_len, &min_x, &max_x, &min_y, &max_y);
   *width = max_x - min_x;
   *height = max_y - min_y;
 }
 
-void get_laser_obj_midpoint(xy_t *obj, int obj_len, uint16_t *mid_x, uint16_t *mid_y) {
-  uint16_t min_x, max_x, min_y, max_y;
+void get_laser_obj_midpoint(xy_t *obj, int obj_len, int *mid_x, int *mid_y) {
+  int min_x, max_x, min_y, max_y;
   get_laser_obj_bounds(obj, obj_len, &min_x, &max_x, &min_y, &max_y);
   *mid_x = (min_x + max_x) / 2;
   *mid_y = (min_y + max_y) / 2;
@@ -299,9 +295,9 @@ void get_laser_obj_midpoint(xy_t *obj, int obj_len, uint16_t *mid_x, uint16_t *m
 int convert_to_xy(uint16_t *obj, int obj_len, double x_scale, double y_scale, xy_t *result) {
   int j = 0;
   for (int i = 0; i < obj_len; i+=2)
-    result[j++] = (xy_t){(uint16_t)((obj[i] & 0x7fff) * x_scale), (uint16_t)((obj[i+1]) * y_scale), (obj[i] & 0x8000) > 0 ? 1 : 0};
+    result[j++] = (xy_t){(int)((obj[i] & 0x7fff) * x_scale), (int)((obj[i+1]) * y_scale), (obj[i] & 0x8000) > 0};
   result[j++] = result[0];
-  uint16_t mid_x, mid_y;
+  int mid_x, mid_y;
   get_laser_obj_midpoint(result, j, &mid_x, &mid_y);
   for (int i = 0; i < j; i++) {
     result[i].x -= mid_x;
