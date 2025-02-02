@@ -241,11 +241,11 @@ rgb_t hsv_to_rgb(double h, double s, double v) {
 }
 
 int get_interpolated_size(xy_t *obj, int obj_len, int seg_dist) {
-  int result = obj_len;
+  int result = 1;
   for (int i = 1; i < obj_len; i++) {
     int x_seg = abs(obj[i-1].x - obj[i].x) / seg_dist;
     int y_seg = abs(obj[i-1].y - obj[i].y) / seg_dist;
-    result += max(x_seg, y_seg);
+    result += max(x_seg, y_seg) + 1;
   }
   return result;
 }
@@ -260,8 +260,13 @@ void interpolate_objects(xy_t *obj, int obj_len, int seg_dist, xy_t *result) {
 
     double x_inc = (double)(obj[i].x - obj[i-1].x) / num_segs;
     double y_inc = (double)(obj[i].y - obj[i-1].y) / num_segs;
-    for (int j = 1; j < num_segs; j++)
-      result[k++] = (xy_t){(int)(obj[i-1].x + j * x_inc), (int)(obj[i-1].y + j * y_inc), obj[i].on};
+    for (int j = 0; j < num_segs; j++) {
+      result[k++] = (xy_t){
+        (int)(obj[i-1].x + ((j+1) * x_inc)), 
+        (int)(obj[i-1].y + ((j+1) * y_inc)), 
+        obj[i].on
+      };
+    }
   }
 }
 
