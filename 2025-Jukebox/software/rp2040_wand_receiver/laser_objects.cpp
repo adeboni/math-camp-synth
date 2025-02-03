@@ -1,5 +1,5 @@
 #include "laser_objects.h"
-
+/*
 uint16_t CHAR_A[] = {
   0x17c,0x3e8,
   0x8000,0x0,
@@ -1432,7 +1432,7 @@ uint16_t IMG_WINGTOP[] = {
   0x82C4,0x313,
   0x8304,0x337
 };
-
+*/
 uint16_t EQN_01[] = {
   0x4,0x3e2,
   0x8010,0x3e5,
@@ -6242,7 +6242,7 @@ uint16_t EQN_36[] = {
   0x82a5,0x34d,
   0x82c0,0x349
 };
-
+/*
 uint16_t EFFECT_BICYCLE_HORN[] = {
   0x42b,0x44b,
   0x843e,0x44c,
@@ -9903,3 +9903,4 @@ uint16_t EFFECT_XYLOPHONE[] = {
   0x829a,0x97,
   0x827b,0xba
 };
+*/

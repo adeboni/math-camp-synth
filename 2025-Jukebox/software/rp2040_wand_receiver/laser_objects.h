@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 
+/*
 extern uint16_t CHAR_A[];
 extern uint16_t CHAR_B[];
 extern uint16_t CHAR_C[];
@@ -55,6 +56,7 @@ extern uint16_t IMG_TOASTER[];
 extern uint16_t IMG_WINGDOWN[];
 extern uint16_t IMG_WINGMID[];
 extern uint16_t IMG_WINGTOP[];
+*/
 extern uint16_t EQN_01[];
 extern uint16_t EQN_02[];
 extern uint16_t EQN_03[];
@@ -91,6 +93,7 @@ extern uint16_t EQN_33[];
 extern uint16_t EQN_34[];
 extern uint16_t EQN_35[];
 extern uint16_t EQN_36[];
+/*
 extern uint16_t EFFECT_BICYCLE_HORN[];
 extern uint16_t EFFECT_BIG_GONG[];
 extern uint16_t EFFECT_BONGO_DRUMS[];
@@ -114,5 +117,5 @@ extern uint16_t EFFECT_TROMBONE[];
 extern uint16_t EFFECT_TRUMPET[];
 extern uint16_t EFFECT_VINTAGE_CAR_HORN[];
 extern uint16_t EFFECT_XYLOPHONE[];
-
+*/
 #endif
