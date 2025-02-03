@@ -110,7 +110,7 @@ laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
 
   laser_point_x3_t points;
 
-  double rd = ((double)audioBuffer[audioBufIndex] - 128) * 5.0;
+  double rd = 0; //((double)audioBuffer[audioBufIndex] - 128) * 5.0;
   for (int i = 0; i < 3; i++) {
     double x = cos(angle * 3.14159 / 180.0) * (circles[i][circleIndex].r + rd) + circles[i][circleIndex].x;
     double y = sin(angle * 3.14159 / 180.0) * (circles[i][circleIndex].r + rd) + circles[i][circleIndex].y;
@@ -133,14 +133,15 @@ laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
 }
 
 int LaserGenerator::setup_equation(int index, xy_t *result, int *size) {
-  static xy_t temp[500];
+  xy_t *temp = new xy_t[EQUATION_LENS[index] / 2];
   int len = convert_to_xy(EQUATION_LIST[index], EQUATION_LENS[index], 0.5, 0.5, temp);
   get_laser_obj_size(temp, len, &size[0], &size[1]);
-  //memcpy(result, temp, len * sizeof(xy_t));
-  //return len;
 
   int interpLen = get_interpolated_size(temp, len, 8);
+  result = new xy_t[interpLen];
   interpolate_objects(temp, len, 8, result);
+  delete[] temp;
+
   return interpLen;
 }
 
@@ -154,7 +155,7 @@ laser_point_x3_t LaserGenerator::get_equation_point() {
   static int offsets[3][2];
   static int dirs[3][2];
   static int eqSize[3][2];
-  static xy_t equations[3][2500];
+  static xy_t *equations[3];
   static int eqLen[3];
 
   if (setup_complete == 0) {
@@ -165,6 +166,7 @@ laser_point_x3_t LaserGenerator::get_equation_point() {
       offsets[i][1] = (bounds[2] + bounds[3]) / 2;
       dirs[i][0] = random(2) ? 2 : -2;
       dirs[i][1] = random(2) ? 2 : -2;
+      equations[i] = nullptr;
     }
 
     setup_complete = 1;
@@ -175,6 +177,7 @@ laser_point_x3_t LaserGenerator::get_equation_point() {
       equationIndex[i] = (equationIndex[i] + 3) % NUM_EQUATIONS;
       colorIndex[i] = (colorIndex[i] + 3) % 7;
       pointIndex[i] = 0;
+      delete[] equations[i];
       eqLen[i] = setup_equation(equationIndex[i], equations[i], eqSize[i]);
       if (eqLen[i] > 8192) i--;
     }
@@ -461,6 +464,13 @@ laser_point_x3_t LaserGenerator::get_wand_drawing_point() {
   static int setup_complete = 0;
   static uint16_t bounds[4];
 
+  static bool forwardDir = true;
+  static xy_t pointList[WAND_PATH_LENGTH];
+  static uint8_t currentLaser = 0;
+  static uint8_t listLen = 0;
+  static uint8_t lastIndex = 0;
+  static uint8_t currIndex = 0;
+
   if (setup_complete == 0) {
     sier.get_laser_rect_interior(bounds);
     setup_complete = 1;
@@ -475,10 +485,42 @@ laser_point_x3_t LaserGenerator::get_wand_drawing_point() {
   sier.get_wand_projection(wandData1, &laserIndex, v);
   if (laserIndex < 0) return points;
 
+  if (laserIndex != currentLaser) {
+    listLen = 0;
+    lastIndex = 0;
+    currentLaser = laserIndex;
+  }
+
   xy_t lp = sier.sierpinski_to_laser_coords(laserIndex, v);
-  points.p[laserIndex].x = (uint16_t)lp.x;
-  points.p[laserIndex].y = (uint16_t)lp.y;
-  points.p[laserIndex].r = 255;
+
+  if (listLen < WAND_PATH_LENGTH) {
+    pointList[listLen] = lp;
+    lastIndex = listLen++;
+  } else {
+    lastIndex = ((lastIndex + 1) % WAND_PATH_LENGTH);
+    pointList[lastIndex] = lp;
+  }
+
+  if (forwardDir) {
+    if (currIndex < (listLen - 1)) currIndex++;
+    else forwardDir = false;
+  } else {
+    if (currIndex > 0) currIndex--;
+    else forwardDir = true;
+  }
+
+  points.p[currentLaser].x = (uint16_t)pointList[currIndex].x;
+  points.p[currentLaser].y = (uint16_t)pointList[currIndex].y;
+  points.p[currentLaser].r = 255;
+
+  points.p[(currentLaser + 1) % 3].x = (uint16_t)pointList[currIndex].x;
+  points.p[(currentLaser + 1) % 3].y = (uint16_t)(bounds[2] + (bounds[3] - pointList[currIndex].y));
+  points.p[(currentLaser + 1) % 3].g = 255;
+
+  points.p[(currentLaser + 2) % 3].x = (uint16_t)(2048 + (2048 - pointList[currIndex].x));
+  points.p[(currentLaser + 2) % 3].y = (uint16_t)pointList[currIndex].y;
+  points.p[(currentLaser + 2) % 3].b = 255;
+  
   return points;
 }
 
@@ -498,10 +540,19 @@ laser_point_x3_t LaserGenerator::get_calibration_point() {
   }
 
   curr_index = (curr_index + 1) % interp_bounds_size;
+
+  uint8_t r = 0;
+  uint8_t g = 0;
+  uint8_t b = 0;
+
+  if      ((curr_index / 20) % 3 == 0) r = 255;
+  else if ((curr_index / 20) % 3 == 1) g = 255;
+  else                                 b = 255;
+
   laser_point_t lp = (laser_point_t){
     (uint16_t)interp_bounds[curr_index].x,
     (uint16_t)interp_bounds[curr_index].y,
-    0, 255, 0
+    r, g, b
   };
   return (laser_point_x3_t){lp, lp, lp};
 }

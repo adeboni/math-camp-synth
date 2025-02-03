@@ -110,16 +110,26 @@ void Animation::dots_nightrider() {
 }
 
 void Animation::mouth_pulse() {
-  double mouthColorIndex = sin((double)millis() / 1000.0) + 1;
-  double mouthRedLevel = cube(15 - 7.5 * abs(0 - mouthColorIndex));
-  double mouthWhiteLevel = cube(15 - 7.5 * abs(1 - mouthColorIndex));
-  double mouthBlueLevel = cube(15 - 7.5 * abs(2 - mouthColorIndex));
-  double scale = sin((double)millis() / 1000.0 * 4.0) / 2 + 1;
-  for (int i = 0; i < 5; i++) {
-    _io1->analogWrite(_mouth[i], (uint8_t)(scale * mouthRedLevel));
-    _io1->analogWrite(_mouth[i + 5], (uint8_t)(scale * mouthWhiteLevel));
-    _io1->analogWrite(_mouth[i + 10], (uint8_t)(scale * mouthBlueLevel));
+  static int color = 0;
+  static int lastUpdate = 0;
+
+  if (millis() - lastUpdate > 3000) {
+    lastUpdate = millis();
+    color = (color + 1) % 3;
   }
+
+  double intensity = sin((double)millis() / 1000.0 * 4.0) + 1;
+  intensity = cube(15 - 7.5 * intensity);
+
+  int indexOffset = 0;
+  if (color == 1) indexOffset = 5;
+  else if (color == 2) indexOffset = 10;
+
+  _io1->analogWrite(_mouth[0 + indexOffset], (uint8_t)(intensity / 5));
+  _io1->analogWrite(_mouth[1 + indexOffset], (uint8_t)(intensity / 2));
+  _io1->analogWrite(_mouth[2 + indexOffset], (uint8_t)(intensity / 1));
+  _io1->analogWrite(_mouth[3 + indexOffset], (uint8_t)(intensity / 2));
+  _io1->analogWrite(_mouth[4 + indexOffset], (uint8_t)(intensity / 5));
 }
 
 void Animation::motors_spin() {

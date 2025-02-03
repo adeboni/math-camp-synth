@@ -23,6 +23,8 @@
 
 #define NUM_EQUATIONS 36
 
+#define WAND_PATH_LENGTH 20
+
 typedef struct {
   double d_r, r;
   uint16_t x, y;

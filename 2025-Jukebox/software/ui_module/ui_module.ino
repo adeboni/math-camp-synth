@@ -295,24 +295,21 @@ void checkButtons() {
       io2.analogWrite(BUTTONS_OUT[i], state == 0 ? 15 : 0);
       if (button_states[i] == 0 && state == 1) {
         buttonsToSend[i] = 1;
-
-        if (currentRobbieMode == 6) {
-          switch (i) {
-            case 0:
-              ani.forceAnimation(AM_DOTS_NIGHTRIDER);
-              break;
-            case 1:
-              ani.forceAnimation(AM_MOUTH_PULSE);
-              break;
-            case 2:
-              ani.forceAnimation(AM_MOTORS_SPIN);
-              break;
-            case 3:
-              ani.forceAnimation(AM_LAMP_MORSE_CODE);
-              break;
-            default:
-              break;
-          }
+        switch (i) {
+          case 0:
+            ani.forceAnimation(AM_DOTS_NIGHTRIDER);
+            break;
+          case 1:
+            ani.forceAnimation(AM_MOUTH_PULSE);
+            break;
+          case 2:
+            ani.forceAnimation(AM_MOTORS_SPIN);
+            break;
+          case 3:
+            ani.forceAnimation(AM_LAMP_MORSE_CODE);
+            break;
+          default:
+            break;
         }
       }
       button_states[i] = state;
