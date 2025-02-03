@@ -156,15 +156,12 @@ laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
 }
 
 int LaserGenerator::setup_equation(int index, xy_t *result, int *size) {
-  xy_t *temp = new xy_t[EQUATION_LENS[index] / 2];
+  static xy_t temp[500];
   int len = convert_to_xy(EQUATION_LIST[index], EQUATION_LENS[index], 0.5, 0.5, temp);
   get_laser_obj_size(temp, len, &size[0], &size[1]);
 
   int interpLen = get_interpolated_size(temp, len, 8);
-  result = new xy_t[interpLen];
   interpolate_objects(temp, len, 8, result);
-  delete[] temp;
-
   return interpLen;
 }
 
@@ -178,7 +175,7 @@ laser_point_x3_t LaserGenerator::get_equation_point() {
   static int offsets[3][2];
   static int dirs[3][2];
   static int eqSize[3][2];
-  static xy_t *equations[3];
+  static xy_t equations[3][2500];
   static int eqLen[3];
 
   if (setup_complete == 0) {
@@ -189,7 +186,6 @@ laser_point_x3_t LaserGenerator::get_equation_point() {
       offsets[i][1] = (bounds[2] + bounds[3]) / 2;
       dirs[i][0] = random(2) ? 2 : -2;
       dirs[i][1] = random(2) ? 2 : -2;
-      equations[i] = nullptr;
     }
 
     setup_complete = 1;
@@ -200,7 +196,6 @@ laser_point_x3_t LaserGenerator::get_equation_point() {
       equationIndex[i] = (equationIndex[i] + 3) % NUM_EQUATIONS;
       colorIndex[i] = (colorIndex[i] + 3) % 7;
       pointIndex[i] = 0;
-      delete[] equations[i];
       eqLen[i] = setup_equation(equationIndex[i], equations[i], eqSize[i]);
     }
     nextUpdate = millis() + 30000;
