@@ -110,23 +110,28 @@ void Animation::dots_nightrider() {
 }
 
 void Animation::mouth_pulse() {
-  static int color = 0;
-  static int lastUpdate = 0;
+  static int colorOffset = 0;
+  static unsigned long lastColorUpdate = 0;
+  static uint8_t intensities[5];
+  static unsigned long lastIntensityUpdate = 0;
 
-  if (millis() - lastUpdate > 3000) {
-    lastUpdate = millis();
-    color = (color + 1) % 3;
+  if (millis() - lastColorUpdate > 3000) {
+    lastColorUpdate = millis();
+    colorOffset += 5;
+    if (colorOffset > 10) colorOffset = 0;
   }
 
-  int indexOffset = 0;
-  if (color == 1) indexOffset = 5;
-  else if (color == 2) indexOffset = 10;
+  if (millis() - lastIntensityUpdate > 100) {
+    lastIntensityUpdate = millis();
+    intensities[0] = (uint8_t)random(12, 16);
+    intensities[1] = (uint8_t)random(8, 16);
+    intensities[2] = (uint8_t)random(0, 16);
+    intensities[3] = (uint8_t)random(8, 16);
+    intensities[4] = (uint8_t)random(12, 16);
+  }
 
-  _io1->analogWrite(_mouth[0 + indexOffset], (uint8_t)random(12, 16));
-  _io1->analogWrite(_mouth[1 + indexOffset], (uint8_t)random(8, 16));
-  _io1->analogWrite(_mouth[2 + indexOffset], (uint8_t)random(0, 16));
-  _io1->analogWrite(_mouth[3 + indexOffset], (uint8_t)random(8, 16));
-  _io1->analogWrite(_mouth[4 + indexOffset], (uint8_t)random(12, 16));
+  for (int i = 0; i < 5; i++)
+    _io1->analogWrite(_mouth[i + colorOffset], intensities[i]);
 }
 
 void Animation::motors_spin() {
