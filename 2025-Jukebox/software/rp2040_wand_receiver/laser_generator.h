@@ -20,6 +20,7 @@
 
 #define NUM_CIRCLES 3
 #define MAX_CIRCLE_RADIUS 200
+#define MAX_CIRCLE_ANGLE 400
 
 #define NUM_EQUATIONS 36
 
@@ -51,6 +52,7 @@ class LaserGenerator {
   private:
     Sierpinski sier;
     
+    void sort_circles(circle_t *a, int *indices);
     laser_point_x3_t get_circle_point();
     int setup_equation(int index, xy_t *result, int *size);
     laser_point_x3_t get_equation_point();
