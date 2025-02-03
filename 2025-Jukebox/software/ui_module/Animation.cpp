@@ -118,18 +118,15 @@ void Animation::mouth_pulse() {
     color = (color + 1) % 3;
   }
 
-  double intensity = sin((double)millis() / 1000.0 * 4.0) + 1;
-  intensity = cube(15 - 7.5 * intensity);
-
   int indexOffset = 0;
   if (color == 1) indexOffset = 5;
   else if (color == 2) indexOffset = 10;
 
-  _io1->analogWrite(_mouth[0 + indexOffset], (uint8_t)(intensity / 5));
-  _io1->analogWrite(_mouth[1 + indexOffset], (uint8_t)(intensity / 2));
-  _io1->analogWrite(_mouth[2 + indexOffset], (uint8_t)(intensity / 1));
-  _io1->analogWrite(_mouth[3 + indexOffset], (uint8_t)(intensity / 2));
-  _io1->analogWrite(_mouth[4 + indexOffset], (uint8_t)(intensity / 5));
+  _io1->analogWrite(_mouth[0 + indexOffset], (uint8_t)random(12, 16));
+  _io1->analogWrite(_mouth[1 + indexOffset], (uint8_t)random(8, 16));
+  _io1->analogWrite(_mouth[2 + indexOffset], (uint8_t)random(0, 16));
+  _io1->analogWrite(_mouth[3 + indexOffset], (uint8_t)random(8, 16));
+  _io1->analogWrite(_mouth[4 + indexOffset], (uint8_t)random(12, 16));
 }
 
 void Animation::motors_spin() {
