@@ -179,7 +179,6 @@ laser_point_x3_t LaserGenerator::get_equation_point() {
       pointIndex[i] = 0;
       delete[] equations[i];
       eqLen[i] = setup_equation(equationIndex[i], equations[i], eqSize[i]);
-      if (eqLen[i] > 8192) i--;
     }
     nextUpdate = millis() + 30000;
   }
@@ -509,17 +508,27 @@ laser_point_x3_t LaserGenerator::get_wand_drawing_point() {
     else forwardDir = true;
   }
 
+  rgb_t wandColor1 = sier.get_wand_rotation_color(wandData1, 0);
+  rgb_t wandColor2 = sier.get_wand_rotation_color(wandData1, 120);
+  rgb_t wandColor3 = sier.get_wand_rotation_color(wandData1, 240);
+
   points.p[currentLaser].x = (uint16_t)pointList[currIndex].x;
   points.p[currentLaser].y = (uint16_t)pointList[currIndex].y;
-  points.p[currentLaser].r = 255;
+  points.p[currentLaser].r = wandColor1.r;
+  points.p[currentLaser].g = wandColor1.g;
+  points.p[currentLaser].b = wandColor1.b;
 
   points.p[(currentLaser + 1) % 3].x = (uint16_t)pointList[currIndex].x;
   points.p[(currentLaser + 1) % 3].y = (uint16_t)(bounds[2] + (bounds[3] - pointList[currIndex].y));
-  points.p[(currentLaser + 1) % 3].g = 255;
+  points.p[(currentLaser + 1) % 3].r = wandColor2.r;
+  points.p[(currentLaser + 1) % 3].g = wandColor2.r;
+  points.p[(currentLaser + 1) % 3].b = wandColor2.r;
 
   points.p[(currentLaser + 2) % 3].x = (uint16_t)(2048 + (2048 - pointList[currIndex].x));
   points.p[(currentLaser + 2) % 3].y = (uint16_t)pointList[currIndex].y;
-  points.p[(currentLaser + 2) % 3].b = 255;
+  points.p[(currentLaser + 2) % 3].r = wandColor3.r;
+  points.p[(currentLaser + 2) % 3].g = wandColor3.r;
+  points.p[(currentLaser + 2) % 3].b = wandColor3.r;
   
   return points;
 }

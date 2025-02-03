@@ -96,6 +96,36 @@ void rotate(double q[4], double v[3], double result[3]) {
   result[2] = qv[3] * conj[2] + qv[2] * conj[3] + qv[0] * conj[1] - qv[1] * conj[0];
 }
 
+int wand_rotation(double q[4]) {
+  static int lastAngle = 0;
+
+  double v0[3];
+  double axis0[3] = {0.0, 1.0, 0.0};
+  rotate(q, axis0, v0);
+
+  double v1[3];
+  double axis1[3] = {1.0, 0.0, 0.0};
+  rotate(q, axis1, v1);
+
+  double s = sqrt(v1[0] * v1[0] + v1[2] * v1[2]);
+  if (s < 0.01) return lastAngle;
+  double v2[3] = {-v1[0] * v1[2] / s, -v1[1] * v1[2] / s, (v1[0] * v1[0] + v1[2] * v1[2]) / s};
+
+  double v3[3];
+  cross(v1, v2, v3);
+  double d1 = dot_vv(3, v0, v2);
+  double d2 = dot_vv(3, v0, v3);
+  d1 = max(-1.0, min(d1, 1.0));
+  d2 = max(-1.0, min(d2, 1.0));
+  d1 = acos(d1);
+  d2 = acos(d2);
+
+  int phi1 = (int)(d1 * 180.0 / 3.14159);
+  int phi2 = (int)(d2 * 180.0 / 3.14159);
+  lastAngle = phi2 < 90 ? phi1 : 360 - phi1;
+  return lastAngle;
+}
+
 void dot_mv(int n, double *mat, double *v, double *result) {
   for (int i = 0; i < n; i++) {
     result[i] = 0;

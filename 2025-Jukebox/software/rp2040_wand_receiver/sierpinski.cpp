@@ -197,3 +197,8 @@ void Sierpinski::get_wand_projection(double q[4], int *laser_index, double resul
     }
   }
 }
+
+rgb_t Sierpinski::get_wand_rotation_color(double q[4], int degree_offset) {
+  int angle = wand_rotation(q);
+  return hsv_to_rgb((double)((angle + degree_offset) % 360) / 360.0, 1.0, 1.0);
+}

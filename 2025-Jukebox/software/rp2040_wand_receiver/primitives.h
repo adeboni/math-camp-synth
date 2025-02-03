@@ -35,6 +35,7 @@ int same_side(double p1[3], double p2[3], double a[3], double b[3]);
 int point_in_triangle(double a[3], double b[3], double c[3], double p[3]);
 int point_in_surface(double p1[3], double p2[3], double p3[3], double p4[3], double p[3]);
 void rotate(double q[4], double v[3], double result[3]);
+int wand_rotation(double q[4]);
 void dot_mv(int n, double *mat, double *v, double *result);
 void mul_mm(int n1, int m1, int n2, int m2, double *mat1, double *mat2, double *result);
 void eigen(double a[4][4], double eigenvalues[4], double eigenvectors[4][4]);
