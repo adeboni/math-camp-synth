@@ -1,5 +1,6 @@
 #include "wifi_credentials.h"
-#include <driver/i2s.h>
+#include <driver/i2s_std.h>
+#include <driver/gpio.h>
 #include <ICM_20948.h>
 #include <Adafruit_NeoPixel.h>
 #include <WiFi.h>
@@ -12,9 +13,9 @@
 #define VBUS_PIN            9
 #define CHARGE_PIN          34
 #define BATTERY_PIN         35
-#define I2S_SERIAL_CLK_PIN  14
-#define I2S_LR_CLK_PIN      15
-#define I2S_SERIAL_DATA_PIN 25
+#define I2S_SERIAL_CLK_PIN  GPIO_NUM_14
+#define I2S_LR_CLK_PIN      GPIO_NUM_15
+#define I2S_SERIAL_DATA_PIN GPIO_NUM_25
 #define TOUCH_THRESHOLD     40
 #define PWR_STATE_CHARGING  0
 #define PWR_STATE_CHARGED   1
@@ -34,7 +35,7 @@ uint8_t powerState = PWR_STATE_INVALID;
 uint8_t buffer[PACKET_SIZE];
 int32_t rawSamples[SAMPLES_PER_PACKET];
 bool dataReadyToSend = false;
-
+i2s_chan_handle_t i2s_rx_handle;
 
 void updateLED() {
   if (wifiConnected) 
@@ -53,28 +54,29 @@ void updateLED() {
 
 void initI2S() {
   Serial.print(F("Connecting to microphone... "));
+
+  i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
+  i2s_new_channel(&chan_cfg, NULL, &i2s_rx_handle);
   
-  i2s_config_t i2s_config = {
-    .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
-    .sample_rate = AUDIO_RATE_HZ,
-    .bits_per_sample = I2S_BITS_PER_SAMPLE_32BIT,
-    .channel_format = I2S_CHANNEL_FMT_ONLY_RIGHT,
-    .communication_format = I2S_COMM_FORMAT_I2S,
-    .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
-    .dma_buf_count = 4,
-    .dma_buf_len = 1024,
-    .use_apll = false,
-    .tx_desc_auto_clear = false,
-    .fixed_mclk = 0};
-    
-  i2s_pin_config_t i2s_mic_pins = {
-    .bck_io_num = I2S_SERIAL_CLK_PIN,
-    .ws_io_num = I2S_LR_CLK_PIN,
-    .data_out_num = I2S_PIN_NO_CHANGE,
-    .data_in_num = I2S_SERIAL_DATA_PIN};
-    
-  i2s_driver_install(I2S_NUM_0, &i2s_config, 0, NULL);
-  i2s_set_pin(I2S_NUM_0, &i2s_mic_pins);
+  i2s_std_config_t std_cfg = {
+    .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(AUDIO_RATE_HZ),
+    .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_MONO),
+    .gpio_cfg = {
+      .mclk = I2S_GPIO_UNUSED,
+      .bclk = I2S_SERIAL_CLK_PIN,
+      .ws = I2S_LR_CLK_PIN,
+      .dout = I2S_GPIO_UNUSED,
+      .din = I2S_SERIAL_DATA_PIN,
+      .invert_flags = {
+        .mclk_inv = false,
+        .bclk_inv = false,
+        .ws_inv = false,
+      },
+    },
+  };
+
+  i2s_channel_init_std_mode(i2s_rx_handle, &std_cfg);
+  i2s_channel_enable(i2s_rx_handle);
   
   Serial.println(F("connected"));
 }
@@ -267,7 +269,7 @@ void loop() {
     return;
     
   size_t bytesRead = 0;
-  i2s_read(I2S_NUM_0, rawSamples, 4 * SAMPLES_PER_PACKET, &bytesRead, portMAX_DELAY);
+  i2s_channel_read(i2s_rx_handle, rawSamples, 4 * SAMPLES_PER_PACKET, &bytesRead, portMAX_DELAY);
 
   int bufferIndex = 18;
   for (int i = 0; i < bytesRead / 4; i++) {
