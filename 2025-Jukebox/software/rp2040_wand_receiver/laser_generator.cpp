@@ -178,7 +178,7 @@ laser_point_x3_t LaserGenerator::get_equation_point() {
   static int dirs[3][2];
   static int eqSize[3][2];
   static xy_t equations[3][2500];
-  static int eqLen[3];
+  static int eqLen[3] = {-1, -1, -1};
 
   if (setup_complete == 0) {
     sier.get_laser_rect_interior(bounds);
@@ -195,11 +195,12 @@ laser_point_x3_t LaserGenerator::get_equation_point() {
 
   if (millis() >= nextUpdate) {
     for (int i = 0; i < 3; i++) {
-      equationIndex[i] = (equationIndex[i] + 3) % NUM_EQUATIONS;
       colorIndex[i] = (colorIndex[i] + 3) % 7;
       pointIndex[i] = 0;
-      eqLen[i] = setup_equation(equationIndex[i], equations[i], eqSize[i]);
-      if (eqLen[i] == -1) i--;
+      do {
+        equationIndex[i] = (equationIndex[i] + 3) % NUM_EQUATIONS;
+        eqLen[i] = setup_equation(equationIndex[i], equations[i], eqSize[i]);
+      } while (eqLen[i] == -1);
     }
     nextUpdate = millis() + 30000;
   }
