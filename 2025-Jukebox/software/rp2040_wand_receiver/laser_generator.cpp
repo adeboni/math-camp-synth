@@ -157,10 +157,12 @@ laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
 
 int LaserGenerator::setup_equation(int index, xy_t *result, int *size) {
   static xy_t temp[500];
+  if (EQUATION_LENS[index] / 2 + 1 > 500) return -1;
   int len = convert_to_xy(EQUATION_LIST[index], EQUATION_LENS[index], 0.5, 0.5, temp);
   get_laser_obj_size(temp, len, &size[0], &size[1]);
 
   int interpLen = get_interpolated_size(temp, len, 8);
+  if (interpLen > 2500) return -1;
   interpolate_objects(temp, len, 8, result);
   return interpLen;
 }
@@ -197,6 +199,7 @@ laser_point_x3_t LaserGenerator::get_equation_point() {
       colorIndex[i] = (colorIndex[i] + 3) % 7;
       pointIndex[i] = 0;
       eqLen[i] = setup_equation(equationIndex[i], equations[i], eqSize[i]);
+      if (eqLen[i] == -1) i--;
     }
     nextUpdate = millis() + 30000;
   }
