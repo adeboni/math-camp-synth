@@ -120,8 +120,8 @@ int wand_rotation(double q[4]) {
   d1 = acos(d1);
   d2 = acos(d2);
 
-  int phi1 = (int)(d1 * 180.0 / 3.14159);
-  int phi2 = (int)(d2 * 180.0 / 3.14159);
+  int phi1 = (int)(d1 * 180.0 / PI);
+  int phi2 = (int)(d2 * 180.0 / PI);
   lastAngle = phi2 < 90 ? phi1 : 360 - phi1;
   return lastAngle;
 }

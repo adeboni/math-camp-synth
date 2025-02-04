@@ -62,7 +62,7 @@ void Sierpinski::init() {
     double temp[3];
     sub_vv(3, laser_center, lasers[i], temp);
     double laser_distance = mag(3, temp);
-    double half_width = laser_distance * tan(LASER_PROJECTION_RANGE_DEG * 3.14159265358979323846 / 180.0);
+    double half_width = laser_distance * tan(LASER_PROJECTION_RANGE_DEG * PI / 180.0);
     double v1[3] = {-plane_normals[i][1], plane_normals[i][0], 0};
     norm(3, v1, v1);
     double v2[3];

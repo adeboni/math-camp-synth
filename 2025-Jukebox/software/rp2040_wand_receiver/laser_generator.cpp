@@ -47,8 +47,8 @@ laser_point_x3_t LaserGenerator::get_circle_point() {
   angle = (angle + 1) % 360;
   audioBufIndex = (audioBufIndex + 1) % UDP_AUDIO_BUFF_SIZE;
   double radius = 200.0 + ((double)audioBuffer[audioBufIndex] - 128) * 5.0;
-  uint16_t x = (uint16_t)(cos(angle * 3.14159 / 180.0) * radius + 2048);
-  uint16_t y = (uint16_t)(sin(angle * 3.14159 / 180.0) * radius + 2048);
+  uint16_t x = (uint16_t)(cos(angle * PI / 180.0) * radius + 2048);
+  uint16_t y = (uint16_t)(sin(angle * PI / 180.0) * radius + 2048);
 
   uint8_t r = 0;
   uint8_t g = 0;
@@ -132,8 +132,8 @@ laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
 
     audioBufIndex = (audioBufIndex + 1) % UDP_AUDIO_BUFF_SIZE;
     double radius = ((double)audioBuffer[audioBufIndex] - 128) * circles[i][ci].r / 20.0 + circles[i][ci].r;
-    double x = cos(angle * 3.14159 / 180.0) * radius + circles[i][ci].x;
-    double y = sin(angle * 3.14159 / 180.0) * radius + circles[i][ci].y;
+    double x = cos(angle * PI / 180.0) * radius + circles[i][ci].x;
+    double y = sin(angle * PI / 180.0) * radius + circles[i][ci].y;
     
     bool skip = false;
     for (int j = 0; j < NUM_CIRCLES; j++) {
@@ -302,8 +302,8 @@ laser_point_x3_t LaserGenerator::get_pong_ball(uint8_t ballLaser, double ballX, 
   laser_point_x3_t points;
   memset(&points, 0, sizeof(laser_point_x3_t));
 
-  uint16_t x = (uint16_t)(cos(angle * 3.14159 / 180.0) * PONG_BALL_RADIUS + ballX);
-  uint16_t y = (uint16_t)(sin(angle * 3.14159 / 180.0) * PONG_BALL_RADIUS + ballY);
+  uint16_t x = (uint16_t)(cos(angle * PI / 180.0) * PONG_BALL_RADIUS + ballX);
+  uint16_t y = (uint16_t)(sin(angle * PI / 180.0) * PONG_BALL_RADIUS + ballY);
   uint8_t color = angle > 0 ? 255 : 0;
   points.p[ballLaser] = (laser_point_t){x, y, color, color, color};
   angle = (angle + 30) % 420;
@@ -595,10 +595,10 @@ laser_point_x3_t LaserGenerator::get_calibration_point() {
 
 void LaserGenerator::calibrate_wand(uint16_t x, uint16_t y, uint16_t z, uint16_t w) {
   double q[4] = {
-    ((double)x - 16384) / 16384,
-    ((double)y - 16384) / 16384,
-    ((double)z - 16384) / 16384,
-    ((double)w - 16384) / 16384
+    ((double)x - 16384.0) / 16384.0,
+    ((double)y - 16384.0) / 16384.0,
+    ((double)z - 16384.0) / 16384.0,
+    ((double)w - 16384.0) / 16384.0
   };
   sier.calibrate_wand_position(q);
 }

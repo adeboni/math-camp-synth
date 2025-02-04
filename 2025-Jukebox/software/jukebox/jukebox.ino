@@ -145,12 +145,9 @@ uint8_t packetBuffer[PACKET_BUF_SIZE];
 uint8_t metaDataPacketBuffer[1 + 2 + 2 + 1 + SONG_QUEUE_LIMIT * 2 + MAX_SONG_NAME_LEN];
 bool forceAudioData = false;
 
-typedef struct {
-    uint16_t w, x, y, z;
-    uint8_t buttonPressed;
-} wand_data_t;
-
-wand_data_t wandData = {16384, 16384, 16384, 16384, 0};
+double baseVector[3] = {0.0, -1.0, 0.0};
+double wandVector[3] = {0.0, 0.0, 1.0};
+uint8_t wandButtonPressed = 0;
 
 /////////////////////////////////////////////////////////////////////
 
@@ -243,7 +240,10 @@ void loop() {
 /////////////////////////////////////////////////////////////////////
 
 float sine_wave(const float time) {
-  return sin(TWO_PI * 440.0f * time) * 0.25;
+  float pitch = 440.0f; //np.interp(self.x, [0, 1], [100, 1000]);
+  float carrier = sin(TWO_PI * pitch * time);
+  float modulator = sin(TWO_PI * pitch * 0.02 * time);
+  return (1 + 0.5 * modulator) * carrier * 0.25; // * self.y
 }
 
 void sendUDPAudioData() {
@@ -333,11 +333,21 @@ void checkForPacket() {
       }
       playEffect = true;
     } else if (packetBuffer[0] == PACKET_ID_WAND_DATA && packetSize == 10) {
-      wandData.w = ((uint16_t)packetBuffer[1] << 8) | (uint16_t)packetBuffer[2];
-      wandData.x = ((uint16_t)packetBuffer[3] << 8) | (uint16_t)packetBuffer[4];
-      wandData.y = ((uint16_t)packetBuffer[5] << 8) | (uint16_t)packetBuffer[6];
-      wandData.z = ((uint16_t)packetBuffer[7] << 8) | (uint16_t)packetBuffer[8];
-      wandData.buttonPressed = packetBuffer[9];
+      wandButtonPressed = packetBuffer[9];
+
+      uint16_t w = ((uint16_t)packetBuffer[1] << 8) | (uint16_t)packetBuffer[2];
+      uint16_t x = ((uint16_t)packetBuffer[3] << 8) | (uint16_t)packetBuffer[4];
+      uint16_t y = ((uint16_t)packetBuffer[5] << 8) | (uint16_t)packetBuffer[6];
+      uint16_t z = ((uint16_t)packetBuffer[7] << 8) | (uint16_t)packetBuffer[8];
+      
+      double q[4] = {
+        ((double)x - 16384.0) / 16384.0,
+        ((double)y - 16384.0) / 16384.0,
+        ((double)z - 16384.0) / 16384.0,
+        ((double)w - 16384.0) / 16384.0
+      };
+
+      rotate(q, baseVector, wandVector);
     }
   }
 }
@@ -507,16 +517,14 @@ void updateDisplay() {
       case MENU_MODE_WAND_DATA:
         char buf[10];
         display.println("Wand Data:");
-        dtostrf(((double)wandData.w - 16384.0) / 16384.0, 5, 2, buf);
+        dtostrf(wandVector[0], 5, 2, buf);
         display.print(buf);
-        dtostrf(((double)wandData.x - 16384.0) / 16384.0, 5, 2, buf);
+        dtostrf(wandVector[1], 5, 2, buf);
         display.print(buf);
-        dtostrf(((double)wandData.y - 16384.0) / 16384.0, 5, 2, buf);
-        display.print(buf);
-        dtostrf(((double)wandData.z - 16384.0) / 16384.0, 5, 2, buf);
+        dtostrf(wandVector[2], 5, 2, buf);
         display.print(buf);
         display.print(" ");
-        display.print(wandData.buttonPressed);
+        display.print(wandButtonPressed);
       default:
         break;
     }
@@ -558,4 +566,17 @@ void logSong(int index) {
     f.println(songList[index]);
     f.close();
   }
+}
+
+void rotate(double q[4], double v[3], double result[3]) {
+  double conj[4] = { -q[0], -q[1], -q[2], q[3] };
+  double qv[4] = {
+    q[3] * v[0] + q[1] * v[2] - q[2] * v[1],
+    q[3] * v[1] + q[2] * v[0] - q[0] * v[2],
+    q[3] * v[2] + q[0] * v[1] - q[1] * v[0],
+    -q[0] * v[0] - q[1] * v[1] - q[2] * v[2]
+  };
+  result[0] = qv[3] * conj[0] + qv[0] * conj[3] + qv[1] * conj[2] - qv[2] * conj[1];
+  result[1] = qv[3] * conj[1] + qv[1] * conj[3] + qv[2] * conj[0] - qv[0] * conj[2];
+  result[2] = qv[3] * conj[2] + qv[2] * conj[3] + qv[0] * conj[1] - qv[1] * conj[0];
 }
