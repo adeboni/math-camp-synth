@@ -19,6 +19,7 @@ class Sierpinski {
     void apply_quaternion(double q[4], double result[3]);
     void get_wand_projection(double q[4], int *laser_index, double result[3]);
     rgb_t get_wand_rotation_color(double q[4], int degree_offset);
+    rgb_t get_color_from_angle(int angle);
 
   private:
     double triangle_height;

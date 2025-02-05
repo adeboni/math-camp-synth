@@ -76,7 +76,7 @@ void LaserGenerator::sort_circles(circle_t *a, int *indices) {
     }
   }
 }
-
+/*
 laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
   static int setup_complete = 0;
   static uint16_t bounds[4];
@@ -151,6 +151,82 @@ laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
   }
 
   angle += 10;
+
+  return points;
+}
+*/
+
+
+laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
+  static int setup_complete = 0;
+  static uint16_t bounds[4];
+  static double centerY;
+
+  static int audioBufIndex = 0;
+  static double colorOffset = 0;
+
+  static double circleX, circleY;
+  static double dirX, dirY;
+  static int angle = 0;
+  
+  static double sinePosX;
+  static double sineDirX;
+  static double sineDirY;
+  static int sinePeaks = 1;
+  static double sineAmp = 0;
+
+  if (setup_complete == 0) {
+    sier.get_laser_rect_interior(bounds);
+    circleX = (bounds[0] + bounds[1]) / 2.0;
+    circleY = (bounds[2] + bounds[3]) / 2.0;
+    centerY = circleY;
+    dirX = 0.2;
+    dirY = 0.2;
+    sinePosX = (double)bounds[0];
+    sineDirX = 2.0;
+    sineDirY = 0.5;
+    setup_complete = 1;
+  }
+
+  laser_point_x3_t points;
+  audioBufIndex = (audioBufIndex + 1) % UDP_AUDIO_BUFF_SIZE;
+  colorOffset += 0.5;
+
+
+  angle = (angle + 1) % 360;
+  circleX += dirX;
+  circleY += dirY;
+  if      (circleX - 400 < bounds[0] && dirX < 0) dirX *= -1;
+  else if (circleX + 400 > bounds[1] && dirX > 0) dirX *= -1;
+  if      (circleY - 400 < bounds[2] && dirY < 0) dirY *= -1;
+  else if (circleY + 400 > bounds[3] && dirY > 0) dirY *= -1;
+  
+  double radius = 100.0 + ((double)audioBuffer[audioBufIndex] - 128) * 2.5;
+  uint16_t cx = (uint16_t)(cos(angle * PI / 180.0) * radius + circleX);
+  uint16_t cy = (uint16_t)(sin(angle * PI / 180.0) * radius + circleY);
+  rgb_t c1 = sier.get_color_from_angle((int)(angle + colorOffset));
+  points.p[0] = (laser_point_t) { cx, cy, c1.r, c1.g, c1.b };
+
+
+  sinePosX += sineDirX;
+  if      (sinePosX < bounds[0] && sineDirX < 0) sineDirX *= -1;
+  else if (sinePosX > bounds[1] && sineDirX > 0) sineDirX *= -1;
+
+  double prevSineAmp = sineAmp;
+  sineAmp += sineDirY;
+  if      (centerY + sineAmp < bounds[0] && sineDirY < 0) sineDirY *= -1;
+  else if (centerY + sineAmp > bounds[1] && sineDirY > 0) sineDirY *= -1;
+  if (prevSineAmp > 0 && sineAmp < 0) {
+    sinePeaks++;
+    if (sinePeaks > 4) sinePeaks = 1;
+  }
+  
+  uint16_t sineY = (uint16_t)(sin(TWO_PI / (bounds[3] - bounds[2]) * sinePeaks * sinePosX) * sineAmp);
+  rgb_t c2 = sier.get_color_from_angle((int)(sinePosX + colorOffset));
+  points.p[1] = (laser_point_t) { (uint16_t)sinePosX, sineY, c2.r, c2.g, c2.b };
+
+
+  points.p[2] = (laser_point_t) { 0, 0, 0, 0, 0 };
 
   return points;
 }
