@@ -114,7 +114,7 @@ void Animation::mouth_pulse() {
   static unsigned long lastColorUpdate = 0;
   static unsigned long lastIntensityUpdate = 0;
 
-  if (millis() - lastColorUpdate > 3000) {
+  if (millis() - lastColorUpdate > 10000) {
     lastColorUpdate = millis();
     colorOffset += 5;
     if (colorOffset > 10) colorOffset = 0;
@@ -127,9 +127,9 @@ void Animation::mouth_pulse() {
     lastIntensityUpdate = millis();
 
     _io1->analogWrite(_mouth[0 + colorOffset], (uint8_t)random(6, 16));
-    _io1->analogWrite(_mouth[1 + colorOffset], (uint8_t)random(1, 8));
-    _io1->analogWrite(_mouth[2 + colorOffset], (uint8_t)random(0, 4));
-    _io1->analogWrite(_mouth[3 + colorOffset], (uint8_t)random(1, 8));
+    _io1->analogWrite(_mouth[1 + colorOffset], (uint8_t)random(0, 6));
+    _io1->analogWrite(_mouth[2 + colorOffset], (uint8_t)random(0, 2));
+    _io1->analogWrite(_mouth[3 + colorOffset], (uint8_t)random(0, 6));
     _io1->analogWrite(_mouth[4 + colorOffset], (uint8_t)random(6, 16));
   }
 }

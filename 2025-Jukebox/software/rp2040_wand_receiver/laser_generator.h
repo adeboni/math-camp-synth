@@ -24,7 +24,7 @@
 
 #define NUM_EQUATIONS 36
 
-#define WAND_PATH_LENGTH 20
+#define WAND_PATH_LENGTH 10
 #define WAND_DELTA_TIME 100
 
 typedef struct {

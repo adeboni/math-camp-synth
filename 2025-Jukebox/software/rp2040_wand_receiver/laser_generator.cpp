@@ -488,7 +488,7 @@ laser_point_x3_t LaserGenerator::get_wand_drawing_point() {
   static unsigned long nextUpdate = 0;
   static bool forwardDir = true;
   static xy_t pointList[WAND_PATH_LENGTH];
-  static uint8_t currentLaser = 0;
+  static int currentLaser = -1;
   static uint8_t listLen = 0;
   static uint8_t lastIndex = 0;
   static uint8_t currIndex = 0;
@@ -503,10 +503,18 @@ laser_point_x3_t LaserGenerator::get_wand_drawing_point() {
   if (numWandsConnected == 0) return points;
 
   if (millis() > nextUpdate) {
+    nextUpdate = millis() + WAND_DELTA_TIME;
+    
     int laserIndex = -1;
     double v[3];
     sier.get_wand_projection(wandData1, &laserIndex, v);
-    if (laserIndex < 0) return points;
+    
+    if (laserIndex < 0) {
+      listLen = 0;
+      lastIndex = 0;
+      currentLaser = -1;
+      return points;
+    }
 
     if (laserIndex != currentLaser) {
       listLen = 0;
@@ -520,11 +528,9 @@ laser_point_x3_t LaserGenerator::get_wand_drawing_point() {
       pointList[listLen] = lp;
       lastIndex = listLen++;
     } else {
-      lastIndex = ((lastIndex + 1) % WAND_PATH_LENGTH);
+      lastIndex = (lastIndex + 1) % WAND_PATH_LENGTH;
       pointList[lastIndex] = lp;
     }
-
-    nextUpdate = millis() + WAND_DELTA_TIME;
   }
 
   if (forwardDir) {
@@ -536,27 +542,26 @@ laser_point_x3_t LaserGenerator::get_wand_drawing_point() {
   }
 
   rgb_t wandColor1 = sier.get_wand_rotation_color(wandData1, 0);
+  points.p[currentLaser] = (laser_point_t) {
+    (uint16_t)pointList[currIndex].x,
+    (uint16_t)pointList[currIndex].y,
+    wandColor1.r, wandColor1.g, wandColor1.b
+  };
+
   rgb_t wandColor2 = sier.get_wand_rotation_color(wandData1, 120);
+  points.p[(currentLaser + 1) % 3] = (laser_point_t) {
+    (uint16_t)pointList[currIndex].x,
+    (uint16_t)pointList[currIndex].y, //(uint16_t)(bounds[2] + (bounds[3] - pointList[currIndex].y));
+    wandColor2.r, wandColor2.g, wandColor2.b
+  };
+
   rgb_t wandColor3 = sier.get_wand_rotation_color(wandData1, 240);
+  points.p[(currentLaser + 2) % 3] = (laser_point_t) {
+    (uint16_t)pointList[currIndex].x, //(uint16_t)(2048 + (2048 - pointList[currIndex].x));
+    (uint16_t)pointList[currIndex].y,
+    wandColor3.r, wandColor3.g, wandColor3.b
+  };
 
-  points.p[currentLaser].x = (uint16_t)pointList[currIndex].x;
-  points.p[currentLaser].y = (uint16_t)pointList[currIndex].y;
-  points.p[currentLaser].r = wandColor1.r;
-  points.p[currentLaser].g = wandColor1.g;
-  points.p[currentLaser].b = wandColor1.b;
-
-  points.p[(currentLaser + 1) % 3].x = (uint16_t)pointList[currIndex].x;
-  points.p[(currentLaser + 1) % 3].y = (uint16_t)(bounds[2] + (bounds[3] - pointList[currIndex].y));
-  points.p[(currentLaser + 1) % 3].r = wandColor2.r;
-  points.p[(currentLaser + 1) % 3].g = wandColor2.g;
-  points.p[(currentLaser + 1) % 3].b = wandColor2.b;
-
-  points.p[(currentLaser + 2) % 3].x = (uint16_t)(2048 + (2048 - pointList[currIndex].x));
-  points.p[(currentLaser + 2) % 3].y = (uint16_t)pointList[currIndex].y;
-  points.p[(currentLaser + 2) % 3].r = wandColor3.r;
-  points.p[(currentLaser + 2) % 3].g = wandColor3.g;
-  points.p[(currentLaser + 2) % 3].b = wandColor3.b;
-  
   return points;
 }
 

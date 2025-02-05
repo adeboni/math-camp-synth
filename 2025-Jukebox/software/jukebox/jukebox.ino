@@ -146,7 +146,7 @@ uint8_t metaDataPacketBuffer[1 + 2 + 2 + 1 + SONG_QUEUE_LIMIT * 2 + MAX_SONG_NAM
 bool forceAudioData = false;
 
 double baseVector[3] = {0.0, -1.0, 0.0};
-double wandVector[3] = {0.0, 0.0, 1.0};
+double wandVector[3] = {0.0, 1.0, 0.0};
 uint8_t wandButtonPressed = 0;
 
 /////////////////////////////////////////////////////////////////////
@@ -239,11 +239,20 @@ void loop() {
 
 /////////////////////////////////////////////////////////////////////
 
+double mapd(double x, double in_min, double in_max, double out_min, double out_max) {
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
 float sine_wave(const float time) {
-  float pitch = 440.0f; //np.interp(self.x, [0, 1], [100, 1000]);
-  float carrier = sin(TWO_PI * pitch * time);
-  float modulator = sin(TWO_PI * pitch * 0.02 * time);
-  return (1 + 0.5 * modulator) * carrier * 0.25; // * self.y
+  static double lastVal = 0.0;
+  double wandYaw = atan2(wandVector[1], wandVector[0]) * 180.0 / PI;
+  double pitch = mapd(wandYaw, 0.0, 360.0, 100.0, 1500.0);
+  double carrier = sin(TWO_PI * pitch * time);
+  double modulator = sin(TWO_PI * pitch * 0.005 * time);
+  double gain = (wandVector[2] + 1.0) / 2.0 * 0.25;
+  double newVal = modulator * carrier * gain;
+  lastVal = 0.75 * lastVal + 0.25 * newVal;
+  return (float)lastVal;
 }
 
 void sendUDPAudioData() {
@@ -268,8 +277,6 @@ void sendUDPAudioMetadata() {
     uint16_t selectedIndex = getSelectedSongIndex();
     metaDataPacketBuffer[1] = ((uint16_t)selectedIndex >> 8) & 0xff;
     metaDataPacketBuffer[2] = selectedIndex & 0xff;
-    metaDataPacketBuffer[3] = ((uint16_t)playingSongIndex >> 8) & 0xff;
-    metaDataPacketBuffer[4] = playingSongIndex & 0xff;
     metaDataPacketBuffer[5] = songQueueLength;
     
     for (uint8_t i = 0; i < songQueueLength; i++) {
@@ -278,12 +285,16 @@ void sendUDPAudioMetadata() {
       metaDataPacketBuffer[6 + i * 2 + 1] = songIndex & 0xff;
     }
     
-    if (!wav->isRunning() && jukeboxMode == JUKEBOX_MODE_MUSIC) {
-      for (int i = 0; i < MAX_SONG_NAME_LEN; i++)
-        metaDataPacketBuffer[6 + songQueueLength * 2 + i] = 0;
-    } else {
+    if (wav->isRunning() && jukeboxMode == JUKEBOX_MODE_MUSIC) {
       for (int i = 0; i < MAX_SONG_NAME_LEN; i++)
         metaDataPacketBuffer[6 + songQueueLength * 2 + i] = songList[playingSongIndex][i];
+      metaDataPacketBuffer[3] = ((uint16_t)playingSongIndex >> 8) & 0xff;
+      metaDataPacketBuffer[4] = playingSongIndex & 0xff;
+    } else {
+      for (int i = 0; i < MAX_SONG_NAME_LEN; i++)
+        metaDataPacketBuffer[6 + songQueueLength * 2 + i] = 0;
+      metaDataPacketBuffer[3] = 0xff;
+      metaDataPacketBuffer[4] = 0xff;
     }
   
     if (udp.beginPacket(ioIP, 8888) == 1) {
@@ -464,6 +475,7 @@ void buttonAction(int index) {
     default:
       break;
   }
+  forceAudioData = true;
 }
 
 void checkButtons() {
