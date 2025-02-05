@@ -530,6 +530,8 @@ laser_point_x3_t LaserGenerator::get_wand_drawing_point() {
     }
   }
 
+  if (listLen == 0) return points;
+
   if (forwardDir) {
     if (currIndex < (listLen - 1)) currIndex++;
     else forwardDir = false;
