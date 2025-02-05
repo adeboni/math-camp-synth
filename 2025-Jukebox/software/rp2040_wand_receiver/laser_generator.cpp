@@ -509,22 +509,15 @@ laser_point_x3_t LaserGenerator::get_wand_drawing_point() {
     double v[3];
     sier.get_wand_projection(wandData1, &laserIndex, v);
     
-    if (laserIndex < 0) {
-      listLen = 0;
-      lastIndex = 0;
-      currIndex = 0;
-      forwardDir = true;
-      currentLaser = -1;
-      return points;
-    }
-
-    if (laserIndex != currentLaser) {
+    if (laserIndex != currentLaser || laserIndex < 0) {
       listLen = 0;
       lastIndex = 0;
       currIndex = 0;
       forwardDir = true;
       currentLaser = laserIndex;
     }
+
+    if (laserIndex < 0) return points;
 
     xy_t lp = sier.sierpinski_to_laser_coords(laserIndex, v);
 
