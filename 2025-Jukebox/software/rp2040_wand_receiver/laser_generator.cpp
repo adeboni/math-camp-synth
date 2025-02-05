@@ -512,6 +512,8 @@ laser_point_x3_t LaserGenerator::get_wand_drawing_point() {
     if (laserIndex < 0) {
       listLen = 0;
       lastIndex = 0;
+      currIndex = 0;
+      forwardDir = true;
       currentLaser = -1;
       return points;
     }
@@ -519,6 +521,8 @@ laser_point_x3_t LaserGenerator::get_wand_drawing_point() {
     if (laserIndex != currentLaser) {
       listLen = 0;
       lastIndex = 0;
+      currIndex = 0;
+      forwardDir = true;
       currentLaser = laserIndex;
     }
 
