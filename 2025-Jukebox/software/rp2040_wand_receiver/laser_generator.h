@@ -53,8 +53,6 @@ class LaserGenerator {
   private:
     Sierpinski sier;
     
-    void sort_circles(circle_t *a, int *indices);
-    laser_point_x3_t get_circle_point();
     int setup_equation(int index, xy_t *result, int *size);
     laser_point_x3_t get_equation_point();
     laser_point_x3_t get_spirograph_point();

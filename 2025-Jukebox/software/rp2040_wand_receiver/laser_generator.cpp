@@ -19,7 +19,7 @@ void LaserGenerator::point_to_bytes(laser_point_t *p, uint8_t *buf, uint16_t i) 
 laser_point_x3_t LaserGenerator::get_point(uint8_t mode) { 
   switch (mode) {
     case 1:
-      return get_circle_point(); // remove later
+      break;
     case 2:
       return get_audio_visualizer_point();
     case 3:
@@ -40,123 +40,6 @@ laser_point_x3_t LaserGenerator::get_point(uint8_t mode) {
   return empty;
 }
 
-laser_point_x3_t LaserGenerator::get_circle_point() {
-  static int angle = 0;
-  static int audioBufIndex = 0;
-
-  angle = (angle + 1) % 360;
-  audioBufIndex = (audioBufIndex + 1) % UDP_AUDIO_BUFF_SIZE;
-  double radius = 200.0 + ((double)audioBuffer[audioBufIndex] - 128) * 5.0;
-  uint16_t x = (uint16_t)(cos(angle * PI / 180.0) * radius + 2048);
-  uint16_t y = (uint16_t)(sin(angle * PI / 180.0) * radius + 2048);
-
-  uint8_t r = 0;
-  uint8_t g = 0;
-  uint8_t b = 0;
-
-  if (angle < 120)      r = 255;
-  else if (angle < 240) g = 255;
-  else                  b = 255;
-
-  laser_point_t lp = (laser_point_t){x, y, r, g, b};
-  return (laser_point_x3_t){lp, lp, lp};
-}
-
-void LaserGenerator::sort_circles(circle_t *a, int *indices) {
-  for (int i = 0; i < NUM_CIRCLES; i++)
-    indices[i] = i;
-
-   for (int i = 0; i < NUM_CIRCLES - 1; i++) {
-    for (int j = i + 1; j < NUM_CIRCLES; j++) {
-      if (a[indices[i]].x < a[indices[j]].x) {
-          int temp = indices[i];
-          indices[i] = indices[j];
-          indices[j] = temp;
-      }
-    }
-  }
-}
-/*
-laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
-  static int setup_complete = 0;
-  static uint16_t bounds[4];
-  static circle_t circles[3][NUM_CIRCLES];
-  static int circleOrder[3][NUM_CIRCLES];
-  static int circleIndex = 0;
-  static int angle = 0;
-  static int audioBufIndex = 0;
-  
-  if (setup_complete == 0) {
-    sier.get_laser_rect_interior(bounds);
-
-    for (int i = 0; i < 3; i++) {
-      for (int j = 0; j < NUM_CIRCLES; j++) {
-        circles[i][j] = (circle_t){ 
-          random(15, 40) / 10.0,
-          0.0, 
-          (uint16_t)random(bounds[0] + MAX_CIRCLE_RADIUS, bounds[1] - MAX_CIRCLE_RADIUS),
-          (uint16_t)random(bounds[2] + MAX_CIRCLE_RADIUS, bounds[3] - MAX_CIRCLE_RADIUS)
-        };
-      }
-
-      sort_circles(circles[i], circleOrder[i]);
-    }
-
-    setup_complete = 1;
-  }
-
-  if (angle >= MAX_CIRCLE_ANGLE) {
-    angle = 0;
-    circleIndex = (circleIndex + 1) % NUM_CIRCLES;
-    if (circleIndex == 0) {
-      for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < NUM_CIRCLES; j++) {
-          if (circles[i][j].r >= MAX_CIRCLE_RADIUS && circles[i][j].d_r > 0) {
-            circles[i][j].d_r *= -1;
-          } else if (circles[i][j].r <= 0 && circles[i][j].d_r < 0) {
-            circles[i][j].d_r = random(15, 40) / 10.0;
-            circles[i][j].r = 0.0;
-            circles[i][j].x = (uint16_t)random(bounds[0] + MAX_CIRCLE_RADIUS, bounds[1] - MAX_CIRCLE_RADIUS);
-            circles[i][j].y = (uint16_t)random(bounds[2] + MAX_CIRCLE_RADIUS, bounds[3] - MAX_CIRCLE_RADIUS);
-            sort_circles(circles[i], circleOrder[i]);
-          }
-          circles[i][j].r += circles[i][j].d_r;
-        }
-      }
-    }
-  }
-
-  laser_point_x3_t points;
-  for (int i = 0; i < 3; i++) {
-    int ci = circleOrder[i][circleIndex];
-
-    audioBufIndex = (audioBufIndex + 1) % UDP_AUDIO_BUFF_SIZE;
-    double radius = ((double)audioBuffer[audioBufIndex] - 128) * circles[i][ci].r / 20.0 + circles[i][ci].r;
-    double x = cos(angle * PI / 180.0) * radius + circles[i][ci].x;
-    double y = sin(angle * PI / 180.0) * radius + circles[i][ci].y;
-    
-    bool skip = false;
-    for (int j = 0; j < NUM_CIRCLES; j++) {
-      if (j == ci) continue;
-      if (sqrt((circles[i][j].x - x) * (circles[i][j].x - x) + (circles[i][j].y - y) * (circles[i][j].y - y)) <= circles[i][j].r) {
-        skip = true;
-        break;
-      }
-    }
-
-    if (skip || angle == 0)
-      points.p[i] = (laser_point_t){(uint16_t)x, (uint16_t)y, 0, 0, 0};
-    else
-      points.p[i] = (laser_point_t){(uint16_t)x, (uint16_t)y, 0, 0, 255};
-  }
-
-  angle += 10;
-
-  return points;
-}
-*/
-
-
 laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
   static int setup_complete = 0;
   static uint16_t bounds[4];
@@ -166,18 +49,18 @@ laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
   static double colorOffset = 0;
 
   static double circleX, circleY;
-  static double dirX = 0.2; 
-  static double dirY = 0.2;
+  static double dirX = 0.02; 
+  static double dirY = 0.02;
   static int angle = 0;
   
   static double sinePosX;
-  static double sineDirX = 2.0;
-  static double sineDirY = 0.5;
-  static int sinePeaks = 1;
+  static double sineDirX = 10.0;
+  static double sineDirY = 0.02;
+  static double sinePeaks = 1.0;
   static double sineAmp = 0;
 
   static double ccRadius = 50;
-  static double ccDir = 0.2;
+  static double ccDir = 0.02;
 
   if (setup_complete == 0) {
     sier.get_laser_rect_interior(bounds);
@@ -191,21 +74,20 @@ laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
 
   laser_point_x3_t points;
   audioBufIndex = (audioBufIndex + 1) % UDP_AUDIO_BUFF_SIZE;
-  double audioAmp = ((double)audioBuffer[audioBufIndex] - 128) * 2.5;
-  colorOffset += 0.5;
+  double audioAmp = ((double)audioBuffer[audioBufIndex] - 128);
+  colorOffset += 0.02;
 
-
-  double radius = 100.0 + audioAmp;
-  angle = (angle + 1) % 360;
+  double r1 = audioAmp * 2.5 + 100.0;
+  angle += 2;
   circleX += dirX;
   circleY += dirY;
-  if      (circleX - radius < bounds[0] && dirX < 0) dirX *= -1;
-  else if (circleX + radius > bounds[1] && dirX > 0) dirX *= -1;
-  if      (circleY - radius < bounds[2] && dirY < 0) dirY *= -1;
-  else if (circleY + radius > bounds[3] && dirY > 0) dirY *= -1;
-  
-  uint16_t cx = (uint16_t)(cos(angle * PI / 180.0) * radius + circleX);
-  uint16_t cy = (uint16_t)(sin(angle * PI / 180.0) * radius + circleY);
+  if      (circleX - abs(r1) < bounds[0] && dirX < 0) dirX *= -1;
+  else if (circleX + abs(r1) > bounds[1] && dirX > 0) dirX *= -1;
+  if      (circleY - abs(r1) < bounds[2] && dirY < 0) dirY *= -1;
+  else if (circleY + abs(r1) > bounds[3] && dirY > 0) dirY *= -1;
+
+  uint16_t cx = (uint16_t)(cos(angle * PI / 180.0) * r1 + circleX);
+  uint16_t cy = (uint16_t)(sin(angle * PI / 180.0) * r1 + circleY);
   rgb_t c1 = sier.get_color_from_angle((int)(angle + colorOffset));
   points.p[0] = (laser_point_t) { cx, cy, c1.r, c1.g, c1.b };
 
@@ -214,26 +96,27 @@ laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
   if      (sinePosX < bounds[0] && sineDirX < 0) sineDirX *= -1;
   else if (sinePosX > bounds[1] && sineDirX > 0) sineDirX *= -1;
 
+  double r2 = audioAmp * 5.0;
   double prevSineAmp = sineAmp;
   sineAmp += sineDirY;
-  if      (centerY + sineAmp < bounds[0] && sineDirY < 0) sineDirY *= -1;
-  else if (centerY + sineAmp > bounds[1] && sineDirY > 0) sineDirY *= -1;
+  if      (centerY - abs(sineAmp + r2) < bounds[2] && sineDirY < 0) sineDirY *= -1;
+  else if (centerY + abs(sineAmp + r2) > bounds[3] && sineDirY > 0) sineDirY *= -1;
   if (prevSineAmp > 0 && sineAmp < 0) {
-    sinePeaks++;
-    if (sinePeaks > 4) sinePeaks = 1;
+    sinePeaks += 0.5;
+    if (sinePeaks > 2) sinePeaks = 1;
   }
   
-  uint16_t sineY = (uint16_t)(sin(TWO_PI / (bounds[3] - bounds[2]) * sinePeaks * sinePosX) * (sineAmp + audioAmp) + centerY);
-  rgb_t c2 = sier.get_color_from_angle((int)(sinePosX + colorOffset));
+  uint16_t sineY = (uint16_t)(sin(TWO_PI / (bounds[3] - bounds[2]) * sinePeaks * sinePosX) * (sineAmp + r2) + centerY);
+  rgb_t c2 = sier.get_color_from_angle((int)(sinePosX / 5.0 + colorOffset));
   points.p[1] = (laser_point_t) { (uint16_t)sinePosX, sineY, c2.r, c2.g, c2.b };
 
 
   ccRadius += ccDir;
-  if      (ccRadius > 300 && ccDir > 0) ccDir *= -1;
-  else if (ccRadius < 100 && ccDir < 0) ccDir *= -1;
-  double r2 = ((double)audioBuffer[audioBufIndex] - 128) * ccRadius / 20.0 + ccRadius;
-  uint16_t ccx = (uint16_t)(cos(angle * PI / 180.0) * r2 + centerX);
-  uint16_t ccy = (uint16_t)(sin(angle * PI / 180.0) * r2 + centerY);
+  if (ccRadius < 100 && ccDir < 0) ccDir *= -1;
+  else if (ccRadius > 200 && ccDir > 0) ccDir *= -1;
+  double r3 = audioAmp * ccRadius / 40.0 + ccRadius;
+  uint16_t ccx = (uint16_t)(cos(angle * PI / 180.0) * r3 + centerX);
+  uint16_t ccy = (uint16_t)(sin(angle * PI / 180.0) * r3 + centerY);
   points.p[2] = (laser_point_t) { ccx, ccy, c1.r, c1.g, c1.b };
 
   return points;
@@ -643,13 +526,13 @@ laser_point_x3_t LaserGenerator::get_wand_drawing_point() {
   rgb_t wandColor2 = sier.get_wand_rotation_color(wandData1, 120);
   points.p[(currentLaser + 1) % 3] = (laser_point_t) {
     (uint16_t)pointList[cIndex].x,
-    (uint16_t)pointList[cIndex].y, //(uint16_t)(bounds[2] + (bounds[3] - pointList[cIndex].y));
+    (uint16_t)(bounds[2] + (bounds[3] - pointList[cIndex].y)),
     wandColor2.r, wandColor2.g, wandColor2.b
   };
 
   rgb_t wandColor3 = sier.get_wand_rotation_color(wandData1, 240);
   points.p[(currentLaser + 2) % 3] = (laser_point_t) {
-    (uint16_t)pointList[cIndex].x, //(uint16_t)(2048 + (2048 - pointList[cIndex].x));
+    (uint16_t)(2048 + (2048 - pointList[cIndex].x)),
     (uint16_t)pointList[cIndex].y,
     wandColor3.r, wandColor3.g, wandColor3.b
   };
