@@ -190,18 +190,19 @@ laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
 
   laser_point_x3_t points;
   audioBufIndex = (audioBufIndex + 1) % UDP_AUDIO_BUFF_SIZE;
+  double audioAmp = ((double)audioBuffer[audioBufIndex] - 128) * 2.5;
   colorOffset += 0.5;
 
 
+  double radius = 100.0 + audioAmp;
   angle = (angle + 1) % 360;
   circleX += dirX;
   circleY += dirY;
-  if      (circleX - 400 < bounds[0] && dirX < 0) dirX *= -1;
-  else if (circleX + 400 > bounds[1] && dirX > 0) dirX *= -1;
-  if      (circleY - 400 < bounds[2] && dirY < 0) dirY *= -1;
-  else if (circleY + 400 > bounds[3] && dirY > 0) dirY *= -1;
+  if      (circleX - radius < bounds[0] && dirX < 0) dirX *= -1;
+  else if (circleX + radius > bounds[1] && dirX > 0) dirX *= -1;
+  if      (circleY - radius < bounds[2] && dirY < 0) dirY *= -1;
+  else if (circleY + radius > bounds[3] && dirY > 0) dirY *= -1;
   
-  double radius = 100.0 + ((double)audioBuffer[audioBufIndex] - 128) * 2.5;
   uint16_t cx = (uint16_t)(cos(angle * PI / 180.0) * radius + circleX);
   uint16_t cy = (uint16_t)(sin(angle * PI / 180.0) * radius + circleY);
   rgb_t c1 = sier.get_color_from_angle((int)(angle + colorOffset));
@@ -221,7 +222,7 @@ laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
     if (sinePeaks > 4) sinePeaks = 1;
   }
   
-  uint16_t sineY = (uint16_t)(sin(TWO_PI / (bounds[3] - bounds[2]) * sinePeaks * sinePosX) * sineAmp);
+  uint16_t sineY = (uint16_t)(sin(TWO_PI / (bounds[3] - bounds[2]) * sinePeaks * sinePosX) * (sineAmp + audioAmp) + centerY);
   rgb_t c2 = sier.get_color_from_angle((int)(sinePosX + colorOffset));
   points.p[1] = (laser_point_t) { (uint16_t)sinePosX, sineY, c2.r, c2.g, c2.b };
 
