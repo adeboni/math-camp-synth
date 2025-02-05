@@ -486,12 +486,13 @@ laser_point_x3_t LaserGenerator::get_wand_drawing_point() {
   static uint16_t bounds[4];
 
   static unsigned long nextUpdate = 0;
-  static bool forwardDir = true;
+  
   static xy_t pointList[WAND_PATH_LENGTH];
-  static int currentLaser = -1;
   static uint8_t listLen = 0;
-  static uint8_t lastIndex = 0;
-  static uint8_t currIndex = 0;
+  static uint8_t pIndex = 0;
+  static uint8_t cIndex = 0;
+  static bool forwardDir = true;
+  static int currentLaser = -1;
 
   if (setup_complete == 0) {
     sier.get_laser_rect_interior(bounds);
@@ -511,53 +512,61 @@ laser_point_x3_t LaserGenerator::get_wand_drawing_point() {
     
     if (laserIndex != currentLaser || laserIndex < 0) {
       listLen = 0;
-      lastIndex = 0;
-      currIndex = 0;
+      pIndex = 0;
+      cIndex = 0;
       forwardDir = true;
       currentLaser = laserIndex;
     }
 
     if (laserIndex < 0) return points;
 
-    xy_t lp = sier.sierpinski_to_laser_coords(laserIndex, v);
-
-    if (listLen < WAND_PATH_LENGTH) {
-      pointList[listLen] = lp;
-      lastIndex = listLen++;
-    } else {
-      lastIndex = (lastIndex + 1) % WAND_PATH_LENGTH;
-      pointList[lastIndex] = lp;
-    }
+    if (listLen < WAND_PATH_LENGTH) listLen++;
+    pointList[pIndex] = sier.sierpinski_to_laser_coords(laserIndex, v);
+    pIndex = (pIndex + 1) % WAND_PATH_LENGTH;
   }
 
   if (listLen == 0) return points;
-
-  if (forwardDir) {
-    if (currIndex < (listLen - 1)) currIndex++;
-    else forwardDir = false;
+    
+  if (listLen < WAND_PATH_LENGTH) {
+    if (forwardDir) {
+      if (cIndex < (listLen - 1)) cIndex++;
+      else forwardDir = false;
+    } else {
+      if (cIndex > 0) cIndex--;
+      else forwardDir = true;
+    }
   } else {
-    if (currIndex > 0) currIndex--;
-    else forwardDir = true;
+    if (forwardDir) {
+      if (((cIndex + 1) % WAND_PATH_LENGTH) != pIndex) 
+        cIndex = (cIndex + 1) % WAND_PATH_LENGTH;
+      else 
+        forwardDir = false;
+    } else {
+      if (cIndex != pIndex) 
+        cIndex = (cIndex + WAND_PATH_LENGTH - 1) % WAND_PATH_LENGTH;
+      else 
+        forwardDir = true;
+    }
   }
 
   rgb_t wandColor1 = sier.get_wand_rotation_color(wandData1, 0);
   points.p[currentLaser] = (laser_point_t) {
-    (uint16_t)pointList[currIndex].x,
-    (uint16_t)pointList[currIndex].y,
+    (uint16_t)pointList[cIndex].x,
+    (uint16_t)pointList[cIndex].y,
     wandColor1.r, wandColor1.g, wandColor1.b
   };
 
   rgb_t wandColor2 = sier.get_wand_rotation_color(wandData1, 120);
   points.p[(currentLaser + 1) % 3] = (laser_point_t) {
-    (uint16_t)pointList[currIndex].x,
-    (uint16_t)pointList[currIndex].y, //(uint16_t)(bounds[2] + (bounds[3] - pointList[currIndex].y));
+    (uint16_t)pointList[cIndex].x,
+    (uint16_t)pointList[cIndex].y, //(uint16_t)(bounds[2] + (bounds[3] - pointList[cIndex].y));
     wandColor2.r, wandColor2.g, wandColor2.b
   };
 
   rgb_t wandColor3 = sier.get_wand_rotation_color(wandData1, 240);
   points.p[(currentLaser + 2) % 3] = (laser_point_t) {
-    (uint16_t)pointList[currIndex].x, //(uint16_t)(2048 + (2048 - pointList[currIndex].x));
-    (uint16_t)pointList[currIndex].y,
+    (uint16_t)pointList[cIndex].x, //(uint16_t)(2048 + (2048 - pointList[cIndex].x));
+    (uint16_t)pointList[cIndex].y,
     wandColor3.r, wandColor3.g, wandColor3.b
   };
 
