@@ -1,47 +1,19 @@
 #include "primitives.h"
 
-void add_vv(int n, double *a, double *b, double *result) {
-  for (int i = 0; i < n; i++)
-    result[i] = a[i] + b[i];
-}
-
-void sub_vv(int n, double *a, double *b, double *result) {
-  for (int i = 0; i < n; i++)
-    result[i] = a[i] - b[i];
-}
-
-void mul_vf(int n, double *a, double b, double *result) {
-  for (int i = 0; i < n; i++)
-    result[i] = a[i] * b;
-}
-
-void div_vf(int n, double *a, double b, double *result) {
-  for (int i = 0; i < n; i++)
-    result[i] = a[i] / b;
-}
-
 void cross(double a[3], double b[3], double result[3]) {
   result[0] = a[1] * b[2] - a[2] * b[1];
   result[1] = a[2] * b[0] - a[0] * b[2];
   result[2] = a[0] * b[1] - a[1] * b[0];
 }
 
-double dot_vv(int n, double *a, double *b) {
-  double result = 0;
-  for (int i = 0; i < n; i++) 
-    result += a[i] * b[i];
-  return result;
-}
-
-double mag(int n, double *a) {
-  double result = 0;
-  for (int i = 0; i < n; i++)
-    result += a[i] * a[i];
-  return sqrt(result);
-}
-
 void norm(int n, double *a, double *result) {
-  div_vf(n, a, mag(n, a), result);
+  double mag = 0;
+  for (int i = 0; i < n; i++)
+    mag += a[i] * a[i];
+  mag = sqrt(mag);
+
+  for (int i = 0; i < n; i++)
+    result[i] = a[i] / mag;
 }
 
 void find_edge_pos(double p1[3], double p2[3], double z, double result[3]) {
@@ -51,28 +23,28 @@ void find_edge_pos(double p1[3], double p2[3], double z, double result[3]) {
 }
 
 void find_surface_normal(double surface[4][3], double result[3]) {
-  double diff1[3];
-  double diff2[3];
+  double diff1[3] = {surface[1][0] - surface[0][0], surface[1][1] - surface[0][1], surface[1][2] - surface[0][2]};
+  double diff2[3] = {surface[2][0] - surface[0][0], surface[2][1] - surface[0][1], surface[2][2] - surface[0][2]};
   double pn[3];
-  sub_vv(3, surface[1], surface[0], diff1);
-  sub_vv(3, surface[2], surface[0], diff2);
   cross(diff1, diff2, pn);
   if (pn[2] < 0)
-    mul_vf(3, pn, -1, pn);
+    for (int i = 0; i < 3; i++)
+      pn[i] *= -1;
   norm(3, pn, result);
 }
 
 int same_side(double p1[3], double p2[3], double a[3], double b[3]) {
-  double diff1[3];
-  double diff2[3];
+  double diff1[3] = {b[0] - a[0], b[1] - a[1], b[2] - a[2]};
+  double diff2[3] = {p1[0] - a[0], p1[1] - a[1], p1[2] - a[2]};
+  double diff3[3] = {p2[0] - a[0], p2[1] - a[1], p2[2] - a[2]};
   double cross1[3];
   double cross2[3];
-  sub_vv(3, b, a, diff1);
-  sub_vv(3, p1, a, diff2);
   cross(diff1, diff2, cross1);
-  sub_vv(3, p2, a, diff2);
-  cross(diff1, diff2, cross2);
-  return dot_vv(3, cross1, cross2) >= 0;
+  cross(diff1, diff3, cross2);
+  double dot = 0.0;
+  for (int i = 0; i < 3; i++) 
+    dot += cross1[i] * cross2[i];
+  return dot >= 0;
 }
 
 int point_in_triangle(double a[3], double b[3], double c[3], double p[3]) {
@@ -113,8 +85,14 @@ int wand_rotation(double q[4]) {
 
   double v3[3];
   cross(v1, v2, v3);
-  double d1 = dot_vv(3, v0, v2);
-  double d2 = dot_vv(3, v0, v3);
+
+  double d1 = 0.0;
+  double d2 = 0.0;
+  for (int i = 0; i < 3; i++) {
+    d1 += v0[i] * v2[i];
+    d2 += v0[i] * v3[i];
+  }
+
   d1 = max(-1.0, min(d1, 1.0));
   d2 = max(-1.0, min(d2, 1.0));
   d1 = acos(d1);
@@ -168,7 +146,10 @@ void eigen(double a[4][4], double eigenvalues[4], double eigenvectors[4][4]) {
       temp_eigenvectors[k][i] = eigenvector[i];
 
     dot_mv(4, &aa[0][0], eigenvector, temp_vector);
-    double eigenvalue = fmax(dot_vv(4, eigenvector, temp_vector), 0.001);
+    double eigenvalue = 0.0;
+    for (int e = 0; e < 4; e++)
+      eigenvalue += eigenvector[e] * temp_vector[e];
+    eigenvalue = fmax(eigenvalue, 0.001);
     eigenvalues[k] = eigenvalue;
 
     for (int i = 0; i < 4; i++)

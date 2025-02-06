@@ -21,13 +21,7 @@ typedef struct {
   bool on;
 } xy_t;
 
-void add_vv(int n, double *a, double *b, double *result);
-void sub_vv(int n, double *a, double *b, double *result);
-void mul_vf(int n, double *a, double b, double *result);
-void div_vf(int n, double *a, double b, double *result);
 void cross(double a[3], double b[3], double result[3]);
-double dot_vv(int n, double *a, double *b);
-double mag(int n, double *a);
 void norm(int n, double *a, double *result);
 void find_edge_pos(double p1[3], double p2[3], double z, double result[3]);
 void find_surface_normal(double surface[4][3], double result[3]);
