@@ -101,6 +101,7 @@ void Sierpinski::init() {
   calibrate_wand_position(q);
 }
 
+/*
 void Sierpinski::calibrate_wand_position(double q[4]) {
   double center_line_p1[3] = {
     (vertices[0][0] + vertices[2][0]) / 2.0,
@@ -136,6 +137,28 @@ void Sierpinski::calibrate_wand_position(double q[4]) {
   pitch_matrix[2][0] = -sin(target_pitch);
   pitch_matrix[2][2] = cos(target_pitch);
 }
+*/
+
+void Sierpinski::calibrate_wand_position(double q[4]) {
+  double center_line_p1[3] = {
+    (vertices[0][0] + vertices[2][0]) / 2.0,
+    (vertices[0][1] + vertices[2][1]) / 2.0,
+    (vertices[0][2] + vertices[2][2]) / 2.0
+  };
+  double center_line_p2[3] = {0, 0, tetra_height};
+
+  double center_point[3];
+  find_edge_pos(center_line_p1, center_line_p2, (projection_top + projection_bottom) / 2, center_point);
+
+  double target_vector[3] = {center_point[0], center_point[1], center_point[2] - WAND_HEIGHT};
+  norm(3, target_vector, target_vector);
+
+  double wand_pos[3];
+  rotate(q, wand_vector, wand_pos);
+
+  pitch_diff = asin(target_vector[2]) - asin(wand_pos[2]);
+  yaw_diff = atan2(target_vector[1], target_vector[0]) - atan2(wand_pos[1], wand_pos[0]);
+}
 
 void Sierpinski::laser_to_sierpinski_coords(int laser_index, int x, int y, double result[3]) {
   double v[4] = {(double)x, (double)y, 0, 1};
@@ -168,7 +191,7 @@ void Sierpinski::get_laser_rect_interior(uint16_t result[4]) {
   result[2] = (uint16_t)bottom1.y;
   result[3] = (uint16_t)top1.y;
 }
-
+/*
 void Sierpinski::apply_quaternion(double q[4], double result[3]) {
   double qv[3];
   rotate(q, wand_vector, qv);
@@ -180,6 +203,17 @@ void Sierpinski::apply_quaternion(double q[4], double result[3]) {
   dot_mv(3, &pitch_matrix[0][0], _v2, v2);
   double v3[3] = {v1[0], v1[1], v2[2]};
   norm(3, v3, result);
+}
+*/
+
+void Sierpinski::apply_quaternion(double q[4], double result[3]) {
+  double qv[3];
+  rotate(q, wand_vector, qv);
+  double pitch = asin(qv[2]) + pitch_diff;
+  double yaw = atan2(qv[1], qv[0]) + yaw_diff;
+  result[0] = cos(pitch) * cos(yaw);
+  result[1] = cos(pitch) * sin(yaw);
+  result[2] = sin(pitch);
 }
 
 void Sierpinski::get_wand_projection(double q[4], int *laser_index, double result[3]) {

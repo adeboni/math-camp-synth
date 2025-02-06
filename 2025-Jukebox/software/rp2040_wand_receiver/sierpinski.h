@@ -31,10 +31,14 @@ class Sierpinski {
     double surfaces[3][4][3];
     double plane_normals[3][3];
     double wand_vector[3] = {0, -1, 0};
-    double yaw_matrix[3][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
-    double pitch_matrix[3][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
     double trans_matrix[3][4][4];
     double inv_trans_matrix[3][4][4];
+
+    double yaw_matrix[3][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
+    double pitch_matrix[3][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
+
+    double yaw_diff = 0.0;
+    double pitch_diff = 0.0;
 };
 
 #endif
