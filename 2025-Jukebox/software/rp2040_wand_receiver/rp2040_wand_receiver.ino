@@ -295,9 +295,9 @@ void checkWandButton() {
   for (int i = 0; i < 4 && i < numWandsConnected; i++) {
     if (buttonPressedTime[i] > 0 && millis() - buttonPressedTime[i] > 2000)
       laserGen.calibrate_wand(wandData[i].x, wandData[i].y, wandData[i].z, wandData[i].w);
-    if (!wandData[i].buttonPressed)
+    if (!wandData[i].buttonPressed && buttonPressedTime[i] != 0)
       buttonPressedTime[i] = 0;
-    else if (buttonPressedTime[i] == 0)
+    else if (wandData[i].buttonPressed && buttonPressedTime[i] == 0)
       buttonPressedTime[i] = millis();
   }
 }

@@ -32,18 +32,18 @@ void Sierpinski::init() {
   };
 
   find_edge_pos(edges[4][0], edges[4][1], projection_bottom, surfaces[0][0]);
-  find_edge_pos(edges[4][0], edges[4][1], projection_top, surfaces[0][1]);
-  find_edge_pos(edges[5][0], edges[5][1], projection_top, surfaces[0][2]);
+  find_edge_pos(edges[4][0], edges[4][1], projection_top,    surfaces[0][1]);
+  find_edge_pos(edges[5][0], edges[5][1], projection_top,    surfaces[0][2]);
   find_edge_pos(edges[5][0], edges[5][1], projection_bottom, surfaces[0][3]);
 
   find_edge_pos(edges[3][0], edges[3][1], projection_bottom, surfaces[1][0]);
-  find_edge_pos(edges[3][0], edges[3][1], projection_top, surfaces[1][1]);
-  find_edge_pos(edges[5][0], edges[5][1], projection_top, surfaces[1][2]);
+  find_edge_pos(edges[3][0], edges[3][1], projection_top,    surfaces[1][1]);
+  find_edge_pos(edges[5][0], edges[5][1], projection_top,    surfaces[1][2]);
   find_edge_pos(edges[5][0], edges[5][1], projection_bottom, surfaces[1][3]);
 
   find_edge_pos(edges[3][0], edges[3][1], projection_bottom, surfaces[2][0]);
-  find_edge_pos(edges[3][0], edges[3][1], projection_top, surfaces[2][1]);
-  find_edge_pos(edges[4][0], edges[4][1], projection_top, surfaces[2][2]);
+  find_edge_pos(edges[3][0], edges[3][1], projection_top,    surfaces[2][1]);
+  find_edge_pos(edges[4][0], edges[4][1], projection_top,    surfaces[2][2]);
   find_edge_pos(edges[4][0], edges[4][1], projection_bottom, surfaces[2][3]);
 
   for (int i = 0; i < 3; i++)
@@ -101,7 +101,7 @@ void Sierpinski::calibrate_wand_position(double q[4]) {
   double center_line_p2[3] = {0, 0, tetra_height};
 
   double center_point[3];
-  find_edge_pos(center_line_p1, center_line_p2, projection_bottom  + (projection_top - projection_bottom) / 2, center_point);
+  find_edge_pos(center_line_p1, center_line_p2, (projection_top + projection_bottom) / 2, center_point);
 
   double target_vector[3] = {center_point[0], center_point[1], center_point[2] - WAND_HEIGHT};
   norm(3, target_vector, target_vector);
@@ -165,7 +165,7 @@ void Sierpinski::apply_quaternion(double q[4], double result[3]) {
   double v2[3] = {sqrt(1 - qv[2] * qv[2]), 0, qv[2]};
   double dot_result2[3];
   dot_mv(3, &pitch_matrix[0][0], v2, dot_result2);
-  double v3[3] = {v1[0], v1[1], v2[2]};
+  double v3[3] = {dot_result1[0], dot_result1[1], dot_result2[2]};
   norm(3, v3, result);
 }
 
@@ -196,6 +196,8 @@ void Sierpinski::get_wand_projection(double q[4], int *laser_index, double resul
       return;
     }
   }
+
+  *laser_index = -1;
 }
 
 rgb_t Sierpinski::get_wand_rotation_color(double q[4], int degree_offset) {
