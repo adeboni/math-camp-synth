@@ -34,9 +34,6 @@ class Sierpinski {
     double trans_matrix[3][4][4];
     double inv_trans_matrix[3][4][4];
 
-    double yaw_matrix[3][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
-    double pitch_matrix[3][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
-
     double yaw_diff = 0.0;
     double pitch_diff = 0.0;
 };

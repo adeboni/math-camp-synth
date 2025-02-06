@@ -101,44 +101,6 @@ void Sierpinski::init() {
   calibrate_wand_position(q);
 }
 
-/*
-void Sierpinski::calibrate_wand_position(double q[4]) {
-  double center_line_p1[3] = {
-    (vertices[0][0] + vertices[2][0]) / 2.0,
-    (vertices[0][1] + vertices[2][1]) / 2.0,
-    (vertices[0][2] + vertices[2][2]) / 2.0
-  };
-  double center_line_p2[3] = {0, 0, tetra_height};
-
-  double center_point[3];
-  find_edge_pos(center_line_p1, center_line_p2, (projection_top + projection_bottom) / 2, center_point);
-
-  double target_vector[3] = {center_point[0], center_point[1], center_point[2] - WAND_HEIGHT};
-  norm(3, target_vector, target_vector);
-
-  double wand_pos[3];
-  rotate(q, wand_vector, wand_pos);
-
-  double cross_result[3];
-  cross(wand_pos, target_vector, cross_result);
-
-  double dot = 0.0;
-  for (int i = 0; i < 3; i++)
-    dot += wand_pos[i] * target_vector[i];
-
-  double target_yaw = atan2(cross_result[2], dot);
-  double target_pitch = asin(wand_pos[2]) - asin(target_vector[2]);
-  yaw_matrix[0][0] = cos(target_yaw);
-  yaw_matrix[0][1] = -sin(target_yaw);
-  yaw_matrix[1][0] = sin(target_yaw);
-  yaw_matrix[1][1] = cos(target_yaw);
-  pitch_matrix[0][0] = cos(target_pitch);
-  pitch_matrix[0][2] = sin(target_pitch);
-  pitch_matrix[2][0] = -sin(target_pitch);
-  pitch_matrix[2][2] = cos(target_pitch);
-}
-*/
-
 void Sierpinski::calibrate_wand_position(double q[4]) {
   double center_line_p1[3] = {
     (vertices[0][0] + vertices[2][0]) / 2.0,
@@ -191,20 +153,6 @@ void Sierpinski::get_laser_rect_interior(uint16_t result[4]) {
   result[2] = (uint16_t)bottom1.y;
   result[3] = (uint16_t)top1.y;
 }
-/*
-void Sierpinski::apply_quaternion(double q[4], double result[3]) {
-  double qv[3];
-  rotate(q, wand_vector, qv);
-  double _v1[3] = {qv[0], qv[1], 0};
-  double v1[3];
-  dot_mv(3, &yaw_matrix[0][0], _v1, v1);
-  double _v2[3] = {sqrt(1.0 - qv[2] * qv[2]), 0, qv[2]};
-  double v2[3];
-  dot_mv(3, &pitch_matrix[0][0], _v2, v2);
-  double v3[3] = {v1[0], v1[1], v2[2]};
-  norm(3, v3, result);
-}
-*/
 
 void Sierpinski::apply_quaternion(double q[4], double result[3]) {
   double qv[3];
