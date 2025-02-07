@@ -75,7 +75,7 @@ laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
   laser_point_x3_t points;
   audioBufIndex = (audioBufIndex + 1) % UDP_AUDIO_BUFF_SIZE;
   double audioAmp = ((double)audioBuffer[audioBufIndex] - 128);
-  colorOffset += 0.02;
+  colorOffset += 0.005;
 
   double r1 = audioAmp * 2.5 + 100.0;
   angle += 2;
@@ -88,7 +88,7 @@ laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
 
   uint16_t cx = (uint16_t)(cos(angle * PI / 180.0) * r1 + circleX);
   uint16_t cy = (uint16_t)(sin(angle * PI / 180.0) * r1 + circleY);
-  rgb_t c1 = sier.get_color_from_angle((int)(angle * 0.2 + colorOffset));
+  rgb_t c1 = sier.get_color_from_angle((int)(angle * 0.005 + colorOffset));
   points.p[0] = (laser_point_t) { cx, cy, c1.r, c1.g, c1.b };
 
 
