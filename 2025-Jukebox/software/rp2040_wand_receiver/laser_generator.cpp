@@ -88,7 +88,7 @@ laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
 
   uint16_t cx = (uint16_t)(cos(angle * PI / 180.0) * r1 + circleX);
   uint16_t cy = (uint16_t)(sin(angle * PI / 180.0) * r1 + circleY);
-  rgb_t c1 = sier.get_color_from_angle((int)(angle + colorOffset));
+  rgb_t c1 = sier.get_color_from_angle((int)(angle * 0.2 + colorOffset));
   points.p[0] = (laser_point_t) { cx, cy, c1.r, c1.g, c1.b };
 
 
@@ -107,7 +107,7 @@ laser_point_x3_t LaserGenerator::get_audio_visualizer_point() {
   }
   
   uint16_t sineY = (uint16_t)(sin(TWO_PI / (bounds[3] - bounds[2]) * sinePeaks * sinePosX) * (sineAmp + r2) + centerY);
-  rgb_t c2 = sier.get_color_from_angle((int)(sinePosX / 5.0 + colorOffset));
+  rgb_t c2 = sier.get_color_from_angle((int)(sinePosX * 0.1 + colorOffset));
   points.p[1] = (laser_point_t) { (uint16_t)sinePosX, sineY, c2.r, c2.g, c2.b };
 
 
@@ -561,8 +561,8 @@ laser_point_x3_t LaserGenerator::get_calibration_point() {
   uint8_t g = 0;
   uint8_t b = 0;
 
-  if      ((curr_index / 20) % 3 == 0) r = 255;
-  else if ((curr_index / 20) % 3 == 1) g = 255;
+  if      ((curr_index / 40) % 3 == 0) r = 255;
+  else if ((curr_index / 40) % 3 == 1) g = 255;
   else                                 b = 255;
 
   laser_point_t lp = (laser_point_t){
