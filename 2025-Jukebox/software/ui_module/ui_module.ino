@@ -244,7 +244,7 @@ void checkForPacket() {
         lcd1.print(currentSong[0] == 0 ? "None" : currentSong);
 
         lcd1.setCursor(0, 1);
-        lcd1.print("Queue: ");
+        lcd1.print("Queue:                                  ");
     
         for (uint8_t i = 0; i < songQueueLength; i++) {
           uint16_t songIndex = ((uint16_t)packetBuffer[6 + i * 2] << 8) | (uint16_t)packetBuffer[6 + i * 2 + 1];

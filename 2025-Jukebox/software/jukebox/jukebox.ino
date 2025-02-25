@@ -370,7 +370,8 @@ void stopAudio() {
 }
 
 void updateAudio() {
-  out->SetGain(analogRead(VOL_PIN) / 1023.0);
+  float volume = analogRead(VOL_PIN) / 1023.0f;
+  out->SetGain(volume > 0.05 ? volume : 0);
 
   if (nextJukeboxMode != JUKEBOX_MODE_INVALID) {
     if (jukeboxMode == JUKEBOX_MODE_MUSIC) {
