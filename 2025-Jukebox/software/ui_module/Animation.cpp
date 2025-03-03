@@ -140,7 +140,7 @@ void Animation::motors_spin() {
 
   if (millis() - lastUpdate > 3000) {
     for (int i = 0; i < 3; i++)
-      motorPattern[i] = random(2) * 5;
+      motorPattern[i] = random(2) * 4;
     lastUpdate = millis();
   }
 
