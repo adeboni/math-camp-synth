@@ -56,6 +56,7 @@
 #define MENU_MODE_SONG_QUEUE    2
 #define MENU_MODE_JUKEBOX_MODE  3
 #define MENU_MODE_WAND_DATA     4
+#define MENU_MODE_VOLUME_DATA   5
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 32
@@ -126,6 +127,9 @@ uint8_t menuMode = MENU_MODE_SELECTED_SONG;
 uint8_t jukeboxMode = JUKEBOX_MODE_MUSIC;
 uint8_t nextJukeboxMode = JUKEBOX_MODE_INVALID;
 bool displayUpdating = false;
+
+uint16_t volumeRaw = 0;
+float volume = 0;
 
 File file;
 AudioFileSourceSD *sdSource;
@@ -370,8 +374,10 @@ void stopAudio() {
 }
 
 void updateAudio() {
-  float volume = analogRead(VOL_PIN) / 1023.0f;
-  out->SetGain(volume > 0.05 ? volume : 0);
+  volumeRaw = analogRead(VOL_PIN);
+  volume = volumeRaw / 1023.0f;
+  out->SetGain(volume);
+  //out->SetGain(volume > 0.02 ? volume : 0);
 
   if (nextJukeboxMode != JUKEBOX_MODE_INVALID) {
     if (jukeboxMode == JUKEBOX_MODE_MUSIC) {
@@ -471,7 +477,7 @@ void buttonAction(int index) {
       if (currentLetter > 0) currentLetter--;
       break;
     case 7:
-      menuMode = (menuMode + 1) % 5;
+      menuMode = (menuMode + 1) % 6;
       break;
     default:
       break;
@@ -538,6 +544,11 @@ void updateDisplay() {
         display.print(buf);
         display.print(" ");
         display.print(wandButtonPressed);
+      case MENU_MODE_VOLUME_DATA:
+        display.println("Volume Data:");
+        display.print(volumeRaw);
+        display.print(" ");
+        display.print(volume);
       default:
         break;
     }
