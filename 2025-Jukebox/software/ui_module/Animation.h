@@ -9,6 +9,7 @@
 #define AM_MOUTH_PULSE     1
 #define AM_MOTORS_SPIN     2
 #define AM_LAMP_MORSE_CODE 3
+#define AM_ALL             4
 
 #define NUM_MORSE_PHRASES  3
 #define MORSE_TIME_UNIT_MS 200

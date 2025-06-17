@@ -72,16 +72,22 @@ void Animation::update() {
   }
 
   switch (currentMode) {
-    case 0:
+    case AM_DOTS_NIGHTRIDER:
       dots_nightrider();
       break;
-    case 1:
+    case AM_MOUTH_PULSE:
       mouth_pulse();
       break;
-    case 2:
+    case AM_MOTORS_SPIN:
       motors_spin();
       break;
-    case 3:
+    case AM_LAMP_MORSE_CODE:
+      lamp_morse_code();
+      break;
+    case AM_ALL:
+      dots_nightrider();
+      mouth_pulse();
+      motors_spin();
       lamp_morse_code();
       break;
     default:
@@ -139,8 +145,14 @@ void Animation::motors_spin() {
   static unsigned long lastUpdate = 0;
 
   if (millis() - lastUpdate > 3000) {
-    for (int i = 0; i < 3; i++)
-      motorPattern[i] = random(2) * 4;
+    while (true) {
+      uint8_t sum = 0;
+      for (int i = 0; i < 3; i++) {
+        motorPattern[i] = random(2) * 4;
+        sum += motorPattern[i];
+      }
+      if (sum > 0) break;
+    }
     lastUpdate = millis();
   }
 

@@ -278,6 +278,7 @@ void checkButtons() {
   static unsigned long lastButtonCheck = 0;
   static uint8_t mode_states[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
   static uint8_t button_states[7] = { 0, 0, 0, 0, 0, 0, 0 };
+  static uint8_t animation_step = 0;
 
   if (millis() - lastButtonCheck > 50) {
     for (int i = 0; i < 8; i++) {
@@ -299,15 +300,22 @@ void checkButtons() {
         switch (i) {
           case 0:
             ani.forceAnimation(AM_DOTS_NIGHTRIDER);
+            animation_step = animation_step == 0 ? 1 : 0;
             break;
           case 1:
             ani.forceAnimation(AM_MOUTH_PULSE);
+            animation_step = animation_step == 1 ? 2 : 0;
             break;
           case 2:
             ani.forceAnimation(AM_MOTORS_SPIN);
+            animation_step = animation_step == 2 ? 3 : 0;
             break;
           case 3:
-            ani.forceAnimation(AM_LAMP_MORSE_CODE);
+            if (animation_step == 3)
+              ani.forceAnimation(AM_ALL);
+            else
+              ani.forceAnimation(AM_LAMP_MORSE_CODE);
+            animation_step = 0;
             break;
           default:
             break;
