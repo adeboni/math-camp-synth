@@ -585,7 +585,7 @@ int dequeueSong() {
 }
 
 void logSong(int index) {
-  File f = SD.open("play_log.txt", FILE_WRITE);
+  File f = SD.open("/play_log.txt", FILE_WRITE);
   if (f) {
     f.println(songList[index]);
     f.close();
