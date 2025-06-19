@@ -141,14 +141,14 @@ void Animation::mouth_pulse() {
 }
 
 void Animation::motors_spin() {
-  static uint8_t motorPattern[3] = {0, 0, 0};
+  static uint8_t motorPattern[3] = {1, 1, 1};
   static unsigned long lastUpdate = 0;
 
   if (millis() - lastUpdate > 3000) {
     while (true) {
       uint8_t sum = 0;
       for (int i = 0; i < 3; i++) {
-        motorPattern[i] = random(2) * 4;
+        motorPattern[i] = random(2);
         sum += motorPattern[i];
       }
       if (sum > 0) break;
@@ -157,7 +157,7 @@ void Animation::motors_spin() {
   }
 
   for (int i = 0; i < 3; i++)
-    _io2->analogWrite(_motors[i], motorPattern[i]);
+    _io2->analogWrite(_motors[i], motorPattern[i] * 4);
 }
 
 int Animation::expandMorseCode(int phraseIndex, uint8_t *phrase) {
