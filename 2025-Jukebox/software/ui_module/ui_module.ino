@@ -299,22 +299,28 @@ void checkButtons() {
         buttonsToSend[i] = 1;
         switch (i) {
           case 0:
+            ani.setLength(20000);
             ani.forceAnimation(AM_DOTS_NIGHTRIDER);
             animation_step = animation_step == 0 ? 1 : 0;
             break;
           case 1:
+            ani.setLength(20000);
             ani.forceAnimation(AM_MOUTH_PULSE);
             animation_step = animation_step == 1 ? 2 : 0;
             break;
           case 2:
+            ani.setLength(20000);
             ani.forceAnimation(AM_MOTORS_SPIN);
             animation_step = animation_step == 2 ? 3 : 0;
             break;
           case 3:
-            if (animation_step == 3)
+            if (animation_step == 3) {
+              ani.setLength(40000);
               ani.forceAnimation(AM_ALL);
-            else
+            } else {
+              ani.setLength(20000);
               ani.forceAnimation(AM_LAMP_MORSE_CODE);
+            }
             animation_step = 0;
             break;
           default:

@@ -35,8 +35,8 @@ class Animation {
     uint8_t *_mouth;
 
     bool running = false;
-    unsigned long interval = 30000;
-    unsigned long length = 10000;
+    unsigned long interval = 60000;
+    unsigned long length = 20000;
     unsigned long nextUpdateTime = 0;
     unsigned long startTime = 0;
     int currentMode = -1;
