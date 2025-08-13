@@ -30,7 +30,7 @@ class Song:
 class SongHandler:
     """Class implementing a song handler"""
     def __init__(self):
-        self.songs = [Song(os.path.join('songs', file), i) for i, file in enumerate(sorted(os.listdir('songs')))]
+        self.songs = [Song(os.path.join('songs', file), i) for i, file in enumerate(sorted(os.listdir('songs'), key=lambda x: x.lower()))]
         print(f'Found {len(self.songs)} songs')
 
     def get_booklet_letter_limit(self) -> str:
